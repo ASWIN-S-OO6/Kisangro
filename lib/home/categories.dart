@@ -6,11 +6,11 @@ import 'package:dotted_border/dotted_border.dart'; // For dotted borders around 
 import 'package:provider/provider.dart'; // For state management (accessing KycImageProvider)
 
 import 'package:flutter/material.dart';
-// import 'package:kisangro/categories/page1.dart'; // This import might not be needed anymore if no longer navigating here
 import 'package:kisangro/home/membership.dart'; // Assuming this page exists
 import 'package:kisangro/home/myorder.dart'; // Assuming this page exists
 import 'package:kisangro/home/noti.dart'; // Assuming this page exists
 import 'package:kisangro/menu/wishlist.dart'; // Assuming this page exists
+import 'package:kisangro/services/product_service.dart'; // Import ProductService to fetch categories
 
 import '../login/login.dart'; // For logout navigation
 import '../menu/account.dart'; // For My Account navigation
@@ -19,9 +19,11 @@ import '../menu/logout.dart'; // For LogoutConfirmationDialog
 import '../menu/setting.dart'; // For Settings navigation
 import '../menu/transaction.dart'; // For Transaction History navigation
 import '../models/kyc_image_provider.dart'; // Import your custom KYC image provider
-import 'package:kisangro/categories/category_products_screen.dart'; // NEW: Import the new category products screen
+import 'package:kisangro/categories/category_products_screen.dart'; // Import the new category products screen
 
 class ProductCategoriesScreen extends StatefulWidget {
+  const ProductCategoriesScreen({super.key}); // Add const constructor
+
   @override
   _ProductCategoriesScreenState createState() =>
       _ProductCategoriesScreenState();
@@ -29,18 +31,50 @@ class ProductCategoriesScreen extends StatefulWidget {
 
 class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey =
-      GlobalKey<ScaffoldState>(); // Key for Scaffold to open drawer
-  final PageController _pageController = PageController(viewportFraction: 0.9);
-  // Note: _currentPage, _timer, _currentLocation are not used in this specific screen
-  // but were copied from homepage.dart. They can be removed if strictly not needed.
-  int _currentPage = 0;
-  late Timer _timer;
-  String _currentLocation = 'Detecting...';
+  GlobalKey<ScaffoldState>(); // Key for Scaffold to open drawer
+
+  // Removed _currentPage, _pageController, _timer, _currentLocation as they are not used here.
 
   double _rating = 4.0; // Initial rating for the review dialog
   final TextEditingController _reviewController =
-      TextEditingController(); // Controller for review text field
+  TextEditingController(); // Controller for review text field
   static const int maxChars = 100; // Max characters for review
+
+  List<Map<String, String>> _categories = []; // Now dynamically loaded
+  bool _isLoading = true; // To show loading indicator for categories
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories(); // Load categories when the screen initializes
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoading = true; // Start loading
+    });
+    try {
+      await ProductService.loadCategoriesFromApi(); // Ensure categories are fetched
+      if (mounted) {
+        setState(() {
+          _categories = ProductService.getAllCategories();
+          _isLoading = false; // Stop loading
+          debugPrint('ProductCategoriesScreen: Loaded ${_categories.length} categories.');
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading categories in ProductCategoriesScreen: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false; // Stop loading even on error
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load categories: $e')),
+          );
+        });
+      }
+    }
+  }
+
 
   /// Shows a confirmation dialog for logging out, clears navigation stack.
   void _showLogoutDialog(BuildContext context) {
@@ -54,7 +88,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => LoginApp()),
-            (Route<dynamic> route) => false, // Remove all routes below
+                (Route<dynamic> route) => false, // Remove all routes below
           );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Logged out successfully!')),
@@ -145,7 +179,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                         ),
                       ),
                       onChanged: (_) => setState(
-                          () {}), // Rebuild to update character count dynamically
+                              () {}), // Rebuild to update character count dynamically
                     ),
                     const SizedBox(height: 4),
                     Align(
@@ -213,10 +247,10 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                                           Navigator.pop(context), // Close thank you dialog
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            const Color(0xffEB7720),
+                                        const Color(0xffEB7720),
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
-                                              BorderRadius.circular(8),
+                                          BorderRadius.circular(8),
                                         ),
                                       ),
                                       child: Text(
@@ -251,42 +285,8 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
     );
   }
 
-  // Categories data for the grid view
-  final List<Map<String, String>> categories = [
-    {'title': 'Insecticide', 'image': 'assets/grid1.png'},
-    {'title': 'Fungicide', 'image': 'assets/grid2.png'},
-    {'title': 'Herbicide', 'image': 'assets/grid3.png'},
-    {'title': 'Plant Growth Promoter', 'image': 'assets/grid4.png'},
-    {'title': 'Micro Nutrients', 'image': 'assets/grid5.png'},
-    {'title': 'Bio Stimulants', 'image': 'assets/grid6.png'},
-    {'title': 'Water Soluble Fertilizers', 'image': 'assets/grid7.png'},
-    {'title': 'Liquid Fertilizers', 'image': 'assets/grid8.png'},
-    {'title': 'Organic Fertilizers', 'image': 'assets/grid9.png'},
-    {'title': 'Bio-Fertilizers & Bio-Pesticides', 'image': 'assets/grid10.png'},
-    {'title': 'Specialty Product', 'image': 'assets/grid11.png'},
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    // This timer logic is usually for image sliders, not typically needed in a static grid.
-    // Keeping it as per your original code, but it might be redundant here.
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_pageController.hasClients) {
-        int nextPage = (_currentPage + 1) % categories.length;
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
-  }
-
   @override
   void dispose() {
-    _timer.cancel();
-    _pageController.dispose();
     _reviewController.dispose();
     super.dispose();
   }
@@ -338,7 +338,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => MyOrder()));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyOrder())); // Added const
             },
             icon: Image.asset(
               'assets/box.png',
@@ -350,7 +350,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
           IconButton(
             onPressed: () {
               Navigator.push(
-                  context, MaterialPageRoute(builder: (context) =>  WishlistPage()));
+                  context, MaterialPageRoute(builder: (context) => const WishlistPage())); // Added const
             },
             icon: Image.asset(
               'assets/heart.png',
@@ -363,7 +363,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
             padding: const EdgeInsets.only(right: 10.0),
             child: IconButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => noti()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const noti())); // Added const
               },
               icon: Image.asset(
                 'assets/noti.png',
@@ -390,8 +390,10 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
         ),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
-          child: GridView.builder(
-            itemCount: categories.length,
+          child: _isLoading // Show loading indicator if categories are not loaded
+              ? const Center(child: CircularProgressIndicator(color: Color(0xffEB7720)))
+              : GridView.builder(
+            itemCount: _categories.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               mainAxisSpacing: 12,
@@ -399,16 +401,17 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
               childAspectRatio: 0.85,
             ),
             itemBuilder: (context, index) {
-              final category = categories[index];
+              final category = _categories[index];
               return GestureDetector(
                 onTap: () {
                   // Navigate to the generic CategoryProductsScreen
-                  // Pass the category title to the new screen
+                  // Pass the category title AND the cat_id to the new screen
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => CategoryProductsScreen(
-                        categoryTitle: category['title']!,
+                        categoryTitle: category['label']!, // Use 'label' key
+                        categoryId: category['cat_id']!, // Pass the 'cat_id'
                       ),
                     ),
                   );
@@ -429,7 +432,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        category['image']!,
+                        category['icon']!, // Use 'icon' key
                         height: 40,
                         width: 40,
                         fit: BoxFit.contain,
@@ -438,11 +441,13 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6.0),
                         child: Text(
-                          category['title']!,
+                          category['label']!, // Use 'label' key
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                             fontSize: 13,
-                          ), // Use GoogleFonts.poppins for consistency
+                          ),
+                          maxLines: 2, // Allow two lines for category titles
+                          overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
                         ),
                       ),
                     ],
@@ -480,18 +485,18 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                             kycImageProvider.kycImageBytes; // Get image bytes
                         return kycImageBytes != null
                             ? Image.memory(
-                                // Display image from bytes if available
-                                kycImageBytes,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              )
+                          // Display image from bytes if available
+                          kycImageBytes,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        )
                             : Image.asset(
-                                'assets/profile.png', // Fallback to default profile image
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              );
+                          'assets/profile.png', // Fallback to default profile image
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        );
                       },
                     ),
                   ),
@@ -509,15 +514,15 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            width: 400, // Fixed width for the button
+            width: double.infinity, // Changed to double.infinity
             child: Padding(
-              padding: const EdgeInsets.only(left: 100),
+              padding: const EdgeInsets.only(left: 0), // Removed left padding to center
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => MembershipDetailsScreen(), // Navigate to membership screen
+                      builder: (context) => const MembershipDetailsScreen(), // Added const
                     ),
                   );
                 },
@@ -528,6 +533,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                   ),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center, // Center content in button
                   children: [
                     Text(
                       "Not A Member Yet",
@@ -539,6 +545,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                     const Icon(
                       Icons.arrow_forward_ios_outlined,
                       color: Colors.white70,
+                      size: 14, // Adjusted size for better visual balance
                     ),
                   ],
                 ),
@@ -569,32 +576,35 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
             ),
           ),
           onTap: () {
+            // Close the drawer before navigating
+            Navigator.pop(context);
+
             // Handle navigation based on the tapped menu item label
             switch (label) {
               case 'My Account':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => MyAccountPage()),
+                  MaterialPageRoute(builder: (context) => const MyAccountPage()), // Added const
                 );
                 break;
               case 'Wishlist': // Added Wishlist navigation
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => WishlistPage()),
+                  MaterialPageRoute(builder: (context) => const WishlistPage()), // Added const
                 );
                 break;
               case 'Transaction History':
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TransactionHistoryPage(),
+                    builder: (context) =>  TransactionHistoryPage(), // Added const
                   ),
                 );
                 break;
               case 'Ask Us!':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => AskUsPage()),
+                  MaterialPageRoute(builder: (context) =>  AskUsPage()), // Added const
                 );
                 break;
               case 'Rate Us':
@@ -603,7 +613,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
               case 'Settings':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => SettingsPage()),
+                  MaterialPageRoute(builder: (context) =>  SettingsPage()), // Added const
                 );
                 break;
               case 'Logout':
@@ -611,9 +621,15 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                 break;
               case 'About Us':
               // Handle About Us navigation
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('About Us page coming soon!')),
+                );
                 break;
               case 'Share Kisangro':
               // Handle Share functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Share functionality coming soon!')),
+                );
                 break;
             }
           },

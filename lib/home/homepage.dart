@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // For custom fonts
 import 'package:carousel_slider/carousel_slider.dart'; // For carousel functionality
 import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // For rating UI
-import 'package:kisangro/categories/page1.dart'; // ProductCategoriesScreen
-import 'package:kisangro/home/categories.dart'; // ProductCategoriesScreen
+// ProductCategoriesScreen (old reference)
+import 'package:kisangro/home/categories.dart'; // ProductCategoriesScreen (updated reference)
 import 'package:kisangro/home/product.dart'; // ProductDetailPage
 import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // For carousel page indicators
 import 'package:dotted_border/dotted_border.dart'; // For dotted borders
@@ -29,14 +29,12 @@ import 'package:kisangro/payment/payment3.dart'; // Import PaymentPage
 
 
 // Category-specific product screens
-import 'package:kisangro/categories/insecticide_screen.dart';
- // Added back missing import for completeness
-import 'package:kisangro/categories/herbicide_screen.dart';
-import 'package:kisangro/categories/plant_growth_promoter_screen.dart';
-import 'package:kisangro/categories/bio_stimulants_screen.dart';
+
+
 
 
 // Menu imports
+import '../categories/category_products_screen.dart';
 import '../login/login.dart'; // LoginApp
 import '../menu/account.dart'; // MyAccountPage
 import '../menu/ask.dart'; // AskUsPage
@@ -65,7 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
   TextEditingController(); // Controller for review text field
   static const int maxChars = 100; // Max characters for review
 
-  // --- Dynamic product lists, populated from ProductService ---
+  // --- Dynamic product lists, populated from ProductService.getAllProducts() ---
+  // This ensures the homepage still displays products from the main API call (type=1041).
   List<Product> _trendingItems = [];
   List<Product> _newOnKisangroItems = [];
   List<Map<String, String>> _categories = []; // Now dynamic
@@ -125,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // with the latest from the API before populating local state.
     try {
       await ProductService.loadProductsFromApi(); // Re-fetch products from API (POST request with type=1041)
-      await ProductService.loadCategoriesFromApi(); // Ensure categories are loaded
+      await ProductService.loadCategoriesFromApi(); // Ensure categories are loaded (type=1043)
     } catch (e) {
       debugPrint('Error during initial data load/refresh: $e');
       // Optionally, show a snackbar or an error message to the user
@@ -561,8 +560,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (context) =>   ProductCategoriesScreen())); // Navigates to the general categories screen
+                        // Navigates to the general categories screen (lib/home/categories.dart)
+                        Navigator.push(context, MaterialPageRoute(builder: (context) =>  ProductCategoriesScreen()));
                       },
                       child: Text(
                         "View All",
@@ -577,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 290, // Height for horizontal product list
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _trendingItems.length, // Use dynamic trending items
+                  itemCount: _trendingItems.length, // Uses _trendingItems populated from ProductService.getAllProducts()
                   padding: const EdgeInsets.only(left: 12),
                   itemBuilder: (context, index) {
                     final product = _trendingItems[index]; // Use dynamic product
@@ -636,21 +635,28 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 // Handle both network and asset images for deals if necessary
-                                _getEffectiveImageUrl(deal['image']!).startsWith('http')
-                                    ? Image.network(
-                                  _getEffectiveImageUrl(deal['image']!),
-                                  width: 80,
-                                  height: 80,
-                                  errorBuilder: (context, error, stackTrace) => Image.asset(
-                                    'assets/placeholder.png',
-                                    width: 80,
-                                    height: 80,
+                                // Apply the same refined image handling for deals as well
+                                SizedBox(
+                                  width: double.infinity, // Take full width of parent column
+                                  height: 80, // Fixed height for the deal image display area
+                                  child: Center( // Center the AspectRatio/Image within this fixed height box
+                                    child: AspectRatio(
+                                      aspectRatio: 1.0, // Aim for a square image container within the 100px height
+                                      child: _getEffectiveImageUrl(deal['image']!).startsWith('http')
+                                          ? Image.network(
+                                        _getEffectiveImageUrl(deal['image']!),
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => Image.asset(
+                                          'assets/placeholder.png',
+                                          fit: BoxFit.contain,
+                                        ),
+                                      )
+                                          : Image.asset(
+                                        _getEffectiveImageUrl(deal['image']!),
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
                                   ),
-                                )
-                                    : Image.asset(
-                                  _getEffectiveImageUrl(deal['image']!),
-                                  width: 80,
-                                  height: 80,
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
@@ -744,39 +750,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                       ),
-                      itemCount: _categories.length, // Use dynamic categories
+                      itemCount: _categories.length, // Uses _categories populated from ProductService.getAllCategories()
                       itemBuilder: (context, index) {
                         final categoryItem = _categories[index];
                         final categoryLabel = categoryItem['label']!;
                         final categoryIcon = categoryItem['icon']!;
-                        Widget targetScreen;
-
-                        // Determine the target screen based on category label
-                        switch (categoryLabel) {
-                          case 'INSECTICIDE':
-                            targetScreen = const InsecticideScreen();
-                            break;
-                          case 'FUNGICIDE':
-                            targetScreen = const FungicideScreen();
-                            break;
-                          case 'HERBICIDE':
-                            targetScreen = const HerbicideScreen();
-                            break;
-                          case 'PLANT GROWTH REGULATOR':
-                            targetScreen = const PlantGrowthPromoterScreen();
-                            break;
-                          case 'ORGANIC BIOSTIMULANT':
-                            targetScreen = const BioStimulantsScreen();
-                            break;
-                          case 'LIQUID FERTILIZER':
-                          case 'MICRONUTRIENTS':
-                          case 'BIO FERTILISER':
-                            targetScreen =  ProductCategoriesScreen(); // Fallback to general categories
-                            break;
-                          default:
-                            targetScreen =  ProductCategoriesScreen(); // Fallback
-                            break;
-                        }
+                        final categoryId = categoryItem['cat_id']!; // Get the cat_id
 
                         return GestureDetector( // Added GestureDetector for category tiles
                           onTap: () {
@@ -784,7 +763,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => targetScreen,
+                                builder: (context) => CategoryProductsScreen(
+                                  categoryTitle: categoryLabel,
+                                  categoryId: categoryId, // Pass the category ID
+                                ),
                               ),
                             );
                           },
@@ -872,7 +854,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     GridView.builder(
                       physics: const NeverScrollableScrollPhysics(), // Disable scrolling for GridView
                       shrinkWrap: true,
-                      itemCount: _newOnKisangroItems.length, // Use dynamic new products
+                      itemCount: _newOnKisangroItems.length, // Uses _newOnKisangroItems populated from ProductService.getAllProducts()
                       gridDelegate:
                       const SliverGridDelegateWithMaxCrossAxisExtent(
                         maxCrossAxisExtent: 200, // Max width for items
@@ -912,6 +894,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSize: MainAxisSize.min, // Allows column to take minimum vertical space
         crossAxisAlignment: CrossAxisAlignment.start, // Align content to start
         children: [
+          // Image Section - Refined for "autoscale" and no overflow
           GestureDetector(
             onTap: () {
               Navigator.push(
@@ -924,27 +907,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
-            child: Center( // Center the image within its available space
-              child: _getEffectiveImageUrl(product.imageUrl).startsWith('http')
-                  ? Image.network(
-                _getEffectiveImageUrl(product.imageUrl),
-                height: 100, // Fixed height for image
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Image.asset(
-                  'assets/placeholder.png',
-                  height: 100,
-                  fit: BoxFit.contain,
+            child: SizedBox(
+              width: double.infinity, // Take full width of parent column
+              height: 100, // Fixed height for the image display area
+              child: Center( // Center the AspectRatio/Image within this fixed height box
+                child: AspectRatio(
+                  aspectRatio: 1.0, // Aim for a square image container within the 100px height
+                  child: _getEffectiveImageUrl(product.imageUrl).startsWith('http')
+                      ? Image.network(
+                    _getEffectiveImageUrl(product.imageUrl),
+                    fit: BoxFit.contain, // Image scales to fit within the square AspectRatio, preserving aspect ratio
+                    errorBuilder: (context, error, stackTrace) => Image.asset(
+                      'assets/placeholder.png',
+                      fit: BoxFit.contain,
+                    ),
+                  )
+                      : Image.asset(
+                    _getEffectiveImageUrl(product.imageUrl),
+                    fit: BoxFit.contain, // Image scales to fit within the square AspectRatio, preserving aspect ratio
+                  ),
                 ),
-              )
-                  : Image.asset(
-                _getEffectiveImageUrl(product.imageUrl),
-                height: 100, // Fixed height for image
-                fit: BoxFit.contain,
               ),
             ),
           ),
           const Divider(),
-          const SizedBox(height: 5), // Small spacing after divider
+          const SizedBox(height: 3), // Reduced from 5
           Text(
             product.title,
             style: GoogleFonts.poppins(
@@ -961,15 +948,6 @@ class _HomeScreenState extends State<HomeScreen> {
             maxLines: 1, // Limit to one line
             overflow: TextOverflow.ellipsis,
           ),
-          Text(
-            'Unit Size: ${product.selectedUnit}',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: const Color(0xffEB7720),
-            ),
-            maxLines: 1, // Limit to one line
-            overflow: TextOverflow.ellipsis,
-          ),
           // Price display (if available and greater than 0)
           // NOTE: Price will show '0.00' or not at all if API doesn't provide 'mrp' for sizes.
           if (product.pricePerSelectedUnit != null && product.pricePerSelectedUnit! > 0)
@@ -982,7 +960,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-          const SizedBox(height: 8), // Spacing before dropdown
+          const SizedBox(height: 5), // Reduced from 8
           SizedBox(
             height: 36, // Fixed height for dropdown to prevent it from growing too much
             child: DropdownButtonHideUnderline(
@@ -1009,7 +987,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 10), // Spacing before buttons
+          const SizedBox(height: 5), // Reduced from 10
           Row(
             children: [
               Expanded( // Ensures button takes available space
@@ -1041,36 +1019,44 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 10), // Space between add and wishlist button
-              Consumer<WishlistModel>( // Consumer for wishlist state
-                builder: (context, wishlist, child) {
-                  final bool isFavorite = wishlist.items.any(
-                        (item) => item.id == product.id && item.selectedUnit == product.selectedUnit,
-                  );
-                  return IconButton(
-                    onPressed: () {
-                      if (!mounted) return;
-                      if (isFavorite) {
-                        wishlist.removeItem(product.id, product.selectedUnit); // Remove from wishlist
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text('${product.title} removed from wishlist!'),
-                              backgroundColor: Colors.red),
-                        );
-                      } else {
-                        wishlist.addItem(product.copyWith()); // Add to wishlist
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text('${product.title} added to wishlist!'),
-                              backgroundColor: Colors.blue),
-                        );
-                      }
-                    },
-                    icon: Icon(
-                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: const Color(0xffEB7720),
-                    ),
-                  );
-                },
+              // Fixed size for IconButton to prevent horizontal overflow
+              SizedBox(
+                width: 44, // Standard IconButton size to control width
+                height: 44, // Standard IconButton size to control height
+                child: Consumer<WishlistModel>( // Consumer for wishlist state
+                  builder: (context, wishlist, child) {
+                    final bool isFavorite = wishlist.items.any(
+                          (item) => item.id == product.id && item.selectedUnit == product.selectedUnit,
+                    );
+                    return IconButton(
+                      padding: EdgeInsets.zero, // Remove default padding
+                      visualDensity: VisualDensity.compact, // Make it compact
+                      onPressed: () {
+                        if (!mounted) return;
+                        if (isFavorite) {
+                          wishlist.removeItem(product.id, product.selectedUnit); // Remove from wishlist
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('${product.title} removed from wishlist!'),
+                                backgroundColor: Colors.red),
+                          );
+                        } else {
+                          wishlist.addItem(product.copyWith()); // Add to wishlist
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('${product.title} added to wishlist!'),
+                                backgroundColor: Colors.blue),
+                          );
+                        }
+                      },
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: const Color(0xffEB7720),
+                        size: 24, // Explicitly set icon size for consistency
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
