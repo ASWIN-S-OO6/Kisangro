@@ -27,12 +27,7 @@ import 'package:kisangro/home/search_bar.dart'; // SearchScreen
 import 'package:kisangro/home/bottom.dart'; // Import the Bot widget for navigation with bottom bar
 import 'package:kisangro/payment/payment3.dart'; // Import PaymentPage
 
-
 // Category-specific product screens
-
-
-
-
 // Menu imports
 import '../categories/category_products_screen.dart';
 import '../login/login.dart'; // LoginApp
@@ -573,14 +568,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 10),
               SizedBox(
-                height: 290, // Height for horizontal product list
+                height: 300,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _trendingItems.length, // Uses _trendingItems populated from ProductService.getAllProducts()
-                  padding: const EdgeInsets.only(left: 12),
+                  itemCount: _trendingItems.length,
+                  padding: const EdgeInsets.only(left: 12, right: 12), // Add overall padding if needed
                   itemBuilder: (context, index) {
-                    final product = _trendingItems[index]; // Use dynamic product
-                    return _buildProductTile(context, product);
+                    final product = _trendingItems[index];
+                    return Padding( // Wrap _buildProductTile with Padding
+                      padding: const EdgeInsets.only(right: 12), // Add space to the right of each tile
+                      child: _buildProductTile(context, product),
+                    );
                   },
                 ),
               ),
