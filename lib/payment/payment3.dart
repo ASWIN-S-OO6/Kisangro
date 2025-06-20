@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:kisangro/home/bottom.dart'; // Assuming this is your main navigation screen
-import 'package:kisangro/home/cart.dart'; // Import if you navigate to cart from here (though not directly used in this snippet)
+import 'package:kisangro/home/bottom.dart'; // Main navigation screen
+import 'package:kisangro/home/cart.dart'; // Cart navigation
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:kisangro/models/cart_model.dart';
-import 'package:kisangro/models/order_model.dart'; // Import OrderModel and OrderStatus
-import 'package:kisangro/models/address_model.dart'; // NEW: Import AddressModel
-import 'package:intl/intl.dart'; // For date formatting if needed (though not directly used in this snippet, good practice to keep)
+import 'package:kisangro/models/order_model.dart'; // OrderModel and OrderStatus
+import 'package:kisangro/models/address_model.dart'; // AddressModel
+import 'package:intl/intl.dart'; // Date formatting
+import 'package:kisangro/home/rewards_popup.dart'; // Import RewardsPopup
 
 class PaymentPage extends StatefulWidget {
   final String orderId; // Receive the orderId from previous screen
@@ -540,12 +541,11 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   }
 
   void _handlePaymentSuccess() {
-    // We use a Future.delayed to simulate a network call/processing time
-    // and then update the order status and navigate.
+    // Simulate a network call/processing time
     Future.delayed(const Duration(seconds: 3), () {
       final orderModel = Provider.of<OrderModel>(context, listen: false);
 
-      // IMPORTANT: Update the order status to confirmed after successful payment
+      // Update the order status to confirmed after successful payment
       orderModel.updateOrderStatus(widget.orderId, OrderStatus.confirmed);
       debugPrint('Order ${widget.orderId} status updated to CONFIRMED after payment.');
 
@@ -558,6 +558,17 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
         MaterialPageRoute(builder: (_) => const Bot(initialIndex: 0)),
             (Route<dynamic> route) => false,
       );
+
+      // Show the RewardsPopup after navigation
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext dialogContext) => const RewardsPopup(coinsEarned: 100),
+          );
+        }
+      });
     });
   }
 
