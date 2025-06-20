@@ -4,12 +4,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kisangro/login/onprocess.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kisangro/login/onprocess.dart'; // Assuming KisanProApp is here or remove if not used
+import 'package:shared_preferences/shared_preferences.dart'; // Keep for general preferences
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io' show File;
+import 'package:provider/provider.dart'; // Import Provider
+import 'package:kisangro/models/license_provider.dart'; // NEW: Import LicenseProvider
 
 class licence4 extends StatefulWidget {
   final String? licenseTypeToDisplay; // New parameter
@@ -76,20 +78,56 @@ class _licence4State extends State<licence4> {
     _insecticideLicenseController.addListener(_checkFormValidity);
     _fertilizerLicenseController.addListener(_checkFormValidity);
     _checkFormValidity();
+    _loadExistingLicenseData(); // Load any previously saved license data
   }
+
+  // NEW: Load existing license data into controllers and state variables
+  Future<void> _loadExistingLicenseData() async {
+    final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+
+    // Load pesticide license data
+    final pesticideData = licenseProvider.pesticideLicense;
+    if (pesticideData != null) {
+      setState(() {
+        _insecticideLicenseController.text = pesticideData.licenseNumber ?? '';
+        _insecticideExpirationDate = pesticideData.expirationDate;
+        _insecticideNoExpiry = pesticideData.noExpiry;
+        _insecticideImageBytes = pesticideData.imageBytes;
+        _insecticideIsImage = pesticideData.isImage;
+      });
+    }
+
+    // Load fertilizer license data
+    final fertilizerData = licenseProvider.fertilizerLicense;
+    if (fertilizerData != null) {
+      setState(() {
+        _fertilizerLicenseController.text = fertilizerData.licenseNumber ?? '';
+        _fertilizerExpirationDate = fertilizerData.expirationDate;
+        _fertilizerNoExpiry = fertilizerData.noExpiry;
+        _fertilizerImageBytes = fertilizerData.imageBytes;
+        _fertilizerIsImage = fertilizerData.isImage;
+      });
+    }
+    _checkFormValidity();
+  }
+
 
   // Getters to check validity of each section
   bool get _isInsecticideSectionValid {
-    // Only validate if this section is displayed or intended to be valid
-    if (_currentLicenseTypeToDisplay == 'fertilizer') return true; // If only fertilizer is shown, pesticide section is implicitly valid
+    // Determine visibility within the getter itself for accurate validation logic
+    bool showPesticide = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'pesticide' || widget.licenseTypeToDisplay == 'all';
+    if (!showPesticide) return true; // If pesticide section is NOT displayed, it's considered valid
+
     return _insecticideLicenseController.text.isNotEmpty &&
         (_insecticideNoExpiry || _insecticideExpirationDate != null) &&
         _insecticideImageBytes != null;
   }
 
   bool get _isFertilizerSectionValid {
-    // Only validate if this section is displayed or intended to be valid
-    if (_currentLicenseTypeToDisplay == 'pesticide') return true; // If only pesticide is shown, fertilizer section is implicitly valid
+    // Determine visibility within the getter itself for accurate validation logic
+    bool showFertilizer = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'fertilizer' || widget.licenseTypeToDisplay == 'all';
+    if (!showFertilizer) return true; // If fertilizer section is NOT displayed, it's considered valid
+
     return _fertilizerLicenseController.text.isNotEmpty &&
         (_fertilizerNoExpiry || _fertilizerExpirationDate != null) &&
         _fertilizerImageBytes != null;
@@ -97,14 +135,39 @@ class _licence4State extends State<licence4> {
 
   // Overall form validity
   bool get isFormValid {
+    // Re-declare these variables within the scope where they are used
+    bool showPesticideSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'pesticide' || _currentLicenseTypeToDisplay == 'all';
+    bool showFertilizerSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'fertilizer' || _currentLicenseTypeToDisplay == 'all';
+
+    bool pesticideValid = _isInsecticideSectionValid;
+    bool fertilizerValid = _isFertilizerSectionValid;
+
     if (_currentLicenseTypeToDisplay == 'pesticide') {
-      return _isInsecticideSectionValid;
+      return pesticideValid;
     } else if (_currentLicenseTypeToDisplay == 'fertilizer') {
-      return _isFertilizerSectionValid;
-    } else { // 'all' or null
-      return _isInsecticideSectionValid || _isFertilizerSectionValid;
+      return fertilizerValid;
+    } else { // 'all' or null (meaning both are potentially displayed)
+      // If both are displayed, both must be valid.
+      // If none were initially chosen and it's the first time on the screen,
+      // the 'Proceed' button should be disabled until at least one is valid.
+      // The condition `(showPesticideSection || showFertilizerSection)`
+      // ensures that if no sections are explicitly chosen (e.g., if _currentLicenseTypeToDisplay is null
+      // but no data has been uploaded), the form is still considered invalid until some action is taken.
+      // However, if the user picks 'all' in licence1, then both sections are shown, and both
+      // must be filled to proceed.
+      if (showPesticideSection && showFertilizerSection) {
+        return pesticideValid && fertilizerValid;
+      } else if (showPesticideSection) { // Should only happen if licenseTypeToDisplay is 'pesticide'
+        return pesticideValid;
+      } else if (showFertilizerSection) { // Should only happen if licenseTypeToDisplay is 'fertilizer'
+        return fertilizerValid;
+      } else { // This case should theoretically not be hit if initial licenseTypeToDisplay is properly set
+        // Or if it's null and no sections are yet defined/uploaded, then it's invalid
+        return false; // Should be invalid if no sections are shown or valid
+      }
     }
   }
+
 
   void _checkFormValidity() {
     setState(() {});
@@ -404,6 +467,28 @@ class _licence4State extends State<licence4> {
       }
     }
 
+    // NEW: Save data to LicenseProvider
+    final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+    if (isInsecticide) {
+      await licenseProvider.setPesticideLicense(
+        imageBytes: bytes,
+        isImage: isImage,
+        licenseNumber: licenseNumber,
+        expirationDate: isPermanent ? null : _parseDate(expiryDateStr ?? ''),
+        noExpiry: isPermanent,
+        displayDate: isPermanent ? 'Permanent' : (expiryDateStr != null && _parseDate(expiryDateStr) != null ? DateFormat('dd/MM/yyyy').format(_parseDate(expiryDateStr)!) : null),
+      );
+    } else {
+      await licenseProvider.setFertilizerLicense(
+        imageBytes: bytes,
+        isImage: isImage,
+        licenseNumber: licenseNumber,
+        expirationDate: isPermanent ? null : _parseDate(expiryDateStr ?? ''),
+        noExpiry: isPermanent,
+        displayDate: isPermanent ? 'Permanent' : (expiryDateStr != null && _parseDate(expiryDateStr) != null ? DateFormat('dd/MM/yyyy').format(_parseDate(expiryDateStr)!) : null),
+      );
+    }
+
     setState(() {
       if (isInsecticide) {
         _insecticideImageBytes = bytes;
@@ -494,8 +579,9 @@ class _licence4State extends State<licence4> {
 
   @override
   Widget build(BuildContext context) {
-    bool showPesticideSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'pesticide' || _currentLicenseTypeToDisplay == 'all';
-    bool showFertilizerSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'fertilizer' || _currentLicenseTypeToDisplay == 'all';
+    // These variables are now correctly scoped within the build method
+    bool showPesticideSection = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'pesticide' || widget.licenseTypeToDisplay == 'all';
+    bool showFertilizerSection = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'fertilizer' || widget.licenseTypeToDisplay == 'all';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -571,11 +657,17 @@ class _licence4State extends State<licence4> {
                 ElevatedButton(
                   onPressed: isFormValid
                       ? () async {
+                    // No longer setting isLoggedIn here, assuming it's handled at login
+                    // The main app (KisanProApp) or a splash screen should handle navigation based on auth status.
+                    // This button should simply navigate back or to a confirmation screen.
+                    // If you intend to save `isLoggedIn` in shared preferences here:
                     final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('isLoggedIn', true);
+                    await prefs.setBool('hasUploadedLicenses', true); // NEW: flag for license upload status
+
+                    // Assuming KisanProApp is your main authenticated app entry
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => KisanProApp()),
+                      MaterialPageRoute(builder: (context) =>  KisanProApp()), // Ensure KisanProApp is correctly imported and exists
                     );
                   }
                       : null,

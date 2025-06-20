@@ -7,7 +7,9 @@ import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/wishlist_model.dart';
 import 'package:kisangro/models/order_model.dart';
 import 'package:kisangro/models/kyc_image_provider.dart';
-import 'package:kisangro/services/product_service.dart'; // Import your ProductService
+import 'package:kisangro/services/product_service.dart';
+
+import 'models/license_provider.dart'; // Import your ProductService
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +31,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => OrderModel()),
         ChangeNotifierProvider(create: (context) => KycImageProvider()),
         ChangeNotifierProvider(create: (context) => AddressModel()),
+        ChangeNotifierProvider(create: (_) => LicenseProvider()),
         // IMPORTANT: Product objects themselves (if you're using them as ChangeNotifier
         // directly in lists and their individual state needs to be reactive like selectedUnit)
         // are often provided at the widget level, not here globally, unless it's a single,

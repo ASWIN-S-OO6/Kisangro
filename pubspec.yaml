@@ -46,6 +46,7 @@ dependencies:
   path_provider:
   google_mlkit_text_recognition: ^0.13.0
   file_picker:
+  syncfusion_flutter_pdfviewer:
 
 
 dev_dependencies:
