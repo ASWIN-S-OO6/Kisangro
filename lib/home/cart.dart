@@ -113,33 +113,44 @@ class _cartState extends State<Cart> {
       body: Consumer<CartModel>(
         builder: (context, cart, child) {
           if (cart.items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Your cart is empty!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.bold,
+            return Container( // Wrap Center with Container for background
+              height: double.infinity,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.shopping_cart_outlined,
+                      size: 80,
+                      color: Colors.grey[400],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Start adding some products from the home screen.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[500],
+                    const SizedBox(height: 20),
+                    Text(
+                      'Your cart is empty!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Text(
+                      'Start adding some products from the home screen.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -222,7 +233,7 @@ class _cartState extends State<Cart> {
                     children: [
                       Padding(
                         padding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -280,7 +291,7 @@ class _cartState extends State<Cart> {
               boxShadow: [
                 BoxShadow(
                   color:
-                      Colors.black.withOpacity(0.2), // Adjust shadow opacity
+                  Colors.black.withOpacity(0.2), // Adjust shadow opacity
                   spreadRadius: 1,
                   blurRadius: 6,
                   offset: const Offset(0, -2),
@@ -289,7 +300,7 @@ class _cartState extends State<Cart> {
             ),
             child: Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xffEB7720),
@@ -344,7 +355,7 @@ class _cartState extends State<Cart> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50.withOpacity(0.3),
+        color: Colors.orange.shade50.withOpacity(0.3), // Changed to match wishlist item card
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -359,17 +370,17 @@ class _cartState extends State<Cart> {
                 color: Colors.white,
                 child: _isValidUrl(cartItem.imageUrl)
                     ? Image.network(cartItem.imageUrl,
-                        width: 100,
-                        height: 128,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Image.asset(
-                              'assets/placeholder.png', // Fallback
-                              width: 100,
-                              height: 128,
-                              fit: BoxFit.contain,
-                            ))
+                    width: 100,
+                    height: 128,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Image.asset(
+                      'assets/placeholder.png', // Fallback
+                      width: 100,
+                      height: 128,
+                      fit: BoxFit.contain,
+                    ))
                     : Image.asset(cartItem.imageUrl, // Corrected access
-                        width: 100, height: 128, fit: BoxFit.contain),
+                    width: 100, height: 128, fit: BoxFit.contain),
               ),
               const SizedBox(width: 15), // Reduced width for better spacing
               Expanded(
@@ -479,7 +490,7 @@ class _cartState extends State<Cart> {
       margin: const EdgeInsets.only(right: 15),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white, // Kept white as per other product cards (e.g., homepage)
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(10),
       ),
@@ -498,13 +509,13 @@ class _cartState extends State<Cart> {
             },
             child: _isValidUrl(product.imageUrl)
                 ? Image.network(
-                    product.imageUrl,
-                    height: 100,
-                    errorBuilder: (context, error, stackTrace) => Image.asset(
-                          'assets/placeholder.png', // Fallback
-                          height: 100,
-                          fit: BoxFit.contain,
-                        ))
+                product.imageUrl,
+                height: 100,
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                  'assets/placeholder.png', // Fallback
+                  height: 100,
+                  fit: BoxFit.contain,
+                ))
                 : Image.asset(product.imageUrl, height: 100, fit: BoxFit.contain),
           ),
           const Divider(),
@@ -520,10 +531,10 @@ class _cartState extends State<Cart> {
             ),
           ),
           Text(product.subtitle,
-              style: GoogleFonts.poppins(fontSize: 12),
-              textAlign: TextAlign.center,
-              maxLines: 1, // Prevent overflow
-              overflow: TextOverflow.ellipsis,), // Clip if too long
+            style: GoogleFonts.poppins(fontSize: 12),
+            textAlign: TextAlign.center,
+            maxLines: 1, // Prevent overflow
+            overflow: TextOverflow.ellipsis,), // Clip if too long
           // Display current selected unit
           Text("Unit Size: ${product.selectedUnit}",
               style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xffEB7720))),
@@ -572,7 +583,7 @@ class _cartState extends State<Cart> {
             height: 30, // Fixed height for consistency
             child: Row(
               mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween, // Distribute space
+              MainAxisAlignment.spaceBetween, // Distribute space
               children: [
                 Expanded(
                   // Use Expanded to make button take available space

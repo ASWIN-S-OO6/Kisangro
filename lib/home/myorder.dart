@@ -74,7 +74,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => LoginApp()),
-            (Route<dynamic> route) => false, // Remove all routes below
+                (Route<dynamic> route) => false, // Remove all routes below
           );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Logged out successfully!')),
@@ -229,10 +229,10 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                                       onPressed: () => Navigator.pop(context), // Close thank you dialog
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            const Color(0xffEB7720),
+                                        const Color(0xffEB7720),
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
-                                              BorderRadius.circular(8),
+                                          BorderRadius.circular(8),
                                         ),
                                       ),
                                       child: Text(
@@ -308,6 +308,18 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),
         actions: [
+          // Highlighted My Orders Icon (box.png)
+          IconButton(
+            onPressed: () {
+              // No navigation needed, as we are already on the My Orders page
+            },
+            icon: Image.asset(
+              'assets/box.png',
+              height: 28, // Increased size to highlight
+              width: 28, // Increased size to highlight
+              color: Colors.white,
+            ),
+          ),
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -332,18 +344,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
               color: Colors.white,
             ),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) =>  Cart())); // Corrected `cart()` to `const cart()`
-            },
-            icon: Image.asset(
-              'assets/bag.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
+          // REMOVED: The shopping bag icon (assets/bag.png) is removed as requested.
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -360,31 +361,42 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
           ],
         ),
       ),
-      body: Consumer<OrderModel>(
-        builder: (context, orderModel, child) {
-          final bookedOrders = orderModel.orders
-              .where((order) => order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed)
-              .toList();
-          final dispatchedOrders = orderModel.orders
-              .where((order) => order.status == OrderStatus.dispatched)
-              .toList();
-          final deliveredOrders = orderModel.orders
-              .where((order) => order.status == OrderStatus.delivered)
-              .toList();
-          final cancelledOrders = orderModel.orders
-              .where((order) => order.status == OrderStatus.cancelled)
-              .toList();
+      body: Container( // Added Container to apply gradient to the entire body
+        height: double.infinity,
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)], // Matching wishlist.dart gradient
+          ),
+        ),
+        child: Consumer<OrderModel>(
+          builder: (context, orderModel, child) {
+            final bookedOrders = orderModel.orders
+                .where((order) => order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed)
+                .toList();
+            final dispatchedOrders = orderModel.orders
+                .where((order) => order.status == OrderStatus.dispatched)
+                .toList();
+            final deliveredOrders = orderModel.orders
+                .where((order) => order.status == OrderStatus.delivered)
+                .toList();
+            final cancelledOrders = orderModel.orders
+                .where((order) => order.status == OrderStatus.cancelled)
+                .toList();
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildOrderList(bookedOrders, orderModel),
-              _buildOrderList(dispatchedOrders, orderModel),
-              _buildOrderList(deliveredOrders, orderModel),
-              _buildOrderList(cancelledOrders, orderModel),
-            ],
-          );
-        },
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOrderList(bookedOrders, orderModel),
+                _buildOrderList(dispatchedOrders, orderModel),
+                _buildOrderList(deliveredOrders, orderModel),
+                _buildOrderList(cancelledOrders, orderModel),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -452,17 +464,17 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                         final Uint8List? kycImageBytes = kycImageProvider.kycImageBytes;
                         return kycImageBytes != null
                             ? Image.memory(
-                                kycImageBytes,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              )
+                          kycImageBytes,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        )
                             : Image.asset(
-                                'assets/profile.png',
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              );
+                          'assets/profile.png',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        );
                       },
                     ),
                   ),
@@ -543,16 +555,16 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const MyAccountPage()));
                 break;
               case 'Transaction History':
-                Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionHistoryPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) =>  TransactionHistoryPage()));
                 break;
               case 'Ask Us!':
-                Navigator.push(context, MaterialPageRoute(builder: (context) => AskUsPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) =>  AskUsPage()));
                 break;
               case 'Rate Us':
                 showComplaintDialog(context);
                 break;
               case 'Settings':
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) =>  SettingsPage()));
                 break;
               case 'Logout':
                 _showLogoutDialog(context);
@@ -622,6 +634,8 @@ class OrderCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
+      // Changed Card color to match WishlistItemCard's slightly transparent orange
+      color: Colors.orange.shade50.withOpacity(0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 3,
       child: Padding(
@@ -639,7 +653,7 @@ class OrderCard extends StatelessWidget {
                 ),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(5),
@@ -654,7 +668,7 @@ class OrderCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Order Date: ${DateFormat('dd MMM yyyy, hh:mm a').format(order.orderDate)}',
+              'Order Date: ${DateFormat('dd MMMんですよ, hh:mm a').format(order.orderDate)}',
               style: GoogleFonts.poppins(color: Colors.grey[600]),
             ),
             if (order.status == OrderStatus.delivered &&
@@ -662,7 +676,7 @@ class OrderCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
-                  'Delivered On: ${DateFormat('dd MMM yyyy').format(order.deliveredDate!)}',
+                  'Delivered On: ${DateFormat('dd MMMんですよ').format(order.deliveredDate!)}',
                   style: GoogleFonts.poppins(
                       color: Colors.green, fontWeight: FontWeight.w500),
                 ),
@@ -701,25 +715,25 @@ class OrderCard extends StatelessWidget {
                             color: Colors.grey[200],
                             image: _isValidUrl(product.imageUrl)
                                 ? DecorationImage(
-                                    image: NetworkImage(product.imageUrl),
-                                    fit: BoxFit.cover,
-                                    onError: (exception, stacktrace) {
-                                      // Fallback to asset image on error
-                                      debugPrint("Error loading image: ${product.imageUrl}");
-                                      return; // Indicate that default onError handling should proceed
-                                    },
-                                  )
+                              image: NetworkImage(product.imageUrl),
+                              fit: BoxFit.cover,
+                              onError: (exception, stacktrace) {
+                                // Fallback to asset image on error
+                                debugPrint("Error loading image: ${product.imageUrl}");
+                                return; // Indicate that default onError handling should proceed
+                              },
+                            )
                                 : DecorationImage( // For asset images
-                                    image: AssetImage(product.imageUrl),
-                                    fit: BoxFit.cover,
-                                  ),
+                              image: AssetImage(product.imageUrl),
+                              fit: BoxFit.cover,
+                            ),
                           ),
                           child: _isValidUrl(product.imageUrl)
                               ? null // If network image is used, the DecorationImage handles it
                               : (product.imageUrl.isEmpty // If asset image path is empty or invalid
-                                  ? Center(
-                                      child: Icon(Icons.broken_image, color: Colors.grey[400]))
-                                  : null),
+                              ? Center(
+                              child: Icon(Icons.broken_image, color: Colors.grey[400]))
+                              : null),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -814,7 +828,7 @@ class OrderCard extends StatelessWidget {
                         label: Text(
                           order.status == OrderStatus.dispatched ? 'Track Order' : (order.status == OrderStatus.delivered ? 'View Details' : 'Dispatch Now (Demo)'),
                           style:
-                              GoogleFonts.poppins(color: const Color(0xffEB7720)),
+                          GoogleFonts.poppins(color: const Color(0xffEB7720)),
                         ),
                       ),
                     ),
@@ -831,7 +845,7 @@ class OrderCard extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                                 builder: (context) => CancellationStep1Page( // Removed `currentStatus: order.status`
-                                    orderId: order.id,)),
+                                  orderId: order.id,)),
                           );
                         },
                         style: OutlinedButton.styleFrom(
@@ -866,7 +880,7 @@ class OrderCard extends StatelessWidget {
                           Provider.of<CartModel>(context, listen: false).populateCartFromOrder(order.products);
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) =>  Cart()), // Corrected to const
+                            MaterialPageRoute(builder: (context) => const Cart()), // Corrected to const
                           );
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Order ${order.id} loaded to cart for modification!', style: GoogleFonts.poppins())),

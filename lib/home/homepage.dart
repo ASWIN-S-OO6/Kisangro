@@ -40,11 +40,11 @@ import '../menu/wishlist.dart'; // WishlistPage
 import 'package:kisangro/home/cart.dart'; // Import the cart page for navigation to cart
 
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatefulWidget { // Class name: HomeScreen - UNCHANGED
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState(); // Class name: _HomeScreenState - UNCHANGED
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -419,13 +419,18 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: const Icon(Icons.menu, color: Colors.white),
         ),
         actions: [
+          // Using a Row to contain the action icons for proper right alignment and spacing
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            // Aligns all children to the end (right) of the row
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              // WhatsApp icon
               GestureDetector(
-                child: Image.asset("assets/whats.png", width: 24, height: 24,), // WhatsApp icon
+                child: Image.asset("assets/whats.png", width: 24, height: 24,),
               ),
-              const SizedBox(width: 10),
+               // Consistent smaller spacing
+
+              // My Orders icon
               IconButton(
                 onPressed: () {
                   Navigator.push(
@@ -440,6 +445,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                 ),
               ),
+               // Consistent smaller spacing
+
+              // Wishlist icon
               IconButton(
                 onPressed: () {
                   Navigator.push(
@@ -454,24 +462,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const noti()), // Navigate to Notifications
-                    );
-                  },
-                  icon: Image.asset(
-                    'assets/noti.png',
-                    height: 24,
-                    width: 24,
-                    color: Colors.white,
-                  ),
+               // Consistent smaller spacing
+
+              // Notifications icon (removed Padding as SizedBox handles spacing)
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const noti()), // Navigate to Notifications
+                  );
+                },
+                icon: Image.asset(
+                  'assets/noti.png',
+                  height: 24,
+                  width: 24,
+                  color: Colors.white,
                 ),
               ),
-              // REMOVED CART ICON FROM HERE
+               // Small padding at the very end to keep icons from touching edge
             ],
           ),
         ],
@@ -556,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     GestureDetector(
                       onTap: () {
                         // Navigates to the general categories screen (lib/home/categories.dart)
-                        Navigator.push(context, MaterialPageRoute(builder: (context) =>  ProductCategoriesScreen()));
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ProductCategoriesScreen()));
                       },
                       child: Text(
                         "View All",
@@ -568,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 10),
               SizedBox(
-                height: 300,
+                height: 305,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: _trendingItems.length,
@@ -761,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => CategoryProductsScreen(
+                                builder: (context) => CategoryProductsScreen( // Added const
                                   categoryTitle: categoryLabel,
                                   categoryId: categoryId, // Pass the category ID
                                 ),

@@ -57,6 +57,18 @@ class _WishlistPageState extends State<WishlistPage> {
               color: Colors.white,
             ),
           ),
+          // Highlighted Wishlist Icon - Made slightly larger
+          IconButton(
+            onPressed: () {
+              // No navigation needed, as we are already on the WishlistPage
+            },
+            icon: Image.asset(
+              'assets/heart.png',
+              height: 28, // Increased size to highlight
+              width: 28, // Increased size to highlight
+              color: Colors.white,
+            ),
+          ),
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -69,103 +81,138 @@ class _WishlistPageState extends State<WishlistPage> {
               color: Colors.white,
             ),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) =>  Cart())); // Corrected line
-            },
-            icon: Image.asset(
-              'assets/bag.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
+          // REMOVED: The shopping bag icon (assets/bag.png) is removed as requested.
         ],
       ),
-      body: Consumer<WishlistModel>(
-        builder: (context, wishlist, child) {
-          if (wishlist.items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Container(
+        height: double.infinity,
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
+          ),
+        ),
+        child: Column( // Use Column to stack the new header with existing content
+          children: [
+            // --- NEW STATIC BANNER SECTION (from previous update) ---
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+              color: const Color(0xffffecdc), // Light orange background for the banner
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround, // Distribute space
+                crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically in center
                 children: [
-                  Icon(
-                    Icons.favorite_border,
-                    size: 80,
-                    color: Colors.grey[400],
+                  Image.asset(
+                    'assets/apple.png', // Your apple PNG file
+                    width: 60, // Adjust size as needed
+                    height: 60,
+                    fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Your wishlist is empty!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(width: 10), // Spacing between image and text
+                  Expanded( // Allow text to take available space
+                    child: Text(
+                      "The best thing starts as a wish",
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xffEB7720), // Orange color for text
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2, // Allow text to wrap if needed
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Add products you love to your wishlist.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
+                  const SizedBox(width: 10), // Spacing between text and gif
+                  Image.asset(
+                    'assets/wish.gif', // Your wish GIF file
+                    width: 60, // Adjust size as needed
+                    height: 60,
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),
-            );
-          }
-          return Container(
-            height: double.infinity,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
+            ),
+            // --- END NEW STATIC BANNER SECTION ---
+
+            Expanded( // The rest of your wishlist content takes the remaining space
+              child: Consumer<WishlistModel>(
+                builder: (context, wishlist, child) {
+                  if (wishlist.items.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.favorite_border,
+                            size: 80,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Your wishlist is empty!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Add products you love to your wishlist.',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16.0),
+                    itemCount: wishlist.items.length,
+                    itemBuilder: (context, index) {
+                      final product = wishlist.items[index];
+                      return WishlistItemCard(
+                        product: product,
+                        isValidUrl: _isValidUrl, // Pass the helper function
+                        onMoveToCart: () {
+                          // Find the current price for the selected unit
+                          final double? price = product.pricePerSelectedUnit;
+                          if (price != null) {
+                            Provider.of<CartModel>(context, listen: false).addItem(product);
+                            wishlist.removeItem(product.id, product.selectedUnit); // Remove from wishlist after moving
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('${product.title} moved to cart!'),
+                                  backgroundColor: Colors.green),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Cannot move ${product.title}: price not found for selected unit.'),
+                                  backgroundColor: Colors.red),
+                            );
+                          }
+                        },
+                        onRemove: () {
+                          wishlist.removeItem(product.id, product.selectedUnit);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('${product.title} removed from wishlist!'),
+                                backgroundColor: Colors.red),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
               ),
             ),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: wishlist.items.length,
-              itemBuilder: (context, index) {
-                final product = wishlist.items[index];
-                return WishlistItemCard(
-                  product: product,
-                  isValidUrl: _isValidUrl, // Pass the helper function
-                  onMoveToCart: () {
-                    // Find the current price for the selected unit
-                    final double? price = product.pricePerSelectedUnit;
-                    if (price != null) {
-                      Provider.of<CartModel>(context, listen: false).addItem(product);
-                      wishlist.removeItem(product.id, product.selectedUnit); // Remove from wishlist after moving
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text('${product.title} moved to cart!'),
-                            backgroundColor: Colors.green),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text('Cannot move ${product.title}: price not found for selected unit.'),
-                            backgroundColor: Colors.red),
-                      );
-                    }
-                  },
-                  onRemove: () {
-                    wishlist.removeItem(product.id, product.selectedUnit);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('${product.title} removed from wishlist!'),
-                          backgroundColor: Colors.red),
-                    );
-                  },
-                );
-              },
-            ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -220,17 +267,17 @@ class _WishlistItemCardState extends State<WishlistItemCard> {
                 color: Colors.white, // Placeholder background
                 child: widget.isValidUrl(widget.product.imageUrl)
                     ? Image.network(widget.product.imageUrl,
-                        width: 100,
-                        height: 120,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Image.asset(
-                              'assets/placeholder.png',
-                              width: 100,
-                              height: 120,
-                              fit: BoxFit.contain,
-                            ))
+                    width: 100,
+                    height: 120,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Image.asset(
+                      'assets/placeholder.png',
+                      width: 100,
+                      height: 120,
+                      fit: BoxFit.contain,
+                    ))
                     : Image.asset(widget.product.imageUrl,
-                        width: 100, height: 120, fit: BoxFit.contain),
+                    width: 100, height: 120, fit: BoxFit.contain),
               ),
               const SizedBox(width: 15),
               Expanded(

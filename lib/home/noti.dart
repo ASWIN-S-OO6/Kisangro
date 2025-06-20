@@ -15,18 +15,23 @@ class noti extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xffEB7720),
         elevation: 0,
-        title: Text(
-          "Notification",
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+        // Aligned title as per other screens (homepage.dart, wishlist.dart)
+        title: Transform.translate(
+          offset: const Offset(-20, 0),
+          child: Text(
+            "Notification",
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 18, // Consistent font size
+              // Removed fontWeight: FontWeight.bold for consistency
+            ),
           ),
         ),
         leading: IconButton(
           onPressed: () {
             Navigator.pop(context); // Go back to the previous screen
           },
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white), // Added const
         ),
         actions: [
           IconButton(
@@ -44,7 +49,7 @@ class noti extends StatelessWidget {
           IconButton(
             onPressed: () {
               // Navigate to WishlistPage
-              Navigator.push(context, MaterialPageRoute(builder: (context) => WishlistPage()));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistPage())); // Added const
             },
             icon: Image.asset(
               'assets/heart.png',
@@ -70,7 +75,7 @@ class noti extends StatelessWidget {
       body: Container(
         height: double.infinity,
         width: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration( // Added const
             gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -165,33 +170,45 @@ class noti extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-
-          CircleAvatar(
-            radius: 30, // Increase this value to make it bigger
-            backgroundImage: AssetImage("assets/logo.png"),
+          // Logo image: Adjusted to ensure proper fit
+          SizedBox(
+            width: 40, // Equivalent to radius * 2 (20 * 2)
+            height: 40, // Equivalent to radius * 2
+            child: ClipOval(
+              child: Image.asset(
+                "assets/logo.png",
+                fit: BoxFit.contain, // Ensures the entire image is visible within the circle
+              ),
+            ),
           ),
-
           const SizedBox(width: 16),
-          Expanded(
+          Expanded( // Expanded to prevent overflow
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.poppins(
-                        color: Color(0xffEB7720),
-                        fontSize: 14,
-                        fontWeight: isNew ? FontWeight.bold : FontWeight.w500,
+                    Expanded( // Allow title to take available space
+                      child: Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          color: const Color(0xffEB7720), // Added const
+                          fontSize: 14,
+                          fontWeight: isNew ? FontWeight.bold : FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis, // Add ellipsis for long titles
                       ),
                     ),
-                    Text(
-                      timestamp,
-                      style: GoogleFonts.poppins(
-                        color: Colors.grey,
-                        fontSize: 10,
+                    const SizedBox(width: 8), // Spacing between title and timestamp
+                    Flexible( // Allow timestamp to shrink
+                      child: Text(
+                        timestamp,
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.right, // Align timestamp to the right
                       ),
                     ),
                   ],
@@ -201,7 +218,7 @@ class noti extends StatelessWidget {
                   product,
                   style: GoogleFonts.poppins(
                     fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600, // Made thicker
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -210,6 +227,7 @@ class noti extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.grey,
+                    fontWeight: FontWeight.w500, // Made thicker
                   ),
                 ),
               ],
@@ -241,10 +259,16 @@ class noti extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          // Logo image
-          CircleAvatar(
-            radius: 30, // Increase this value to make it bigger
-            backgroundImage: AssetImage("assets/logo.png"),
+          // Logo image: Adjusted to ensure proper fit
+          SizedBox(
+            width: 40, // Equivalent to radius * 2 (20 * 2)
+            height: 40, // Equivalent to radius * 2
+            child: ClipOval(
+              child: Image.asset(
+                "assets/logo.png",
+                fit: BoxFit.contain, // Ensures the entire image is visible within the circle
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -254,19 +278,26 @@ class noti extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.poppins(
-                        color: Color(0xffEB7720),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w500,
+                    Expanded( // Allow title to take available space
+                      child: Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          color: const Color(0xffEB7720), // Added const
+                          fontSize: 12, // Slightly increased font size for readability
+                          fontWeight: FontWeight.w500, // Made thicker
+                        ),
+                        overflow: TextOverflow.ellipsis, // Add ellipsis for long titles
                       ),
                     ),
-                    Text(
-                      timestamp,
-                      style: GoogleFonts.poppins(
-                        color: Colors.grey,
-                        fontSize: 9,
+                    const SizedBox(width: 8), // Spacing between title and timestamp
+                    Flexible( // Allow timestamp to shrink
+                      child: Text(
+                        timestamp,
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.right, // Align timestamp to the right
                       ),
                     ),
                   ],
@@ -275,17 +306,23 @@ class noti extends StatelessWidget {
                 Text(
                   description,
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 13, // Adjusted font size to prevent overflow with thicker text
                     color: Colors.grey,
+                    fontWeight: FontWeight.w500, // Made thicker
                   ),
+                  maxLines: 2, // Allow text to wrap if necessary
+                  overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
                 ),
                 const SizedBox(height: 2),
                 Text(
                   additionalText,
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 13, // Adjusted font size
                     color: Colors.grey,
+                    fontWeight: FontWeight.w500, // Made thicker
                   ),
+                  maxLines: 2, // Allow text to wrap
+                  overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
                 ),
               ],
             ),
@@ -305,7 +342,7 @@ class noti extends StatelessWidget {
           // Example: Navigator.push(context, MaterialPageRoute(builder: (context) => const CategoriesScreen()));
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xffEB7720),
+          backgroundColor: const Color(0xffEB7720), // Added const
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
