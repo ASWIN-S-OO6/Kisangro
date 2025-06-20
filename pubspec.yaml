@@ -40,7 +40,12 @@ dependencies:
   video_player: ^2.10.0
   uuid: ^4.5.1
   http: ^1.4.0
-  flutter_launcher_icons: ^0.14.4 # Already listed, kept as is.
+  flutter_launcher_icons: ^0.14.4 # Already listed, kept as is
+  pdf:
+  syncfusion_flutter_pdf:
+  path_provider:
+  google_mlkit_text_recognition: ^0.13.0
+  file_picker:
 
 
 dev_dependencies:

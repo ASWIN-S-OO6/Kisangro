@@ -1,67 +1,115 @@
-import 'dart:typed_data'; // Essential for Uint8List
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kisangro/login/onprocess.dart'; // Assuming KisanProApp is defined here
-import 'package:shared_preferences/shared_preferences.dart'; // Import shared_preferences
+import 'package:kisangro/login/onprocess.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io' show File;
 
 class licence4 extends StatefulWidget {
-  const licence4({super.key});
+  final String? licenseTypeToDisplay; // New parameter
+
+  const licence4({super.key, this.licenseTypeToDisplay}); // Updated constructor
 
   @override
   _licence4State createState() => _licence4State();
 }
 
 class _licence4State extends State<licence4> {
+  // Controllers for license numbers
   final TextEditingController _insecticideLicenseController = TextEditingController();
   final TextEditingController _fertilizerLicenseController = TextEditingController();
+
+  // State variables for expiration dates
   DateTime? _insecticideExpirationDate;
   DateTime? _fertilizerExpirationDate;
+
+  // State variables for "no expiry" checkboxes
   bool _insecticideNoExpiry = false;
   bool _fertilizerNoExpiry = false;
-  Uint8List? _insecticideImageBytes; // Changed from File? to Uint8List?
-  Uint8List? _fertilizerImageBytes; // Changed from File? to Uint8List?
 
-  // Regex to validate license number (at least one letter and one digit)
-  final RegExp _licenseRegExp = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$');
+  // State variables for uploaded document bytes
+  Uint8List? _insecticideImageBytes;
+  Uint8List? _fertilizerImageBytes;
+
+  // State variables to track if the uploaded file was an image or PDF for display
+  bool _insecticideIsImage = true;
+  bool _fertilizerIsImage = true;
+
+  // ML Kit text recognizer for images
+  final TextRecognizer _textRecognizer = TextRecognizer();
+
+  // Regex patterns for extraction
+  final RegExp _insecticideLicenseRegExp = RegExp(
+    r'.*(?:License Number|Licence Number)\s*(TKK\s*/\s*PP\s*/\s*\d+\s*/\s*\d{4}\s*-\s*\d{2,4})',
+    caseSensitive: false,
+  );
+
+  final RegExp _fertilizerLicenseRegExp = RegExp(
+    r'CR\s*No\.?\s*(\d+\s*/\s*NR\s*/\s*CPT\s*/\s*TKK\s*/\s*\d{4}\s*-\s*\d{4})',
+    caseSensitive: false,
+  );
+
+  final List<RegExp> _datePatterns = [
+    RegExp(r'(?:Valid\s+upto|Valid\s+up\s+to)\s*:?\s*(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{4})', caseSensitive: false),
+    RegExp(r'\b(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{4})\b'),
+    RegExp(r'\b(\d{4}[\.\-\/]\d{1,2}[\.\-\/]\d{1,2})\b'),
+  ];
+
+  final RegExp _permanentPattern = RegExp(
+    r'(?:Permanent|No\s+Expiry|Non\s+Expiring|Validity\s+wherever\s+applicable\s*:\s*Permanent)',
+    caseSensitive: false,
+  );
+
+  // Variable to store which section to display
+  String? _currentLicenseTypeToDisplay;
 
   @override
   void initState() {
     super.initState();
-    // Add listeners to text fields to trigger form validity checks
+    _currentLicenseTypeToDisplay = widget.licenseTypeToDisplay; // Initialize from widget parameter
     _insecticideLicenseController.addListener(_checkFormValidity);
     _fertilizerLicenseController.addListener(_checkFormValidity);
-    _checkFormValidity(); // Initial check to set button state
+    _checkFormValidity();
   }
 
-  /// Helper to check the validity of the Pesticide section
+  // Getters to check validity of each section
   bool get _isInsecticideSectionValid {
-    return _licenseRegExp.hasMatch(_insecticideLicenseController.text.trim()) &&
+    // Only validate if this section is displayed or intended to be valid
+    if (_currentLicenseTypeToDisplay == 'fertilizer') return true; // If only fertilizer is shown, pesticide section is implicitly valid
+    return _insecticideLicenseController.text.isNotEmpty &&
         (_insecticideNoExpiry || _insecticideExpirationDate != null) &&
         _insecticideImageBytes != null;
   }
 
-  /// Helper to check the validity of the Fertilizer section
   bool get _isFertilizerSectionValid {
-    return _licenseRegExp.hasMatch(_fertilizerLicenseController.text.trim()) &&
+    // Only validate if this section is displayed or intended to be valid
+    if (_currentLicenseTypeToDisplay == 'pesticide') return true; // If only pesticide is shown, fertilizer section is implicitly valid
+    return _fertilizerLicenseController.text.isNotEmpty &&
         (_fertilizerNoExpiry || _fertilizerExpirationDate != null) &&
         _fertilizerImageBytes != null;
   }
 
-  // Updated logic: Form is valid if AT LEAST ONE section is valid
+  // Overall form validity
   bool get isFormValid {
-    return _isInsecticideSectionValid || _isFertilizerSectionValid;
+    if (_currentLicenseTypeToDisplay == 'pesticide') {
+      return _isInsecticideSectionValid;
+    } else if (_currentLicenseTypeToDisplay == 'fertilizer') {
+      return _isFertilizerSectionValid;
+    } else { // 'all' or null
+      return _isInsecticideSectionValid || _isFertilizerSectionValid;
+    }
   }
 
-  /// Re-evaluates form validity and updates the UI.
   void _checkFormValidity() {
-    setState(() {
-      // isFormValid getter will re-evaluate based on current state
-    });
+    setState(() {});
   }
 
-  /// Handles picking a date for license expiration.
   Future<void> _pickDate(BuildContext context, bool isInsecticide) async {
     final picked = await showDatePicker(
       context: context,
@@ -72,14 +120,12 @@ class _licence4State extends State<licence4> {
         return Theme(
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xffEB7720), // Header background color
-              onPrimary: Colors.white,    // Header text color
-              onSurface: Colors.black,    // Body text color
+              primary: Color(0xffEB7720),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
             ),
             textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xffEB7720), // Button text color
-              ),
+              style: TextButton.styleFrom(foregroundColor: const Color(0xffEB7720)),
             ),
           ),
           child: child!,
@@ -90,64 +136,350 @@ class _licence4State extends State<licence4> {
       setState(() {
         if (isInsecticide) {
           _insecticideExpirationDate = picked;
+          _insecticideNoExpiry = false;
         } else {
           _fertilizerExpirationDate = picked;
+          _fertilizerNoExpiry = false;
         }
       });
-      _checkFormValidity(); // Re-check validity after date selection
+      _checkFormValidity();
     }
   }
 
-  /// Handles picking an image (from camera or gallery) for a license.
-  Future<void> _pickImage(bool isInsecticide) async {
-    showModalBottomSheet(
+  Future<void> _pickFile(bool isInsecticide) async {
+    try {
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xffEB7720)),
+                title: const Text('Open Camera'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final pickedFile = await ImagePicker().pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 85,
+                    maxWidth: 1024,
+                    maxHeight: 1024,
+                  );
+                  if (pickedFile != null) {
+                    await _processImageFile(pickedFile, isInsecticide);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xffEB7720)),
+                title: const Text('Open Gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final pickedFile = await ImagePicker().pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 85,
+                    maxWidth: 1024,
+                    maxHeight: 1024,
+                  );
+                  if (pickedFile != null) {
+                    await _processImageFile(pickedFile, isInsecticide);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf, color: Color(0xffEB7720)),
+                title: const Text('Upload PDF'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf'],
+                  );
+                  if (result != null && (result.files.single.bytes != null || result.files.single.path != null)) {
+                    await _processPdfFile(result.files.single, isInsecticide);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No PDF selected. Please try again.')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening file picker: $e')),
+      );
+    }
+  }
+
+  Future<void> _processImageFile(XFile imageFile, bool isInsecticide) async {
+    _showProcessingDialog('Processing image...');
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final inputImage = InputImage.fromFilePath(imageFile.path);
+      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
+      final extractedText = recognizedText.text;
+
+      Navigator.pop(context);
+
+      if (extractedText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No text found in the image. Please enter details manually.')),
+        );
+        setState(() {
+          if (isInsecticide) {
+            _insecticideImageBytes = bytes;
+            _insecticideIsImage = true;
+          } else {
+            _fertilizerImageBytes = bytes;
+            _fertilizerIsImage = true;
+          }
+        });
+        _checkFormValidity();
+        return;
+      }
+
+      await _extractLicenseData(extractedText, isInsecticide, bytes, true);
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error processing image: $e. Please enter details manually.')),
+      );
+      try {
+        final bytes = await imageFile.readAsBytes();
+        setState(() {
+          if (isInsecticide) {
+            _insecticideImageBytes = bytes;
+            _insecticideIsImage = true;
+          } else {
+            _fertilizerImageBytes = bytes;
+            _fertilizerIsImage = true;
+          }
+        });
+        _checkFormValidity();
+      } catch (e2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading image: $e2')),
+        );
+      }
+    }
+  }
+
+  Future<void> _processPdfFile(PlatformFile file, bool isInsecticide) async {
+    _showProcessingDialog('Processing PDF...');
+
+    File? tempFile;
+    try {
+      Uint8List bytes;
+      if (file.bytes != null) {
+        bytes = file.bytes!;
+      } else if (file.path != null) {
+        bytes = await File(file.path!).readAsBytes();
+      } else {
+        throw Exception('No bytes or path available for the PDF file.');
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      tempFile = File('${tempDir.path}/${file.name?.replaceAll(RegExp(r'[^\w\.]'), '_') ?? 'temp_pdf.pdf'}');
+      await tempFile.writeAsBytes(bytes);
+
+      final PdfDocument document = PdfDocument(inputBytes: bytes);
+      final PdfTextExtractor extractor = PdfTextExtractor(document);
+      final StringBuffer textBuffer = StringBuffer();
+      for (int i = 0; i < document.pages.count; i++) {
+        final pageText = extractor.extractText(startPageIndex: i, endPageIndex: i);
+        textBuffer.writeln(pageText);
+      }
+      final extractedText = textBuffer.toString();
+      document.dispose();
+
+      Navigator.pop(context);
+
+      if (extractedText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No text found in the PDF. Please enter details manually.')),
+        );
+        setState(() {
+          if (isInsecticide) {
+            _insecticideImageBytes = bytes;
+            _insecticideIsImage = false;
+          } else {
+            _fertilizerImageBytes = bytes;
+            _fertilizerIsImage = false;
+          }
+        });
+        _checkFormValidity();
+        return;
+      }
+
+      await _extractLicenseData(extractedText, isInsecticide, bytes, false);
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error processing PDF: $e. Please enter details manually.')),
+      );
+      try {
+        Uint8List bytes;
+        if (file.bytes != null) {
+          bytes = file.bytes!;
+        } else if (file.path != null) {
+          bytes = await File(file.path!).readAsBytes();
+        } else {
+          throw Exception('No bytes or path available for the PDF file.');
+        }
+        setState(() {
+          if (isInsecticide) {
+            _insecticideImageBytes = bytes;
+            _insecticideIsImage = false;
+          } else {
+            _fertilizerImageBytes = bytes;
+            _fertilizerIsImage = false;
+          }
+        });
+        _checkFormValidity();
+      } catch (e2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading PDF: $e2')),
+        );
+      }
+    } finally {
+      if (tempFile != null && await tempFile.exists()) {
+        await tempFile.delete();
+      }
+    }
+  }
+
+  void _showProcessingDialog(String message) {
+    showDialog(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
           children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xffEB7720)),
-              title: const Text('Open Camera'),
-              onTap: () async {
-                Navigator.pop(context);
-                final pickedFile = await ImagePicker().pickImage(source: ImageSource.camera);
-                if (pickedFile != null) {
-                  final bytes = await pickedFile.readAsBytes(); // Read as bytes
-                  setState(() {
-                    if (isInsecticide) {
-                      _insecticideImageBytes = bytes; // Store bytes for insecticide
-                    } else {
-                      _fertilizerImageBytes = bytes; // Store bytes for fertilizer
-                    }
-                  });
-                  _checkFormValidity(); // Re-check validity after image selection
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xffEB7720)),
-              title: const Text('Open Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-                if (pickedFile != null) {
-                  final bytes = await pickedFile.readAsBytes(); // Read as bytes
-                  setState(() {
-                    if (isInsecticide) {
-                      _insecticideImageBytes = bytes; // Store bytes for insecticide
-                    } else {
-                      _fertilizerImageBytes = bytes; // Store bytes for fertilizer
-                    }
-                  });
-                  _checkFormValidity(); // Re-check validity after image selection
-                }
-              },
-            ),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(message),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _extractLicenseData(String extractedText, bool isInsecticide, Uint8List bytes, bool isImage) async {
+    String? licenseNumber;
+    String? expiryDateStr;
+    bool isPermanent = false;
+
+    final cleanText = extractedText.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+    print('Extracted text (cleaned): $cleanText');
+
+    if (isInsecticide) {
+      final licenseMatch = _insecticideLicenseRegExp.firstMatch(cleanText);
+      if (licenseMatch != null && licenseMatch.group(1) != null) {
+        licenseNumber = licenseMatch.group(1)?.replaceAll(RegExp(r'\s+'), '');
+      }
+    } else {
+      final licenseMatch = _fertilizerLicenseRegExp.firstMatch(cleanText);
+      if (licenseMatch != null && licenseMatch.group(1) != null) {
+        licenseNumber = licenseMatch.group(1)?.replaceAll(RegExp(r'\s+'), '');
+      }
+    }
+
+    if (_permanentPattern.hasMatch(cleanText)) {
+      isPermanent = true;
+      expiryDateStr = 'Permanent';
+    } else {
+      for (RegExp pattern in _datePatterns) {
+        final match = pattern.firstMatch(cleanText);
+        if (match != null) {
+          String matchedDate = match.group(1) ?? match.group(0)!;
+          if (!cleanText.contains('date of grant of licence') || !cleanText.contains(matchedDate)) {
+            expiryDateStr = matchedDate;
+            break;
+          }
+        }
+      }
+    }
+
+    setState(() {
+      if (isInsecticide) {
+        _insecticideImageBytes = bytes;
+        _insecticideIsImage = isImage;
+        if (licenseNumber != null) {
+          _insecticideLicenseController.text = licenseNumber.toUpperCase();
+        } else {
+          _insecticideLicenseController.clear();
+        }
+        if (isPermanent) {
+          _insecticideNoExpiry = true;
+          _insecticideExpirationDate = null;
+        } else if (expiryDateStr != null && expiryDateStr != 'Permanent') {
+          _insecticideNoExpiry = false;
+          _insecticideExpirationDate = _parseDate(expiryDateStr);
+        } else {
+          _insecticideNoExpiry = false;
+          _insecticideExpirationDate = null;
+        }
+      } else {
+        _fertilizerImageBytes = bytes;
+        _fertilizerIsImage = isImage;
+        if (licenseNumber != null) {
+          _fertilizerLicenseController.text = licenseNumber.toUpperCase();
+        } else {
+          _fertilizerLicenseController.clear();
+        }
+        if (isPermanent) {
+          _fertilizerNoExpiry = true;
+          _fertilizerExpirationDate = null;
+        } else if (expiryDateStr != null && expiryDateStr != 'Permanent') {
+          _fertilizerNoExpiry = false;
+          _fertilizerExpirationDate = _parseDate(expiryDateStr);
+        } else {
+          _fertilizerNoExpiry = false;
+          _fertilizerExpirationDate = null;
+        }
+      }
+    });
+
+    _checkFormValidity();
+
+    String message = 'Document uploaded successfully!\n';
+    if (licenseNumber != null) {
+      message += 'License: ${licenseNumber.toUpperCase()}\n';
+    }
+    if (isPermanent) {
+      message += 'Validity: Permanent';
+    } else if (expiryDateStr != null) {
+      message += 'Expiry: $expiryDateStr';
+    }
+    if (licenseNumber == null && expiryDateStr == null) {
+      message = 'Document uploaded but could not extract license details. Please verify or enter manually.';
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  DateTime? _parseDate(String dateStr) {
+    String cleanDate = dateStr.replaceAll(RegExp(r'[^\d\.\-\/]'), '');
+    List<String> formats = ['dd.MM.yyyy', 'dd-MM.yyyy', 'dd/MM/yyyy', 'yyyy.MM.dd', 'yyyy-MM-dd', 'yyyy/MM/dd'];
+
+    for (String format in formats) {
+      try {
+        return DateFormat(format).parseStrict(cleanDate);
+      } catch (e) {
+        continue;
+      }
+    }
+    print('Failed to parse date: $cleanDate');
+    return null;
   }
 
   @override
@@ -156,11 +488,15 @@ class _licence4State extends State<licence4> {
     _fertilizerLicenseController.removeListener(_checkFormValidity);
     _insecticideLicenseController.dispose();
     _fertilizerLicenseController.dispose();
+    _textRecognizer.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    bool showPesticideSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'pesticide' || _currentLicenseTypeToDisplay == 'all';
+    bool showFertilizerSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'fertilizer' || _currentLicenseTypeToDisplay == 'all';
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -193,42 +529,55 @@ class _licence4State extends State<licence4> {
               children: [
                 Text('Step 2/2', style: GoogleFonts.poppins(fontSize: 18, color: const Color(0xffEB7720), fontWeight: FontWeight.w600)),
                 const SizedBox(height: 20),
-                // Pesticide License Section
-                Text('1. Pesticide license', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _insecticideLicenseController,
-                  style: GoogleFonts.poppins(),
-                  decoration: _inputDecoration("Enter Pesticide License Number"),
-                ),
-                const SizedBox(height: 20),
-                _buildDatePickerRow(context, true), // For Pesticide
-                _buildCheckbox(true), // For Pesticide
-                _buildImageUpload("Upload Document", _insecticideImageBytes, () => _pickImage(true)), // For Pesticide
-                const SizedBox(height: 20),
-                // Fertilizer License Section
-                Text('2. Fertilizer license', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _fertilizerLicenseController,
-                  style: GoogleFonts.poppins(),
-                  decoration: _inputDecoration("Enter Fertilizer License Number"),
-                ),
-                const SizedBox(height: 20),
-                _buildDatePickerRow(context, false), // For Fertilizer
-                _buildCheckbox(false), // For Fertilizer
-                _buildImageUpload("Upload Document", _fertilizerImageBytes, () => _pickImage(false)), // For Fertilizer
+
+                if (showPesticideSection) // Conditionally render Pesticide Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('1. Pesticide License', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _insecticideLicenseController,
+                        style: GoogleFonts.poppins(),
+                        decoration: _inputDecoration("Enter Pesticide License Number"),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildDatePickerRow(context, true),
+                      _buildCheckbox(true),
+                      _buildImageUpload("Upload Document", _insecticideImageBytes, _insecticideIsImage, () => _pickFile(true)),
+                      if (showFertilizerSection) const SizedBox(height: 20), // Add spacing if both sections are shown
+                    ],
+                  ),
+
+                if (showFertilizerSection) // Conditionally render Fertilizer Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('2. Fertilizer License', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _fertilizerLicenseController,
+                        style: GoogleFonts.poppins(),
+                        decoration: _inputDecoration("Enter Fertilizer License Number"),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildDatePickerRow(context, false),
+                      _buildCheckbox(false),
+                      _buildImageUpload("Upload Document", _fertilizerImageBytes, _fertilizerIsImage, () => _pickFile(false)),
+                    ],
+                  ),
+
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: isFormValid // Button enabled if at least one section is valid
+                  onPressed: isFormValid
                       ? () async {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('isLoggedIn', true); // Set the flag to true
-                          Navigator.pushReplacement( // Use pushReplacement to clear previous routes
-                            context,
-                            MaterialPageRoute(builder: (context) => KisanProApp()), // Your onprocess.dart
-                          );
-                        }
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('isLoggedIn', true);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => KisanProApp()),
+                    );
+                  }
                       : null,
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -245,7 +594,6 @@ class _licence4State extends State<licence4> {
     );
   }
 
-  // Helper method for consistent InputDecoration styling
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
@@ -256,7 +604,6 @@ class _licence4State extends State<licence4> {
     );
   }
 
-  // Helper method to build date picker rows for licenses
   Widget _buildDatePickerRow(BuildContext context, bool isInsecticide) {
     DateTime? expirationDate = isInsecticide ? _insecticideExpirationDate : _fertilizerExpirationDate;
     bool noExpiry = isInsecticide ? _insecticideNoExpiry : _fertilizerNoExpiry;
@@ -283,18 +630,17 @@ class _licence4State extends State<licence4> {
         IconButton(
           icon: const Icon(Icons.calendar_month, color: Color(0xffEB7720), size: 40),
           onPressed: noExpiry ? null : () => _pickDate(context, isInsecticide),
-        )
+        ),
       ],
     );
   }
 
-  // Helper method to build "Doesn't Expire" checkbox
   Widget _buildCheckbox(bool isInsecticide) {
     return CheckboxListTile(
       contentPadding: EdgeInsets.zero,
       checkColor: Colors.white,
       activeColor: const Color(0xffEB7720),
-      title: Text('This License Doesn’t Expire', style: GoogleFonts.poppins()),
+      title: Text('This License Doesn\'t Expire', style: GoogleFonts.poppins()),
       value: isInsecticide ? _insecticideNoExpiry : _fertilizerNoExpiry,
       onChanged: (value) {
         setState(() {
@@ -306,14 +652,13 @@ class _licence4State extends State<licence4> {
             if (value) _fertilizerExpirationDate = null;
           }
         });
-        _checkFormValidity(); // Re-check form validity when checkbox changes
+        _checkFormValidity();
       },
       controlAffinity: ListTileControlAffinity.leading,
     );
   }
 
-  // Helper method to build image upload sections
-  Widget _buildImageUpload(String title, Uint8List? imageBytes, VoidCallback onTap) {
+  Widget _buildImageUpload(String title, Uint8List? imageBytes, bool isImage, VoidCallback onTap) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -329,13 +674,20 @@ class _licence4State extends State<licence4> {
               border: Border.all(color: const Color(0xffEB7720)),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: imageBytes == null // Check for Uint8List?
+            child: imageBytes == null
                 ? const Center(child: Icon(Icons.camera_alt, color: Color(0xffEB7720), size: 40))
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(imageBytes, fit: BoxFit.cover), // Use Image.memory
-                  ),
+                : isImage
+                ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(imageBytes, fit: BoxFit.cover),
+            )
+                : const Center(child: Icon(Icons.picture_as_pdf, color: Color(0xffEB7720), size: 40)),
           ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '(Note: The given documents\nwill be verified by our team\nshortly to verify its\nauthentication)',
+          style: GoogleFonts.poppins(fontSize: 11, color: Colors.black87),
         ),
       ],
     );

@@ -9,6 +9,9 @@ import 'package:kisangro/models/order_model.dart'; // Import Order and OrderMode
 import 'package:kisangro/models/address_model.dart';
 
 import '../home/cart.dart'; // NEW: Import AddressModel
+import '../home/myorder.dart'; // Import for MyOrder
+import '../menu/wishlist.dart'; // Import for WishlistPage
+import '../home/noti.dart'; // Import for noti
 
 class delivery extends StatelessWidget { // Changed back to StatelessWidget as AddressModel handles state
   const delivery({super.key});
@@ -38,10 +41,10 @@ class delivery extends StatelessWidget { // Changed back to StatelessWidget as A
         actions: [
           IconButton(
             onPressed: () {
-              // Handle notification icon tap
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyOrder()));
             },
             icon: Image.asset(
-              'assets/noti.png',
+              'assets/box.png',
               height: 24,
               width: 24,
               color: Colors.white,
@@ -49,7 +52,7 @@ class delivery extends StatelessWidget { // Changed back to StatelessWidget as A
           ),
           IconButton(
             onPressed: () {
-              // Handle wishlist icon tap
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistPage()));
             },
             icon: Image.asset(
               'assets/heart.png',
@@ -60,29 +63,26 @@ class delivery extends StatelessWidget { // Changed back to StatelessWidget as A
           ),
           IconButton(
             onPressed: () {
-              // Handle cart icon tap - navigate to cart page
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const Cart()), // CHANGED TO const cart()
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const noti()));
             },
             icon: Image.asset(
-              'assets/bag.png',
+              'assets/noti.png',
               height: 24,
               width: 24,
               color: Colors.white,
             ),
           ),
+          // REMOVED: The shopping bag icon (assets/bag.png) is removed as requested.
         ],
       ),
-      body: Container(
+      body: Container( // Added Container to apply gradient to the entire body
         height: double.infinity,
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)], // Matching theme
           ),
         ),
         child: SingleChildScrollView(
@@ -111,7 +111,7 @@ class delivery extends StatelessWidget { // Changed back to StatelessWidget as A
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.white, // Kept white for contrast with background gradient
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
@@ -164,7 +164,7 @@ class delivery extends StatelessWidget { // Changed back to StatelessWidget as A
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.white, // Kept white for contrast
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
@@ -229,86 +229,74 @@ class delivery extends StatelessWidget { // Changed back to StatelessWidget as A
             ),
           ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Total:',
-                      style: GoogleFonts.poppins(
-                          fontSize: 14, color: Colors.grey[600])),
-                  Text('₹${(cart.totalAmount + 90.0).toStringAsFixed(2)}', // Example grand total
-                      style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xffEB7720))),
-                ],
+        child: Padding(
+          padding:
+          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xffEB7720),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
               ),
+              elevation: 0, // No extra shadow
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: SizedBox(
-                width: 180,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xffEB7720),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
+            onPressed: () {
+              if (cart.items.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Your cart is empty! Add items to proceed.'),
+                    backgroundColor: Colors.red,
                   ),
-                  onPressed: () {
-                    if (cart.items.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Your cart is empty! Add items to proceed.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
+                );
+                return;
+              }
 
-                    // Check if address details are set
-                    if (addressModel.currentAddress == "D/no: 123, abc street, rrr nagar, near ppp, Coimbatore." ||
-                        addressModel.currentPincode == "641612") {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Please update your delivery address before proceeding.', style: GoogleFonts.poppins()),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
+              // Check if address details are set
+              if (addressModel.currentAddress == "D/no: 123, abc street, rrr nagar, near ppp, Coimbatore." ||
+                  addressModel.currentPincode == "641612") {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Please update your delivery address before proceeding.', style: GoogleFonts.poppins()),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
 
 
-                    final orderModel = Provider.of<OrderModel>(context, listen: false);
-                    // Generate a unique order ID for this order
-                    final String newOrderId = DateTime.now().millisecondsSinceEpoch.toString();
+              final orderModel = Provider.of<OrderModel>(context, listen: false);
+              // Generate a unique order ID for this order
+              final String newOrderId = DateTime.now().millisecondsSinceEpoch.toString();
 
-                    final newOrder = Order(
-                      id: newOrderId, // Assign the unique ID
-                      products: cart.items.map((item) => item.toOrderedProduct()).toList(), // Correctly map CartItem to OrderedProduct
-                      totalAmount: cart.totalAmount + 90.0, // Include shipping in total
-                      orderDate: DateTime.now(),
-                      status: OrderStatus.pending, // Use the now existing 'pending' status
-                    );
+              final newOrder = Order(
+                id: newOrderId, // Assign the unique ID
+                products: cart.items.map((item) => item.toOrderedProduct()).toList(), // Correctly map CartItem to OrderedProduct
+                totalAmount: cart.totalAmount + 90.0, // Include shipping in total
+                orderDate: DateTime.now(),
+                status: OrderStatus.pending, // Use the now existing 'pending' status
+              );
 
-                    orderModel.addOrder(newOrder); // Add to the OrderModel
-                    // DO NOT clear cart here. Cart will be cleared upon successful payment (SplashScreen2)
+              orderModel.addOrder(newOrder); // Add to the OrderModel
+              // DO NOT clear cart here. Cart will be cleared upon successful payment (SplashScreen2)
 
-                    // Navigate to PaymentPage (from payment3.dart) and pass the new order ID
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentPage(orderId: newOrderId)));
-                  },
-                  child: Text("Proceed",
-                      style: GoogleFonts.poppins(fontSize: 16, color: Colors.white)),
+              // Navigate to PaymentPage (from payment3.dart) and pass the new order ID
+              Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentPage(orderId: newOrderId)));
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Proceed To Payment',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
-              ),
+                const SizedBox(width: 10),
+                const Icon(Icons.arrow_forward_ios_outlined, color: Colors.white70),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

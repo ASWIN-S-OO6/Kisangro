@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kisangro/login/licence2.dart'; // Corrected import to LicenceUpload class
-import 'package:kisangro/login/licence3.dart'; // Import for the mock licence3.dart
+import 'package:kisangro/login/licence2.dart'; // Keep import for redirection (though it now redirects to licence4)
+import 'package:kisangro/login/licence3.dart'; // Keep import for redirection (though it now redirects to licence4)
 import 'package:kisangro/login/licence4.dart'; // Ensure this import is correct
-import 'package:google_fonts/google_fonts.dart';// Ensure this import is correct
+import 'package:google_fonts/google_fonts.dart';
 
 class licence1 extends StatefulWidget {
   @override
@@ -126,29 +126,21 @@ class _licence1State extends State<licence1> {
               ElevatedButton(
                 onPressed: (isPesticideSelected || isFertilizerSelected)
                     ? () {
-                  // Navigate based on the selected category
+                  String? typeToDisplay;
                   if (isPesticideSelected && isFertilizerSelected) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => licence4(), // Navigate to licence4 if both are selected
-                      ),
-                    );
+                    typeToDisplay = 'all'; // Show both sections
                   } else if (isPesticideSelected) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => LicenceUpload(), // Navigate to licence2 for Pesticide
-                      ),
-                    );
+                    typeToDisplay = 'pesticide'; // Show only pesticide
                   } else if (isFertilizerSelected) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => licence3(), // Navigate to licence3 for Fertilizer
-                      ),
-                    );
+                    typeToDisplay = 'fertilizer'; // Show only fertilizer
                   }
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => licence4(licenseTypeToDisplay: typeToDisplay),
+                    ),
+                  );
                 }
                     : null, // Button is disabled if no category is selected
                 style: ElevatedButton.styleFrom(
