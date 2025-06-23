@@ -1461,7 +1461,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SnackBar(content: Text('About Us page coming soon!')),
                 );
                 break;
-              case 'Share Kisangro':
+              case 'Share Kisangro app':
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Share functionality coming soon!')),
                 );
