@@ -592,7 +592,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
 
 class OrderCard extends StatelessWidget {
   final Order order;
-  final OrderModel orderModel; // Pass OrderModel to allow status updates
+  final OrderModel orderModel;
 
   const OrderCard({Key? key, required this.order, required this.orderModel}) : super(key: key);
 
@@ -605,7 +605,6 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine the color based on the order status
     Color statusColor;
     switch (order.status) {
       case OrderStatus.pending:
@@ -624,17 +623,14 @@ class OrderCard extends StatelessWidget {
         break;
     }
 
-    // Determine button visibility based on order status
     bool showCancelButton = (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed);
     bool showTrackOrderButton = (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed || order.status == OrderStatus.dispatched);
     bool showBrowseMoreButton = order.status == OrderStatus.delivered || order.status == OrderStatus.cancelled;
     bool showRateProductButton = order.status == OrderStatus.delivered;
     bool showModifyOrderButton = (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed);
 
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      // Changed Card color to match WishlistItemCard's slightly transparent orange
       color: Colors.orange.shade50.withOpacity(0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 3,
@@ -648,41 +644,35 @@ class OrderCard extends StatelessWidget {
               children: [
                 Text(
                   'Order ID: ${order.id}',
-                  style: GoogleFonts.poppins(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
                     order.status.name.toUpperCase(),
-                    style: GoogleFonts.poppins(
-                        color: statusColor, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.poppins(color: statusColor, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Order Date: ${DateFormat('dd MMMんですよ, hh:mm a').format(order.orderDate)}',
+              'Order Date: ${DateFormat('dd MMM yyyy, hh:mm a').format(order.orderDate)}',
               style: GoogleFonts.poppins(color: Colors.grey[600]),
             ),
-            if (order.status == OrderStatus.delivered &&
-                order.deliveredDate != null)
+            if (order.status == OrderStatus.delivered && order.deliveredDate != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
-                  'Delivered On: ${DateFormat('dd MMMんですよ').format(order.deliveredDate!)}',
-                  style: GoogleFonts.poppins(
-                      color: Colors.green, fontWeight: FontWeight.w500),
+                  'Delivered On: ${DateFormat('dd MMM yyyy').format(order.deliveredDate!)}',
+                  style: GoogleFonts.poppins(color: Colors.green, fontWeight: FontWeight.w500),
                 ),
               ),
             const Divider(height: 20, thickness: 1),
-            // Display ordered products (can be a ListView.builder if many)
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -691,14 +681,10 @@ class OrderCard extends StatelessWidget {
                 final product = order.products[idx];
                 return GestureDetector(
                   onTap: () {
-                    // Navigate to MultiProductOrderDetailPage.
-                    // REMOVED `initialProductIndex: idx` as it is not a parameter in MultiProductOrderDetailPage constructor.
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => MultiProductOrderDetailPage(
-                          order: order, // Pass the whole order
-                        ),
+                        builder: (context) => MultiProductOrderDetailPage(order: order),
                       ),
                     );
                   },
@@ -718,21 +704,18 @@ class OrderCard extends StatelessWidget {
                               image: NetworkImage(product.imageUrl),
                               fit: BoxFit.cover,
                               onError: (exception, stacktrace) {
-                                // Fallback to asset image on error
                                 debugPrint("Error loading image: ${product.imageUrl}");
-                                return; // Indicate that default onError handling should proceed
                               },
                             )
-                                : DecorationImage( // For asset images
+                                : DecorationImage(
                               image: AssetImage(product.imageUrl),
                               fit: BoxFit.cover,
                             ),
                           ),
                           child: _isValidUrl(product.imageUrl)
-                              ? null // If network image is used, the DecorationImage handles it
-                              : (product.imageUrl.isEmpty // If asset image path is empty or invalid
-                              ? Center(
-                              child: Icon(Icons.broken_image, color: Colors.grey[400]))
+                              ? null
+                              : (product.imageUrl.isEmpty
+                              ? Center(child: Icon(Icons.broken_image, color: Colors.grey[400]))
                               : null),
                         ),
                         const SizedBox(width: 12),
@@ -742,27 +725,24 @@ class OrderCard extends StatelessWidget {
                             children: [
                               Text(
                                 product.title,
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold),
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                product.subtitle,
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12, color: Colors.grey[700]),
+                                product.description, // Line 751: Changed from subtitle
+                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                '${product.selectedUnit} x ${product.quantity}',
+                                '${product.unit} x ${product.quantity}', // Line 758: Changed from selectedUnit
                                 style: GoogleFonts.poppins(fontSize: 12),
                               ),
                               Text(
-                                '₹${product.pricePerUnit.toStringAsFixed(2)}',
+                                '₹${product.price.toStringAsFixed(2)}', // Line 762: Changed from pricePerUnit
                                 style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xffEB7720)),
+                                    fontWeight: FontWeight.bold, color: const Color(0xffEB7720)),
                               ),
                             ],
                           ),
@@ -784,14 +764,11 @@ class OrderCard extends StatelessWidget {
                 Text(
                   '₹${order.totalAmount.toStringAsFixed(2)}',
                   style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xffEB7720)),
+                      fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xffEB7720)),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            // Action Buttons based on status
             Row(
               children: [
                 if (showTrackOrderButton)
@@ -800,40 +777,36 @@ class OrderCard extends StatelessWidget {
                       height: 40,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          // Simulate dispatching for demo purposes
                           if (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed) {
                             orderModel.updateOrderStatus(order.id, OrderStatus.dispatched);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Order ${order.id} dispatched!', style: GoogleFonts.poppins(),)),
+                              SnackBar(content: Text('Order ${order.id} dispatched!', style: GoogleFonts.poppins())),
                             );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Tracking order ${order.id}!', style: GoogleFonts.poppins(),)),
+                              SnackBar(content: Text('Tracking order ${order.id}!', style: GoogleFonts.poppins())),
                             );
-                            // In a real app, navigate to a tracking page
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => DispatchedOrdersScreen()), // Example tracking screen
+                              MaterialPageRoute(builder: (context) => DispatchedOrdersScreen()),
                             );
                           }
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xffEB7720)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                         ),
-                        icon: const Icon(Icons.delivery_dining,
-                            color: Color(0xffEB7720), size: 16),
+                        icon: const Icon(Icons.delivery_dining, color: Color(0xffEB7720), size: 16),
                         label: Text(
-                          order.status == OrderStatus.dispatched ? 'Track Order' : (order.status == OrderStatus.delivered ? 'View Details' : 'Dispatch Now (Demo)'),
-                          style:
-                          GoogleFonts.poppins(color: const Color(0xffEB7720)),
+                          order.status == OrderStatus.dispatched
+                              ? 'Track Order'
+                              : (order.status == OrderStatus.delivered ? 'View Details' : 'Dispatch Now (Demo)'),
+                          style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
                         ),
                       ),
                     ),
                   ),
-                if (showTrackOrderButton && showCancelButton) // Add some spacing if both buttons are visible
+                if (showTrackOrderButton && showCancelButton)
                   const SizedBox(width: 12),
                 if (showCancelButton)
                   Expanded(
@@ -843,19 +816,14 @@ class OrderCard extends StatelessWidget {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (context) => CancellationStep1Page( // Removed `currentStatus: order.status`
-                                  orderId: order.id,)),
+                            MaterialPageRoute(builder: (context) => CancellationStep1Page(orderId: order.id)),
                           );
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.red),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                         ),
-                        icon: const Icon(Icons.cancel_outlined,
-                            color: Colors.red, size: 16),
+                        icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 16),
                         label: Text(
                           'Cancel Order',
                           style: GoogleFonts.poppins(color: Colors.red),
@@ -866,8 +834,7 @@ class OrderCard extends StatelessWidget {
               ],
             ),
             if (showRateProductButton || showBrowseMoreButton || showModifyOrderButton)
-              const SizedBox(height: 12), // Spacer if buttons are below
-
+              const SizedBox(height: 12),
             Row(
               children: [
                 if (showModifyOrderButton)
@@ -876,11 +843,10 @@ class OrderCard extends StatelessWidget {
                       height: 40,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          // Populate cart with current order items and navigate to cart
                           Provider.of<CartModel>(context, listen: false).populateCartFromOrder(order.products);
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const Cart()), // Corrected to const
+                            MaterialPageRoute(builder: (context) => const Cart()),
                           );
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Order ${order.id} loaded to cart for modification!', style: GoogleFonts.poppins())),
@@ -888,9 +854,7 @@ class OrderCard extends StatelessWidget {
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xffEB7720)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                         ),
                         icon: const Icon(Icons.edit, color: Color(0xffEB7720), size: 16),
                         label: Text(
@@ -901,23 +865,20 @@ class OrderCard extends StatelessWidget {
                     ),
                   ),
                 if (showModifyOrderButton && (showRateProductButton || showBrowseMoreButton))
-                  const SizedBox(width: 12), // Spacing between buttons
+                  const SizedBox(width: 12),
                 if (showRateProductButton)
                   Expanded(
                     child: SizedBox(
                       height: 40,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // Action for "Rate Product" (e.g., show a rating dialog)
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Rating product for order ${order.id}!', style: GoogleFonts.poppins())),
                           );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xffEB7720),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                         ),
                         icon: const Icon(Icons.star, color: Colors.white, size: 16),
                         label: Text(
@@ -929,7 +890,7 @@ class OrderCard extends StatelessWidget {
                   ),
               ],
             ),
-            if (showBrowseMoreButton && (showRateProductButton))
+            if (showBrowseMoreButton && showRateProductButton)
               const SizedBox(width: 12),
             if (showBrowseMoreButton)
               Column(
@@ -941,16 +902,13 @@ class OrderCard extends StatelessWidget {
                         height: 40,
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            // Action for "Invoice" (e.g., navigate to invoice view or download)
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Generating invoice for order ${order.id}!', style: GoogleFonts.poppins())),
                             );
                           },
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0xffEB7720)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                           ),
                           icon: const Icon(Icons.file_download_sharp, color: Color(0xffEB7720), size: 16),
                           label: Text(
@@ -965,15 +923,12 @@ class OrderCard extends StatelessWidget {
                           height: 40,
                           child: ElevatedButton(
                             onPressed: () {
-                              // Action for "Browse More" (e.g., navigate to homepage or categories)
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Browsing more products!', style: GoogleFonts.poppins())),
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(5),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                               backgroundColor: const Color(0xffEB7720),
                               padding: const EdgeInsets.symmetric(vertical: 5),
                             ),

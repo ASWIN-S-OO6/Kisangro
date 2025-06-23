@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:kisangro/home/bottom.dart'; // Main navigation screen
-import 'package:kisangro/home/cart.dart'; // Cart navigation
+import 'package:kisangro/home/bottom.dart';
+import 'package:kisangro/home/cart.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:kisangro/models/cart_model.dart';
-import 'package:kisangro/models/order_model.dart'; // OrderModel and OrderStatus
-import 'package:kisangro/models/address_model.dart'; // AddressModel
-import 'package:intl/intl.dart'; // Date formatting
-import 'package:kisangro/home/rewards_popup.dart'; // Import RewardsPopup
-import 'package:shared_preferences/shared_preferences.dart'; // Import for SharedPreferences
+import 'package:kisangro/models/order_model.dart';
+import 'package:kisangro/models/address_model.dart';
+import 'package:intl/intl.dart';
+import 'package:kisangro/home/rewards_popup.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentPage extends StatefulWidget {
-  final String orderId; // Receive the orderId from previous screen
+  final String orderId;
 
   const PaymentPage({super.key, required this.orderId});
 
@@ -22,7 +22,7 @@ class PaymentPage extends StatefulWidget {
 class _PaymentPageState extends State<PaymentPage> {
   String selectedPaymentMode = '';
   Map<String, dynamic>? selectedUpiApp;
-  bool _applyRewardPoints = true; // State for reward points checkbox
+  bool _applyRewardPoints = true;
   final TextEditingController _upiController = TextEditingController();
 
   List<Map<String, dynamic>> upiApps = [
@@ -40,19 +40,42 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   void _handlePaymentSuccess() {
-    // Navigate to payment success screen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PaymentSuccessScreen(orderId: widget.orderId),
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Color(0xffEB7720)),
+            SizedBox(height: 16),
+            Text(
+              'Processing Payment...',
+              style: GoogleFonts.poppins(fontSize: 16),
+            ),
+          ],
+        ),
       ),
     );
+
+    // Simulate payment processing
+    Future.delayed(Duration(seconds: 2), () {
+      Navigator.pop(context); // Close loading dialog
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentSuccessScreen(orderId: widget.orderId),
+        ),
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartModel>(context);
-    final totalAmount = cart.totalAmount + 90.0; // Including delivery fee
+    final totalAmount = cart.totalAmount + 90.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -87,7 +110,6 @@ class _PaymentPageState extends State<PaymentPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Dotted line
               SizedBox(
                 width: double.infinity,
                 height: 1,
@@ -96,8 +118,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Display Saved Address and Pin Code
               Consumer<AddressModel>(
                 builder: (context, addressModel, child) {
                   return Container(
@@ -152,8 +172,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 },
               ),
               const SizedBox(height: 16),
-
-              // Total Amount
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -174,8 +192,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ],
               ),
               const SizedBox(height: 8),
-
-              // Items count
               Text(
                 '${cart.totalItemCount} Items from your cart',
                 style: GoogleFonts.poppins(
@@ -183,8 +199,6 @@ class _PaymentPageState extends State<PaymentPage> {
                   color: Colors.grey[600],
                 ),
               ),
-
-              // Dotted line
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -194,8 +208,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Reward Points Section
               Row(
                 children: [
                   Text(
@@ -234,8 +246,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // Reward Points Checkbox
               Row(
                 children: [
                   Checkbox(
@@ -263,8 +273,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ],
               ),
               const SizedBox(height: 30),
-
-              // Choose Payment Mode
               Text(
                 'Choose Payment Mode',
                 style: GoogleFonts.poppins(
@@ -273,8 +281,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Select UPI App
               Text(
                 'Select UPI App',
                 style: GoogleFonts.poppins(
@@ -283,8 +289,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // UPI Apps Grid
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -311,7 +315,9 @@ class _PaymentPageState extends State<PaymentPage> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? const Color(0xffEB7720) : Colors.grey.shade300,
+                          color: isSelected
+                              ? const Color(0xffEB7720)
+                              : Colors.grey.shade300,
                           width: isSelected ? 2 : 1,
                         ),
                         boxShadow: [
@@ -357,8 +363,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 },
               ),
               const SizedBox(height: 20),
-
-              // UPI ID Input
               TextField(
                 controller: _upiController,
                 style: GoogleFonts.poppins(),
@@ -371,18 +375,18 @@ class _PaymentPageState extends State<PaymentPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xffEB7720), width: 2),
+                    borderSide:
+                    const BorderSide(color: Color(0xffEB7720), width: 2),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: Color(0xffEB7720)),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 ),
               ),
               const SizedBox(height: 30),
-
-              // Other Modes
               Text(
                 'Other Modes',
                 style: GoogleFonts.poppins(
@@ -391,8 +395,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Debit/Credit Card Option
               GestureDetector(
                 onTap: () {
                   setState(() {
@@ -406,7 +408,9 @@ class _PaymentPageState extends State<PaymentPage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: selectedPaymentMode == 'CARD' ? const Color(0xffEB7720) : Colors.grey.shade300,
+                      color: selectedPaymentMode == 'CARD'
+                          ? const Color(0xffEB7720)
+                          : Colors.grey.shade300,
                       width: selectedPaymentMode == 'CARD' ? 2 : 1,
                     ),
                   ),
@@ -452,8 +456,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Net Banking Option
               GestureDetector(
                 onTap: () {
                   setState(() {
@@ -467,7 +469,9 @@ class _PaymentPageState extends State<PaymentPage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: selectedPaymentMode == 'NETBANKING' ? const Color(0xffEB7720) : Colors.grey.shade300,
+                      color: selectedPaymentMode == 'NETBANKING'
+                          ? const Color(0xffEB7720)
+                          : Colors.grey.shade300,
                       width: selectedPaymentMode == 'NETBANKING' ? 2 : 1,
                     ),
                   ),
@@ -496,7 +500,8 @@ class _PaymentPageState extends State<PaymentPage> {
                               color: Colors.grey.shade300,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Icon(Icons.account_balance, color: Colors.grey),
+                            child:
+                            const Icon(Icons.account_balance, color: Colors.grey),
                           );
                         },
                       ),
@@ -541,28 +546,30 @@ class _PaymentPageState extends State<PaymentPage> {
               elevation: 0,
             ),
             onPressed: () {
-              // Validate payment selection
               if (selectedPaymentMode.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Please select a payment method', style: GoogleFonts.poppins()),
+                    content: Text('Please select a payment method',
+                        style: GoogleFonts.poppins()),
                     backgroundColor: Colors.red,
                   ),
                 );
                 return;
               }
 
-              if (selectedPaymentMode == 'UPI' && selectedUpiApp == null && _upiController.text.isEmpty) {
+              if (selectedPaymentMode == 'UPI' &&
+                  selectedUpiApp == null &&
+                  _upiController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Please select a UPI app or enter UPI ID', style: GoogleFonts.poppins()),
+                    content: Text('Please select a UPI app or enter UPI ID',
+                        style: GoogleFonts.poppins()),
                     backgroundColor: Colors.red,
                   ),
                 );
                 return;
               }
 
-              // Process payment
               _handlePaymentSuccess();
             },
             child: Text(
@@ -580,7 +587,6 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 }
 
-// Payment Success Screen
 class PaymentSuccessScreen extends StatefulWidget {
   final String orderId;
 
@@ -594,7 +600,6 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   @override
   void initState() {
     super.initState();
-    // This delayed call handles setting the membership active status
     _updateMembershipStatusOnSuccess();
   }
 
@@ -607,12 +612,10 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
       final cartModel = Provider.of<CartModel>(context, listen: false);
       cartModel.clearCart();
 
-      // NEW: Set the membership active flag in SharedPreferences here
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isMembershipActive', true);
       debugPrint('Membership status set to true in SharedPreferences.');
 
-      // Navigate to Bot with showRewardsPopup: true
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -636,11 +639,15 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle_outline, color: Color(0xffEB7720), size: 60),
+            const Icon(Icons.check_circle_outline,
+                color: Color(0xffEB7720), size: 60),
             const SizedBox(height: 20),
-            Text("Payment Successful!", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text("Payment Successful!",
+                style: GoogleFonts.poppins(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            Text("Order ID: ${widget.orderId}", style: GoogleFonts.poppins(fontSize: 16)),
+            Text("Order ID: ${widget.orderId}",
+                style: GoogleFonts.poppins(fontSize: 16)),
             const SizedBox(height: 20),
             const CircularProgressIndicator(color: Color(0xffEB7720)),
             const SizedBox(height: 20),
@@ -655,7 +662,6 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   }
 }
 
-// Custom painter for dotted lines
 class DottedLinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

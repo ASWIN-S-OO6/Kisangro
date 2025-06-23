@@ -1,64 +1,61 @@
 import 'package:flutter/material.dart';
-import 'product_model.dart'; // Import Product and ProductSize
+import 'package:kisangro/models/product_model.dart';
 
-// Enum to define the possible statuses of an order
 enum OrderStatus {
-  pending, // Order is placed but not yet confirmed/processed (e.g., awaiting payment)
-  booked, // Order is confirmed/accepted (e.g., payment successful)
+  pending,
+  booked,
   dispatched,
   delivered,
   cancelled,
-  confirmed, // This could represent a final "success" state for payment, often followed by "booked"
+  confirmed,
 }
 
-// Represents a single product as part of an order.
-// This is similar to Product but captures the state at the time of order,
-// including the quantity that was ordered.
 class OrderedProduct {
   final String id;
   final String title;
-  final String subtitle;
+  final String description; // Maps to CartItem.subtitle
   final String imageUrl;
-  final String selectedUnit;
-  final double pricePerUnit; // Price at the time of order for the selected unit
+  final String category;
+  final String unit; // Maps to CartItem.selectedUnit
+  final double price; // Maps to CartItem.pricePerUnit
   final int quantity;
-  final String category; // Added category to OrderedProduct
+  final String orderId;
 
   OrderedProduct({
     required this.id,
     required this.title,
-    required this.subtitle,
+    required this.description,
     required this.imageUrl,
-    required this.selectedUnit,
-    required this.pricePerUnit,
-    required this.quantity,
     required this.category,
+    required this.unit,
+    required this.price,
+    required this.quantity,
+    required this.orderId,
   });
 
-  // Factory constructor to create an OrderedProduct from a Product and a quantity
-  factory OrderedProduct.fromProduct(Product product, int quantity) {
+  factory OrderedProduct.fromProduct(Product product, int quantity, String orderId) {
     return OrderedProduct(
       id: product.id,
       title: product.title,
-      subtitle: product.subtitle,
+      description: product.subtitle,
       imageUrl: product.imageUrl,
-      selectedUnit: product.selectedUnit,
-      // Safely get price, defaulting to 0.0 if pricePerSelectedUnit is null
-      pricePerUnit: product.pricePerSelectedUnit ?? 0.0,
-      quantity: quantity,
       category: product.category,
+      unit: product.selectedUnit,
+      price: product.pricePerSelectedUnit ?? 0.0,
+      quantity: quantity,
+      orderId: orderId,
     );
   }
 }
 
-// Order class to represent a single order made by a user.
-class Order extends ChangeNotifier {
-  final String id; // Unique order ID
+class Order {
+  final String id;
   final List<OrderedProduct> products;
   final double totalAmount;
   final DateTime orderDate;
-  OrderStatus _status; // Use a private variable for status to allow internal modification
-  DateTime? deliveredDate; // New field for delivered date
+  OrderStatus status;
+  DateTime? deliveredDate;
+  final String paymentMethod;
 
   Order({
     required this.id,
@@ -66,52 +63,37 @@ class Order extends ChangeNotifier {
     required this.totalAmount,
     required this.orderDate,
     this.deliveredDate,
-    OrderStatus status = OrderStatus.pending, // Default status is pending
-  }) : _status = status;
+    required this.status,
+    required this.paymentMethod,
+  });
 
-  OrderStatus get status => _status;
-
-  set status(OrderStatus newStatus) {
-    if (_status != newStatus) {
-      _status = newStatus;
-      notifyListeners(); // Notify UI if status changes
-    }
-  }
-
-  // Method to update the status of the order (can be called internally or externally)
   void updateStatus(OrderStatus newStatus) {
-    status = newStatus; // Use the setter to trigger notification
-    if (newStatus == OrderStatus.delivered) {
-      deliveredDate = DateTime.now(); // Set delivered date when status becomes delivered
+    if (status != newStatus) {
+      status = newStatus;
+      if (newStatus == OrderStatus.delivered) {
+        deliveredDate = DateTime.now();
+      }
     }
   }
 }
 
-// OrderModel to manage a list of orders (using Provider)
 class OrderModel extends ChangeNotifier {
-  final List<Order> _orders = []; // Private list of orders
+  final List<Order> _orders = [];
 
-  List<Order> get orders => _orders; // Getter to access orders
+  List<Order> get orders => List.unmodifiable(_orders);
 
-  // Adds a new order to the list
   void addOrder(Order order) {
     _orders.add(order);
-    notifyListeners(); // Notify UI to rebuild
+    notifyListeners();
   }
 
-  // Updates the status of an existing order
   void updateOrderStatus(String orderId, OrderStatus newStatus) {
     final orderIndex = _orders.indexWhere((order) => order.id == orderId);
     if (orderIndex != -1) {
-      _orders[orderIndex].status = newStatus; // Directly update status
-      if (newStatus == OrderStatus.delivered) {
-        _orders[orderIndex].deliveredDate = DateTime.now();
-      }
-      notifyListeners(); // Notify UI to rebuild
+      _orders[orderIndex].updateStatus(newStatus);
     }
   }
 
-  // Example: Mark all 'booked' orders as 'dispatched' (for simulation)
   void dispatchAllBookedOrders() {
     for (var order in _orders) {
       if (order.status == OrderStatus.booked) {
@@ -121,17 +103,14 @@ class OrderModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Example: Mark a specific order as delivered (for simulation)
   void deliverOrder(String orderId) {
     updateOrderStatus(orderId, OrderStatus.delivered);
   }
 
-  // Example: Cancel a specific order (for simulation)
   void cancelOrder(String orderId) {
     updateOrderStatus(orderId, OrderStatus.cancelled);
   }
 
-  // Clears all orders (for testing or logout)
   void clearOrders() {
     _orders.clear();
     notifyListeners();

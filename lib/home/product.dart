@@ -3,24 +3,21 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:kisangro/home/myorder.dart';
 import 'package:kisangro/home/noti.dart';
 import 'package:kisangro/menu/wishlist.dart';
-import 'package:kisangro/payment/payment1.dart'; // Assuming 'delivery' is defined here
+import 'package:kisangro/payment/payment1.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-
 import 'package:video_player/video_player.dart';
-
-import 'package:kisangro/models/product_model.dart'; // Import Product and ProductSize
+import 'package:kisangro/models/product_model.dart';
 import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/wishlist_model.dart';
-import 'package:kisangro/home/bottom.dart'; // Import the Bot widget for navigation
-import 'package:kisangro/models/order_model.dart'; // Import OrderedProduct (which is inside order_model.dart)
-import 'package:kisangro/home/cart.dart'; // Import the cart page for navigation to cart
-import 'package:kisangro/services/product_service.dart'; // Import ProductService for similar products
+import 'package:kisangro/home/bottom.dart';
+import 'package:kisangro/models/order_model.dart';
+import 'package:kisangro/home/cart.dart';
+import 'package:kisangro/services/product_service.dart';
 
 class ProductDetailPage extends StatefulWidget {
-  // Now accepts either a Product (for general browsing) or an OrderedProduct (for order details)
   final Product? product;
   final OrderedProduct? orderedProduct;
 
@@ -28,10 +25,8 @@ class ProductDetailPage extends StatefulWidget {
     Key? key,
     this.product,
     this.orderedProduct,
-  }) : assert(product != null || orderedProduct != null,
-            'Either product or orderedProduct must be provided'),
-        assert(!(product != null && orderedProduct != null),
-            'Only one of product or orderedProduct should be provided'),
+  }) : assert(product != null || orderedProduct != null, 'Either product or orderedProduct must be provided'),
+        assert(!(product != null && orderedProduct != null), 'Only one of product or orderedProduct should be provided'),
         super(key: key);
 
   @override
@@ -40,126 +35,85 @@ class ProductDetailPage extends StatefulWidget {
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
   int activeIndex = 0;
-  // _currentSelectedUnit will now reflect the Product.selectedUnit if it's a regular product
-  // or the OrderedProduct.selectedUnit if it's an ordered product.
-  // It's primarily used for UI display of the selected unit.
   late String _currentSelectedUnit;
-
-  late final List<String> imageAssets; // This will hold the images for the carousel
-
+  late final List<String> imageAssets;
   late VideoPlayerController _videoController;
   late Future<void> _initializeVideoPlayerFuture;
   bool _videoLoadError = false;
-
-  // List of allowed product image assets (for placeholder for deals section)
-  // These are mostly for fallbacks or if some product images aren't dynamic
-  // This list is now primarily for local placeholder fallback examples, not for dynamically cycling API images
   final List<String> _allowedProductImages = [
     'assets/Oxyfen.png',
     'assets/hyfen.png',
     'assets/Valaxa.png',
-    'assets/placeholder.png', // Ensure this exists
+    'assets/placeholder.png',
   ];
-  
-  // Helper to check if a URL is valid and absolute
-  bool _isValidUrl(String? url) {
-    if (url == null || url.isEmpty) {
-      return false;
-    }
-    // Check if it's a valid absolute URL AND not just the base API path as a placeholder
-    return Uri.tryParse(url)?.isAbsolute == true && !url.endsWith('erp/api/');
-  }
-
-  // Determine if we are viewing an OrderedProduct or a regular Product
-  bool get _isOrderedProduct => widget.orderedProduct != null;
-
-  // Helper to get the product details, whether it's Product or OrderedProduct
-  String get _displayTitle =>
-      _isOrderedProduct ? widget.orderedProduct!.title : widget.product!.title;
-  String get _displaySubtitle =>
-      _isOrderedProduct ? widget.orderedProduct!.subtitle : widget.product!.subtitle;
-  String get _displayImageUrl =>
-      _isOrderedProduct ? widget.orderedProduct!.imageUrl : widget.product!.imageUrl;
-
-  // This getter needs to safely get the price based on the current selected unit
-  double? get _displayPricePerUnit {
-    if (_isOrderedProduct) {
-      return widget.orderedProduct!.pricePerUnit;
-    } else {
-      // Safely get the price for the currently selected unit from the Product model
-      return widget.product!.pricePerSelectedUnit; // This is already nullable
-    }
-  }
-
-  // This getter provides the correct unit size description based on product type
-  String get _displayUnitSizeDescription {
-    if (_isOrderedProduct) {
-      return 'Ordered Unit: ${widget.orderedProduct!.selectedUnit}';
-    } else {
-      // For a regular product, this should reflect the currently selected unit
-      return 'Unit: $_currentSelectedUnit';
-    }
-  }
-
-  // Helper to get the actual Product object for Cart/Wishlist operations
-  // If it's a regular Product, we return the Product object itself
-  // If it's an OrderedProduct, we construct a new Product object from its data.
-  Product get _currentProductForActions {
-    if (_isOrderedProduct) {
-      // When converting OrderedProduct to Product, we only have the single ordered unit
-      return Product(
-        id: widget.orderedProduct!.id,
-        title: widget.orderedProduct!.title,
-        subtitle: widget.orderedProduct!.subtitle,
-        imageUrl: widget.orderedProduct!.imageUrl,
-        category: widget.orderedProduct!.category, // Ensure category is included
-        availableSizes: [
-          ProductSize(
-              size: widget.orderedProduct!.selectedUnit,
-              price: widget.orderedProduct!.pricePerUnit) // Corrected to use 'price'
-        ],
-        selectedUnit: widget.orderedProduct!.selectedUnit,
-      );
-    } else {
-      // For a regular product, the widget.product object already holds the selectedUnit state.
-      // Call copyWith to ensure a new instance (important for Provider if product changes)
-      return widget.product!.copyWith();
-    }
-  }
-
-  // Dummy data for similar and top-selling products using the new Product model structure
-  // Now fetching from ProductService to ensure consistency with loaded products
   List<Product> similarProducts = [];
   List<Product> topSellingProducts = [];
-
   final Color primaryColor = const Color(0xFFF37021);
   final Color themeOrange = const Color(0xffEB7720);
   final Color redColor = const Color(0xFFDC2F2F);
   final Color backgroundColor = const Color(0xFFFFF8F5);
 
+  bool _isValidUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    return Uri.tryParse(url)?.isAbsolute == true && !url.endsWith('erp/api/');
+  }
+
+  bool get _isOrderedProduct => widget.orderedProduct != null;
+
+  String get _displayTitle => _isOrderedProduct ? widget.orderedProduct!.title : widget.product!.title;
+  String get _displaySubtitle => _isOrderedProduct ? widget.orderedProduct!.description : widget.product!.subtitle;
+  String get _displayImageUrl => _isOrderedProduct ? widget.orderedProduct!.imageUrl : widget.product!.imageUrl;
+
+  double? get _displayPricePerUnit {
+    if (_isOrderedProduct) {
+      return widget.orderedProduct!.price;
+    } else {
+      return widget.product!.pricePerSelectedUnit;
+    }
+  }
+
+  String get _displayUnitSizeDescription {
+    if (_isOrderedProduct) {
+      return 'Ordered Unit: ${widget.orderedProduct!.unit}';
+    } else {
+      return 'Unit: $_currentSelectedUnit';
+    }
+  }
+
+  Product get _currentProductForActions {
+    if (_isOrderedProduct) {
+      return Product(
+        id: widget.orderedProduct!.id,
+        title: widget.orderedProduct!.title,
+        subtitle: widget.orderedProduct!.description,
+        imageUrl: widget.orderedProduct!.imageUrl,
+        category: widget.orderedProduct!.category,
+        availableSizes: [
+          ProductSize(
+            size: widget.orderedProduct!.unit,
+            price: widget.orderedProduct!.price,
+          )
+        ],
+        selectedUnit: widget.orderedProduct!.unit,
+      );
+    } else {
+      return widget.product!.copyWith();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    // Initialize _currentSelectedUnit based on the product type
-    _currentSelectedUnit = _isOrderedProduct
-        ? widget.orderedProduct!.selectedUnit
-        : widget.product!.selectedUnit;
-
-    // Use the main product's image for all three carousel images, ensuring it's one of the allowed
-    // Fallback to a generic placeholder if the display image URL is invalid or not an allowed local asset
+    _currentSelectedUnit = _isOrderedProduct ? widget.orderedProduct!.unit : widget.product!.selectedUnit;
     String mainDisplayImage = _displayImageUrl;
     if (!_isValidUrl(mainDisplayImage)) {
-      mainDisplayImage = 'assets/placeholder.png'; // Default local placeholder
+      mainDisplayImage = 'assets/placeholder.png';
     }
     imageAssets = List.generate(3, (index) => mainDisplayImage);
-
-    // Populate similar and top-selling products from ProductService
-    // For a real app, this would be more sophisticated (e.g., based on product category, user history)
-    // For now, we'll just take a subset of all products.
     similarProducts = ProductService.getAllProducts().take(3).toList();
     topSellingProducts = ProductService.getAllProducts().reversed.take(3).toList();
-
-
     _videoController = VideoPlayerController.asset('assets/video.mp4');
     _initializeVideoPlayerFuture = _videoController.initialize().then((_) {
       debugPrint('Video initialized successfully: assets/video.mp4');
@@ -184,11 +138,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen to Product changes if it's a regular product
-    // This will cause a rebuild when widget.product.selectedUnit changes.
     if (!_isOrderedProduct) {
-      // This line means the ProductDetailPage will rebuild when the Product model it holds notifies listeners.
-      // This is crucial for updating the price display when the unit changes via the dropdown/buttons.
       Provider.of<Product>(context, listen: true);
     }
     final cart = Provider.of<CartModel>(context, listen: false);
@@ -201,17 +151,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         title: Padding(
           padding: const EdgeInsets.only(right: 30),
           child: Text(
-            _displayTitle, // Use display title
+            _displayTitle,
             style: GoogleFonts.poppins(color: Colors.white, fontSize: 20),
           ),
         ),
         leading: IconButton(
           onPressed: () {
-            // Navigate back to the Home Screen (first tab of Bot) and clear the stack
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)),
-              (Route<dynamic> route) => false,
+                  (Route<dynamic> route) => false,
             );
           },
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -219,40 +168,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const MyOrder()));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyOrder()));
             },
-            icon: Image.asset(
-              'assets/box.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
+            icon: Image.asset('assets/box.png', height: 24, width: 24, color: Colors.white),
           ),
           const SizedBox(width: 5),
           IconButton(
             onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const WishlistPage()));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistPage()));
             },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
+            icon: Image.asset('assets/heart.png', height: 24, width: 24, color: Colors.white),
           ),
           IconButton(
             onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const noti()));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const noti()));
             },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
+            icon: Image.asset('assets/noti.png', height: 24, width: 24, color: Colors.white),
           ),
         ],
       ),
@@ -267,7 +198,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Stack( // Added Stack for positioning icons on the main product image
+            Stack(
               children: [
                 Container(
                   height: 200,
@@ -279,35 +210,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     itemCount: imageAssets.length,
                     itemBuilder: (context, index, realIndex) {
                       final imageUrl = imageAssets[index];
-                      // Use Image.network if it's a valid URL, otherwise Image.asset
                       return _isValidUrl(imageUrl)
                           ? Image.network(
-                              imageUrl,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => Image.asset(
-                                'assets/placeholder.png', // Fallback local image
-                                fit: BoxFit.contain,
-                              ),
-                            )
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Image.asset(
+                          'assets/placeholder.png',
+                          fit: BoxFit.contain,
+                        ),
+                      )
                           : Image.asset(imageUrl, fit: BoxFit.contain);
                     },
                     options: CarouselOptions(
                       height: 200,
                       autoPlay: false,
                       enableInfiniteScroll: false,
-                      onPageChanged: (index, reason) =>
-                          setState(() => activeIndex = index),
+                      onPageChanged: (index, reason) => setState(() => activeIndex = index),
                     ),
                   ),
                 ),
-                // Heart Icon (Wishlist)
                 Positioned(
                   top: 8,
-                  right: 8 + 48, // Adjust right position to make space for share icon
+                  right: 8 + 48,
                   child: Consumer<WishlistModel>(
                     builder: (context, wishlist, child) {
                       final bool isFavorite = wishlist.items.any(
-                          (item) => item.id == _currentProductForActions.id && item.selectedUnit == _currentProductForActions.selectedUnit,
+                            (item) => item.id == _currentProductForActions.id && item.selectedUnit == _currentProductForActions.selectedUnit,
                       );
                       return IconButton(
                         onPressed: () {
@@ -331,27 +259,25 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         },
                         icon: Image.asset(
                           'assets/heart.png',
-                          height: 28, // Slightly larger icon
+                          height: 28,
                           width: 28,
-                          color: isFavorite ? redColor : Colors.grey, // Red if favorite, grey otherwise
+                          color: isFavorite ? redColor : Colors.grey,
                         ),
-                        splashRadius: 24, // Larger splash radius for better touch feedback
+                        splashRadius: 24,
                       );
                     },
                   ),
                 ),
-                // Share Icon
                 Positioned(
                   top: 8,
                   right: 8,
                   child: IconButton(
                     onPressed: () {
-                      // Implement share functionality here
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Share functionality coming soon!', style: GoogleFonts.poppins())),
                       );
                     },
-                    icon: const Icon(Icons.share, color: Colors.black54, size: 28), // Share icon
+                    icon: const Icon(Icons.share, color: Colors.black54, size: 28),
                     splashRadius: 24,
                   ),
                 ),
@@ -363,20 +289,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 activeIndex: activeIndex,
                 count: imageAssets.length,
                 effect: ExpandingDotsEffect(
-                  activeDotColor: primaryColor, // Using primaryColor for dot
+                  activeDotColor: primaryColor,
                   dotHeight: 5,
                   dotWidth: 8,
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            Text(_displayTitle, // Use display title
-                style: GoogleFonts.poppins(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(_displaySubtitle), // Use display subtitle
+            Text(_displayTitle, style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(_displaySubtitle, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
             const SizedBox(height: 10),
-
-            // Conditional display for unit selection (if not an ordered product)
             if (!_isOrderedProduct)
               Wrap(
                 spacing: 15,
@@ -384,72 +306,50 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   return TextButton(
                     onPressed: () {
                       setState(() {
-                        // Update the selected unit on the Product object itself
                         widget.product!.selectedUnit = productSize.size;
-                        // Also update local state to reflect in UI
                         _currentSelectedUnit = productSize.size;
                       });
                     },
                     style: TextButton.styleFrom(
-                      backgroundColor: _currentSelectedUnit == productSize.size
-                          ? const Color(0xffEB7720)
-                          : Colors.transparent,
-                      side: const BorderSide(
-                        color: Color(0xffEB7720),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                      backgroundColor: _currentSelectedUnit == productSize.size ? const Color(0xffEB7720) : Colors.transparent,
+                      side: const BorderSide(color: Color(0xffEB7720)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                     child: Text(
-                      productSize.size, // Display size from ProductSize object
+                      productSize.size,
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: _currentSelectedUnit == productSize.size
-                            ? Colors.white
-                            : const Color(0xffEB7720),
+                        color: _currentSelectedUnit == productSize.size ? Colors.white : const Color(0xffEB7720),
                       ),
                     ),
                   );
                 }).toList(),
               )
-            else // Display static ordered unit and quantity for OrderedProduct
+            else
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Ordered Unit: ${widget.orderedProduct!.selectedUnit}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xffEB7720),
-                    ),
+                    'Ordered Unit: ${widget.orderedProduct!.unit}',
+                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xffEB7720)),
                   ),
                   Text(
                     'Quantity: ${widget.orderedProduct!.quantity}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xffEB7720),
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xffEB7720)),
                   ),
                 ],
               ),
             const SizedBox(height: 10),
-            Text('₹ ${_displayPricePerUnit?.toStringAsFixed(2) ?? 'N/A'}/piece', // Use display price
-                style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    color: const Color(0xffEB7720),
-                    fontWeight: FontWeight.bold)),
-            Text(_displayUnitSizeDescription), // Use display unit size description
+            Text('₹ ${_displayPricePerUnit?.toStringAsFixed(2) ?? 'N/A'}/piece',
+                style: GoogleFonts.poppins(fontSize: 18, color: const Color(0xffEB7720), fontWeight: FontWeight.bold)),
+            Text(_displayUnitSizeDescription, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
             const SizedBox(height: 8),
-            // Adjust calculation based on product type
             Text(
               _isOrderedProduct
                   ? 'Total for ordered quantity: ₹ ${((_displayPricePerUnit ?? 0.0) * widget.orderedProduct!.quantity).toStringAsFixed(2)}'
-                  : 'Price for $_currentSelectedUnit: ₹ ${(widget.product!.pricePerSelectedUnit ?? 0.0).toStringAsFixed(2)}', // Safely access price
+                  : 'Price for $_currentSelectedUnit: ₹ ${(widget.product!.pricePerSelectedUnit ?? 0.0).toStringAsFixed(2)}',
               style: GoogleFonts.poppins(color: Colors.black54),
             ),
             const SizedBox(height: 10),
@@ -458,18 +358,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      cart.addItem(_currentProductForActions); // Use helper getter
+                      cart.addItem(_currentProductForActions);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                              '${_currentProductForActions.title} (${_currentProductForActions.selectedUnit}) added to cart!'),
+                          content: Text('${_currentProductForActions.title} (${_currentProductForActions.selectedUnit}) added to cart!'),
                           backgroundColor: Colors.green,
                         ),
                       );
                     },
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: primaryColor,
-                        side: BorderSide(color: primaryColor)),
+                    style: OutlinedButton.styleFrom(foregroundColor: primaryColor, side: BorderSide(color: primaryColor)),
                     child: const Text('Put in Cart'),
                   ),
                 ),
@@ -477,10 +374,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      cart.addItem(_currentProductForActions); // Use helper getter
-                      // Navigate to payment screen
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (context) => const delivery()));
+                      // Navigate directly to delivery screen, passing the product
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => delivery(product: _currentProductForActions),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
                     child: Text('Buy Now', style: GoogleFonts.poppins(color: Colors.white)),
@@ -505,44 +405,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text("Delivery To Your Location",
-                            style: GoogleFonts.poppins(
-                                fontSize: 14, fontWeight: FontWeight.bold)),
+                            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text("Pincode: 641 012",
-                            style: GoogleFonts.poppins(
-                                fontSize: 13, color: Colors.black54)),
+                            style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54)),
                         const SizedBox(height: 4),
                         Text("Deliverable by 11 Dec, 2024",
-                            style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                color: const Color(0xFFF37021),
-                                fontWeight: FontWeight.w500)),
+                            style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFFF37021), fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),
-                  Image.asset('assets/delivery.gif',
-                      height: 50, width: 80, fit: BoxFit.contain),
+                  Image.asset('assets/delivery.gif', height: 50, width: 80, fit: BoxFit.contain),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-
-            _buildHeaderSection('Cancellation Policy'), // Correct usage
+            _buildHeaderSection('Cancellation Policy'),
             const SizedBox(height: 8),
             _buildDottedText('Upto 5 days returnable'),
             _buildDottedText('Wrong product received'),
             _buildDottedText('Damaged product received'),
             const SizedBox(height: 20),
-
-            _buildHeaderSection('About Product'), // Correct usage
+            _buildHeaderSection('About Product'),
             const SizedBox(height: 8),
-            Text(
-              _displaySubtitle, // Use display subtitle
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
-            ),
+            Text(_displaySubtitle, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
             const SizedBox(height: 20),
-
-            _buildHeaderSection('Tutorial Video'), // Correct usage
+            _buildHeaderSection('Tutorial Video'),
             const SizedBox(height: 8),
             FutureBuilder(
               future: _initializeVideoPlayerFuture,
@@ -577,18 +465,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           GestureDetector(
                             onTap: () {
                               setState(() {
-                                _videoController.value.isPlaying
-                                    ? _videoController.pause()
-                                    : _videoController.play();
+                                _videoController.value.isPlaying ? _videoController.pause() : _videoController.play();
                               });
                             },
                             child: Container(
                               color: Colors.black.withOpacity(0.3),
                               child: Center(
                                 child: Icon(
-                                  _videoController.value.isPlaying
-                                      ? Icons.pause_circle_filled
-                                      : Icons.play_circle_fill,
+                                  _videoController.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
                                   color: Colors.white,
                                   size: 70,
                                 ),
@@ -617,19 +501,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   return Container(
                     height: 200,
                     color: Colors.grey.shade300,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: Color(0xffEB7720)),
-                    ),
+                    child: const Center(child: CircularProgressIndicator(color: Color(0xffEB7720))),
                   );
                 }
               },
             ),
             const SizedBox(height: 30),
-
-            _buildHeaderSection("Browse Similar Products"), // Correct usage
+            _buildHeaderSection("Browse Similar Products"),
             _productSlider(similarProducts),
-            _buildHeaderSection("Top Selling Products"), // Correct usage
-            _productSlider(topSellingProducts), // Use topSellingProducts here
+            _buildHeaderSection("Top Selling Products"),
+            _productSlider(topSellingProducts),
             const SizedBox(height: 20),
           ],
         ),
@@ -650,7 +531,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             margin: const EdgeInsets.only(left: 15),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white, // Changed background to white
+              color: Colors.white,
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(10),
             ),
@@ -659,46 +540,36 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               children: [
                 GestureDetector(
                   onTap: () {
-                    // Navigate to ProductDetailPage for similar products (regular Product)
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => ProductDetailPage(product: product),
-                      ),
+                      MaterialPageRoute(builder: (context) => ProductDetailPage(product: product)),
                     );
                   },
                   child: _isValidUrl(product.imageUrl)
                       ? Image.network(
-                          product.imageUrl,
-                          height: 70, // Consistent height for product images
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Image.asset(
-                            'assets/placeholder.png',
-                            height: 70,
-                            fit: BoxFit.contain,
-                          ),
-                        )
+                    product.imageUrl,
+                    height: 70,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Image.asset('assets/placeholder.png', height: 70, fit: BoxFit.contain),
+                  )
                       : Image.asset(product.imageUrl, height: 70, fit: BoxFit.contain),
                 ),
                 const SizedBox(height: 5),
                 Text(product.title,
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold, fontSize: 12),
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12),
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,),
+                    overflow: TextOverflow.ellipsis),
                 Text(product.subtitle,
                     style: GoogleFonts.poppins(fontSize: 10),
                     textAlign: TextAlign.center,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,),
-                // Display the price for the selected unit of the similar product
+                    overflow: TextOverflow.ellipsis),
                 Text(
                   '₹ ${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
                   style: GoogleFonts.poppins(fontSize: 10, color: Colors.green),
                 ),
-                Text('Unit: ${product.selectedUnit}', // Display selected unit
-                    style: GoogleFonts.poppins(
-                        fontSize: 8, color: const Color(0xffEB7720))),
+                Text('Unit: ${product.selectedUnit}',
+                    style: GoogleFonts.poppins(fontSize: 8, color: const Color(0xffEB7720))),
                 const SizedBox(height: 8),
                 Container(
                   height: 36,
@@ -710,21 +581,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: product.selectedUnit,
-                      icon: const Icon(Icons.keyboard_arrow_down,
-                          color: Color(0xffEB7720)),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xffEB7720)),
                       isExpanded: true,
-                      style: GoogleFonts.poppins(
-                          fontSize: 12, color: Colors.black),
-                      // Map ProductSize objects to DropdownMenuItems
+                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),
                       items: product.availableSizes
-                          .map((ProductSize sizeOption) =>
-                              DropdownMenuItem<String>(
-                                  value: sizeOption.size,
-                                  child: Text(sizeOption.size)))
+                          .map((ProductSize sizeOption) => DropdownMenuItem<String>(
+                          value: sizeOption.size,
+                          child: Text(sizeOption.size)))
                           .toList(),
                       onChanged: (val) {
                         setState(() {
-                          // Update the selected unit of the product in the list
                           product.selectedUnit = val!;
                         });
                       },
@@ -737,25 +603,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          // Add to cart for similar products
-                          Provider.of<CartModel>(context, listen: false)
-                              .addItem(product.copyWith()); // Use product's copyWith
+                          Provider.of<CartModel>(context, listen: false).addItem(product.copyWith());
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${product.title} added to cart!'),
-                              backgroundColor: Colors.green,
-                            ),
+                            SnackBar(content: Text('${product.title} added to cart!'), backgroundColor: Colors.green),
                           );
                         },
-                        child: Text("Add",
-                            style: GoogleFonts.poppins(color: Colors.white)),
+                        child: Text("Add", style: GoogleFonts.poppins(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xffEB7720),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 8)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -769,25 +626,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             if (isFavorite) {
                               wishlist.removeItem(product.id, product.selectedUnit);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${product.title} removed from wishlist!'),
-                                  backgroundColor: Colors.red,
-                                ),
+                                SnackBar(content: Text('${product.title} removed from wishlist!'), backgroundColor: Colors.red),
                               );
                             } else {
                               wishlist.addItem(product.copyWith());
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${product.title} added to wishlist!'),
-                                  backgroundColor: Colors.blue,
-                                ),
+                                SnackBar(content: Text('${product.title} added to wishlist!'), backgroundColor: Colors.blue),
                               );
                             }
                           },
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: const Color(0xffEB7720),
-                          ),
+                          icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: const Color(0xffEB7720)),
                         );
                       },
                     ),
@@ -802,12 +650,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 
   Widget _buildHeaderSection(String title) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          title,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Text(title,
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+  );
 
   Widget _buildDottedText(String text) {
     return Padding(
@@ -821,10 +667,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              text,
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
-            ),
+            child: Text(text, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
           ),
         ],
       ),

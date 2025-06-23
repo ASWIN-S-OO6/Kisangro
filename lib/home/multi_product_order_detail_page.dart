@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart'; // For date formatting if needed
+import 'package:intl/intl.dart';
 
-import 'package:kisangro/models/order_model.dart'; // Import your Order model
-import 'package:kisangro/models/product_model.dart'; // Import your Product model (though not directly used, good to have)
+import 'package:kisangro/models/order_model.dart';
+import 'package:kisangro/models/product_model.dart';
 
-// This page displays the details of an order containing multiple products.
 class MultiProductOrderDetailPage extends StatelessWidget {
-  final Order order; // The complete order object
+  final Order order;
 
   const MultiProductOrderDetailPage({Key? key, required this.order}) : super(key: key);
 
@@ -26,7 +25,7 @@ class MultiProductOrderDetailPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            Navigator.pop(context); // Go back to the MyOrder screen
+            Navigator.pop(context);
           },
         ),
       ),
@@ -41,7 +40,6 @@ class MultiProductOrderDetailPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            // Order Summary
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -63,11 +61,9 @@ class MultiProductOrderDetailPage extends StatelessWidget {
                 ),
               ),
             ),
-
-            // List of Products in the Order
             Text('Products in this Order', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 10),
-            ...order.products.map((product) { // 'product' here is an OrderedProduct
+            ...order.products.map((product) {
               return Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -80,7 +76,7 @@ class MultiProductOrderDetailPage extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
                         child: Image.asset(
-                          product.imageUrl, // Accessing imageUrl from OrderedProduct
+                          product.imageUrl,
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
@@ -92,28 +88,28 @@ class MultiProductOrderDetailPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              product.title, // Accessing title from OrderedProduct
+                              product.title,
                               style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              product.subtitle, // Accessing subtitle from OrderedProduct
+                              product.description, // Line 101: Changed from subtitle
                               style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Unit: ${product.selectedUnit}', // Accessing selectedUnit from OrderedProduct
+                              'Unit: ${product.unit}', // Line 108: Changed from selectedUnit
                               style: GoogleFonts.poppins(fontSize: 13),
                             ),
                             Text(
-                              'Price: ₹${product.pricePerUnit.toStringAsFixed(2)}', // Accessing pricePerUnit from OrderedProduct
+                              'Price: ₹${product.price.toStringAsFixed(2)}', // Line 112: Changed from pricePerUnit
                               style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xffEB7720)),
                             ),
                             Text(
-                              'Quantity: ${product.quantity}', // Accessing quantity from OrderedProduct
+                              'Quantity: ${product.quantity}',
                               style: GoogleFonts.poppins(fontSize: 13),
                             ),
                           ],
@@ -124,19 +120,13 @@ class MultiProductOrderDetailPage extends StatelessWidget {
                 ),
               );
             }).toList(),
-
             const SizedBox(height: 20),
-            // Add other relevant order details here, e.g., shipping address, payment method etc.
-            // For example:
-            // Text('Shipping Address', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-            // Text('123 Main St, Anytown, 12345', style: GoogleFonts.poppins(fontSize: 16)),
           ],
         ),
       ),
     );
   }
 
-  // Helper widget to build a row for detail display
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
