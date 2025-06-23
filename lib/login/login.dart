@@ -132,6 +132,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.orange[50], // This background will be overridden by the Container gradient
+      resizeToAvoidBottomInset: true, // Enable keyboard resize behavior
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -154,11 +155,11 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 20), // Reduced from 40
                       Center(
-                        child: Image.asset("assets/logo.png", height: 100),
+                        child: Image.asset("assets/logo.png", height: 80), // Reduced from 100
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 20), // Reduced from 40
                       Text(
                         'Login/Register',
                         style: GoogleFonts.poppins(
@@ -167,13 +168,13 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                           color: const Color(0xffEB7720),
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 20), // Reduced from 40
                       Text(
                         'OTP (One Time Password) will be sent to this number',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(fontSize: 13),
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 20), // Reduced from 30
 
                       /// PHONE FIELD
                       IntlPhoneField(
@@ -216,15 +217,17 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Text(
-                            "Don't worry your details are safe with us.",
-                            style: GoogleFonts.poppins(fontSize: 13),
+                          Expanded( // Added Expanded to prevent overflow
+                            child: Text(
+                              "Don't worry your details are safe with us.",
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
                           ),
                           const SizedBox(width: 5),
                           const Icon(Icons.verified, color: Color(0xffEB7720)),
                         ],
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 20), // Reduced from 30
 
                       /// TERMS CHECKBOX
                       Row(
@@ -268,13 +271,20 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
+                      // Add extra space to push content up when keyboard appears
+                      SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 20 : 0),
                     ],
                   ),
                 ),
               ),
               // SEND OTP BUTTON at the bottom
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              Container(
+                padding: EdgeInsets.only(
+                  left: 24.0,
+                  right: 24.0,
+                  top: 16.0,
+                  bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 16.0 : 30.0, // Adaptive bottom padding
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(

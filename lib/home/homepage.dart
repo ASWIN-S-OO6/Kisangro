@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // For custom fonts
 import 'package:carousel_slider/carousel_slider.dart'; // For carousel functionality
 import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // For rating UI
-// ProductCategoriesScreen (old reference)
 import 'package:kisangro/home/categories.dart'; // ProductCategoriesScreen (updated reference)
 import 'package:kisangro/home/product.dart'; // ProductDetailPage
 import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // For carousel page indicators
@@ -13,6 +12,7 @@ import 'package:dotted_border/dotted_border.dart'; // For dotted borders
 import 'package:provider/provider.dart'; // For state management
 import 'package:geolocator/geolocator.dart'; // Import geolocator
 import 'package:geocoding/geocoding.dart'; // Import geocoding for reverse geocoding
+import 'package:shared_preferences/shared_preferences.dart'; // Import for SharedPreferences
 
 // Import your custom models
 import 'package:kisangro/models/product_model.dart'; // Assuming this model exists
@@ -22,7 +22,7 @@ import 'package:kisangro/models/kyc_image_provider.dart'; // Your custom KYC ima
 import 'package:kisangro/services/product_service.dart'; // Import ProductService
 
 // Your existing page imports (ensure these paths are correct in your project)
-import 'package:kisangro/home/membership.dart'; // MembershipDetailsScreen
+// MembershipDetailsScreen
 import 'package:kisangro/home/myorder.dart'; // MyOrder
 import 'package:kisangro/home/noti.dart'; // noti
 import 'package:kisangro/home/search_bar.dart'; // SearchScreen
@@ -40,32 +40,35 @@ import '../menu/setting.dart'; // SettingsPage
 import '../menu/transaction.dart'; // TransactionHistoryPage
 import '../menu/wishlist.dart'; // WishlistPage
 import 'package:kisangro/home/cart.dart'; // Import the cart page for navigation to cart
-import 'package:kisangro/home/trending_products_screen.dart'; // NEW: Import TrendingProductsScreen
+import 'package:kisangro/home/trending_products_screen.dart';
+
+import 'membership.dart'; // NEW: Import TrendingProductsScreen
 
 
-class HomeScreen extends StatefulWidget { // Class name: HomeScreen - UNCHANGED
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState(); // Class name: _HomeScreenState - UNCHANGED
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final PageController _pageController = PageController(viewportFraction: 0.9);
   int _currentPage = 0;
   Timer? _carouselTimer; // Declared for the carousel auto-scrolling
   Timer? _refreshTimer; // Declared for the auto-refresh logic
   String _currentLocation = 'Detecting...'; // Placeholder for location
   double _rating = 4.0; // Initial rating for the review dialog
-  final TextEditingController _reviewController =
-  TextEditingController(); // Controller for review text field
+  final TextEditingController _reviewController = TextEditingController(); // Controller for review text field
   static const int maxChars = 100; // Max characters for review
 
   // --- Dynamic product lists, populated from ProductService.getAllProducts() ---
-  // This ensures the homepage still displays products from the main API call (type=1041).
   List<Product> _trendingItems = [];
   List<Product> _newOnKisangroItems = [];
   List<Map<String, String>> _categories = []; // Now dynamic
+
+  // Membership status flag
+  bool _isMembershipActive = false; // New state variable
 
   // Dummy data for deals section (if not coming from API)
   final List<Map<String, String>> _deals = [
@@ -76,7 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
     {'name': 'HYFEN', 'price': '₹ 1550/piece', 'original': '₹ 2000', 'image': 'assets/Oxyfen.png'}, // Cycle image
     {'name': 'HYFEN', 'price': '₹ 1550/piece', 'original': '₹ 2000', 'image': 'assets/hyfen.png'}, // Cycle image
   ];
-
 
   // Carousel images for the top banner
   final List<String> _carouselImages = [
@@ -101,40 +103,66 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Add observer for lifecycle events
     _loadInitialData(); // Load products and categories initially
     _startCarousel(); // Start auto-scrolling carousel
     _determinePosition(); // Fetch location on init
+    _checkMembershipStatus(); // Initial check for membership status
 
     // Start auto-refresh timer (e.g., every 5 minutes)
-    // Adjust the duration as needed for your application's refresh frequency.
     _refreshTimer = Timer.periodic(const Duration(minutes: 5), (Timer timer) {
       debugPrint('Auto-refreshing homepage data...');
       _refreshData();
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // Remove observer
+    _carouselTimer?.cancel(); // Cancel carousel timer
+    _refreshTimer?.cancel(); // Cancel auto-refresh timer
+    _pageController.dispose(); // Dispose page controller
+    _reviewController.dispose(); // Dispose text editing controller
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // This method is called when the app's lifecycle state changes
+    if (state == AppLifecycleState.resumed) {
+      // When the app resumes (e.g., coming back from another screen like payment)
+      debugPrint('App resumed to homepage, re-checking membership status...');
+      _checkMembershipStatus();
+    }
+  }
+
+  /// Checks the membership status from SharedPreferences.
+  Future<void> _checkMembershipStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isActive = prefs.getBool('isMembershipActive') ?? false;
+    if (isActive != _isMembershipActive) {
+      setState(() {
+        _isMembershipActive = isActive;
+      });
+      debugPrint('Membership status updated in homepage: $_isMembershipActive');
+    }
+  }
+
   /// Loads initial product and category data from ProductService.
   /// This method is called once on initState and also during auto-refresh.
   Future<void> _loadInitialData() async {
-    // ProductService.loadProductsFromApi() should ideally be called once at app startup
-    // and keep _allProducts updated. Here, we just retrieve the already loaded list.
-    // If you need to re-fetch from API specifically for this screen, uncomment the line below.
-    // await ProductService.loadProductsFromApi();
     try {
       await ProductService.loadProductsFromApi(); // Re-fetch products from API (POST request with type=1041)
       await ProductService.loadCategoriesFromApi(); // Ensure categories are loaded (type=1043)
     } catch (e) {
       debugPrint('Error during initial data load/refresh: $e');
-      // Optionally, show a snackbar or an error message to the user
     }
 
-    // After loading (or failing to load), update the UI state.
-    if (mounted) { // Check if the widget is still in the widget tree
+    if (mounted) {
       setState(() {
-        _trendingItems = ProductService.getAllProducts().take(6).toList(); // Get top 6 for trending
-        // Adjusted how "New On Kisangro" items are picked to ensure they are distinct
-        _newOnKisangroItems = ProductService.getAllProducts().reversed.take(6).toList(); // Simple reversal for "new"
-        _categories = ProductService.getAllCategories(); // Get categories from ProductService
+        _trendingItems = ProductService.getAllProducts().take(6).toList();
+        _newOnKisangroItems = ProductService.getAllProducts().reversed.take(6).toList();
+        _categories = ProductService.getAllCategories();
       });
     }
   }
@@ -152,11 +180,15 @@ class _HomeScreenState extends State<HomeScreen> {
       barrierDismissible: false, // User must tap a button to dismiss
       builder: (context) => LogoutConfirmationDialog(
         onCancel: () => Navigator.of(context).pop(), // Close dialog on cancel
-        onLogout: () {
-          // Perform logout actions and navigate to LoginApp, clearing navigation stack
+        onLogout: () async { // Make async to clear SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', false); // Clear login status
+          await prefs.setBool('hasUploadedLicenses', false); // Clear license status
+          await prefs.setBool('isMembershipActive', false); // Clear membership status
+
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => LoginApp()),
+            MaterialPageRoute(builder: (context) => const LoginApp()), // Navigate to LoginApp
                 (Route<dynamic> route) => false, // Remove all routes below
           );
           ScaffoldMessenger.of(context).showSnackBar(
@@ -352,14 +384,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Starts a timer for auto-scrolling the carousel.
   void _startCarousel() {
-    // Changed carousel auto-scrolling logic for seamless loop (1 to 4 and 4 to 1)
     _carouselTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (_pageController.hasClients && mounted) {
         int nextPageIndex = _currentPage + 1;
         if (nextPageIndex >= _carouselImages.length) {
-          // If at the last image, jump directly to the first without animation
           _pageController.jumpToPage(0);
-          nextPageIndex = 0; // Reset nextPageIndex for consistency
+          nextPageIndex = 0;
         } else {
           _pageController.animateToPage(
             nextPageIndex,
@@ -368,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
         setState(() {
-          _currentPage = nextPageIndex; // Update _currentPage after animation or jump
+          _currentPage = nextPageIndex;
         });
       }
     });
@@ -379,7 +409,6 @@ class _HomeScreenState extends State<HomeScreen> {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (!mounted) return;
@@ -418,24 +447,21 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // When we reach here, permissions are granted and we can continue accessing the position of the device.
     try {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10), // Added timeout for position retrieval
+        timeLimit: const Duration(seconds: 10),
       );
 
-      // Reverse geocoding to get address from coordinates
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
 
       if (mounted) {
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks.first;
           setState(() {
-            // Prioritize subLocality, locality, administrativeArea (state)
             _currentLocation = '${place.subLocality ?? ''}, ${place.locality ?? place.administrativeArea ?? ''}';
-            _currentLocation = _currentLocation.trim().replaceAll(RegExp(r'^,?\s*'), '').replaceAll(RegExp(r',?\s*,+'), ', ').trim(); // Clean up commas
-            if (_currentLocation.isEmpty) { // Fallback if above is still empty
+            _currentLocation = _currentLocation.trim().replaceAll(RegExp(r'^,?\s*'), '').replaceAll(RegExp(r',?\s*,+'), ', ').trim();
+            if (_currentLocation.isEmpty) {
               _currentLocation = 'Lat: ${position.latitude.toStringAsFixed(2)}, Lon: ${position.longitude.toStringAsFixed(2)}';
             }
           });
@@ -456,16 +482,6 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(content: Text('Error getting current location: ${e.toString()}.')),
       );
     }
-  }
-
-
-  @override
-  void dispose() {
-    _carouselTimer?.cancel(); // Cancel carousel timer
-    _refreshTimer?.cancel(); // Cancel auto-refresh timer
-    _pageController.dispose(); // Dispose page controller
-    _reviewController.dispose(); // Dispose text editing controller
-    super.dispose();
   }
 
   @override
@@ -1363,7 +1379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center, // Center content in button
                   children: [
                     Text(
-                      "Not A Member Yet",
+                      _isMembershipActive ? "You Are A Member" : "Not A Member Yet", // Dynamic text
                       style: GoogleFonts.poppins(
                         color: Colors.white70,
                         fontSize: 10,

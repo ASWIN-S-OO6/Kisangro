@@ -216,6 +216,7 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true, // Enable keyboard resize behavior
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -224,117 +225,142 @@ class _OtpScreenState extends State<OtpScreen> {
             colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
           ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                icon: const Icon(Icons.arrow_back, color: Colors.black87),
-              ),
-            ),
-            const SizedBox(height: 30),
-            Center(
-              child: Image.asset(
-                'assets/logo.png',
-                height: 100,
-              ),
-            ),
-            const SizedBox(height: 100),
-            Center(
-              child: Text(
-                'OTP Verification',
-                style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xffEB7720)),
-              ),
-            ),
-            const SizedBox(height: 50),
-            Center(
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.black),
-                  children: [
-                    const TextSpan(
-                      text:
-                      'We sent an OTP (One Time Password) to your mobile number ',
-                    ),
-                    // Use widget.phoneNumber to display the number passed from LoginScreen
-                    TextSpan(
-                      text: widget.phoneNumber,
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            PinCodeTextField(
-              appContext: context,
-              length: 6,
-              controller: otpController,
-              onChanged: (value) {
-                setState(() {
-                  isOtpFilled = value.length == 6;
-                });
-              },
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              pinTheme: PinTheme(
-                shape: PinCodeFieldShape.underline,
-                fieldWidth: 30,
-                activeColor: const Color(0xffEB7720),
-                selectedColor: const Color(0xffEB7720),
-                inactiveColor: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Didn't receive OTP?", style: GoogleFonts.poppins(fontSize: 13)),
-                canResend
-                    ? GestureDetector(
-                  onTap: _resendOtp, // Call the resend OTP function
-                  child: Text(
-                    'Resend now',
-                    style: GoogleFonts.poppins(
-                        color: Color(0xffEB7720),
-                        fontWeight: FontWeight.bold),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Back button section
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
                   ),
-                )
-                    : Text(
-                  '0:${_start.toString().padLeft(2, '0')}',
-                  style: GoogleFonts.poppins(color: Colors.grey),
-                ),
-              ],
-            ),
-            const Spacer(), // Pushes the button to the bottom
-            ElevatedButton(
-              onPressed: (isOtpFilled && !_isVerifying) ? _verifyOtp : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xffEB7720),
-                minimumSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: _isVerifying
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(
-                'Verify & Proceed',
-                style: GoogleFonts.poppins(color: Colors.white),
+
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 20), // Reduced spacing
+                      Center(
+                        child: Image.asset(
+                          'assets/logo.png',
+                          height: 80, // Reduced from 100
+                        ),
+                      ),
+                      const SizedBox(height: 40), // Reduced from 100
+                      Center(
+                        child: Text(
+                          'OTP Verification',
+                          style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xffEB7720)),
+                        ),
+                      ),
+                      const SizedBox(height: 30), // Reduced from 50
+                      Center(
+                        child: RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: GoogleFonts.poppins(fontSize: 14, color: Colors.black),
+                            children: [
+                              const TextSpan(
+                                text:
+                                'We sent an OTP (One Time Password) to your mobile number ',
+                              ),
+                              // Use widget.phoneNumber to display the number passed from LoginScreen
+                              TextSpan(
+                                text: widget.phoneNumber,
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      PinCodeTextField(
+                        appContext: context,
+                        length: 6,
+                        controller: otpController,
+                        onChanged: (value) {
+                          setState(() {
+                            isOtpFilled = value.length == 6;
+                          });
+                        },
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        pinTheme: PinTheme(
+                          shape: PinCodeFieldShape.underline,
+                          fieldWidth: 30,
+                          activeColor: const Color(0xffEB7720),
+                          selectedColor: const Color(0xffEB7720),
+                          inactiveColor: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Didn't receive OTP?", style: GoogleFonts.poppins(fontSize: 13)),
+                          canResend
+                              ? GestureDetector(
+                            onTap: _resendOtp, // Call the resend OTP function
+                            child: Text(
+                              'Resend now',
+                              style: GoogleFonts.poppins(
+                                  color: Color(0xffEB7720),
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          )
+                              : Text(
+                            '0:${_start.toString().padLeft(2, '0')}',
+                            style: GoogleFonts.poppins(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      // Add extra space to accommodate keyboard
+                      SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 40 : 20),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 30), // Padding at the very bottom
-          ],
+
+              // Bottom button section
+              Container(
+                padding: EdgeInsets.only(
+                  left: 24.0,
+                  right: 24.0,
+                  top: 16.0,
+                  bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 16.0 : 30.0, // Adaptive bottom padding
+                ),
+                child: ElevatedButton(
+                  onPressed: (isOtpFilled && !_isVerifying) ? _verifyOtp : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xffEB7720),
+                    minimumSize: Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isVerifying
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                    'Verify & Proceed',
+                    style: GoogleFonts.poppins(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

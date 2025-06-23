@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For input formatters
-// import 'package:kisangro/payment/payment1.dart'; // Not directly needed for navigation back
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart'; // REQUIRED: Import Provider
 import 'package:kisangro/models/cart_model.dart'; // REQUIRED: Import CartModel
@@ -99,28 +98,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
               color: Colors.white,
             ),
           ),
-          Consumer<CartModel>(
-            builder: (context, cart, child) {
-              return IconButton(
-                onPressed: () {
-                  // Handle cart icon tap - navigate to cart page
-                  // You might need to adjust navigation depending on your flow
-                  // For simplicity, let's just show a snackbar for now
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Cart items: ${cart.totalItemCount}', style: GoogleFonts.poppins()),
-                    ),
-                  );
-                },
-                icon: Image.asset(
-                  'assets/bag.png',
-                  height: 24,
-                  width: 24,
-                  color: Colors.white,
-                ),
-              );
-            },
-          ),
+          // Removed the cart icon button (bag.png)
         ],
       ),
       body: Container(
@@ -217,20 +195,18 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                       addressModel.setAddress(
                         address: addressController.text,
                         pincode: pinController.text,
-                        // If you have a field for name in payment2, pass it here too
-                        // name: nameController.text,
                       );
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Address saved to model!', style: GoogleFonts.poppins(),)),
+                        SnackBar(content: Text('Address saved to model!', style: GoogleFonts.poppins())),
                       );
                       Navigator.pop(context); // Go back to payment1.dart (delivery screen)
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please enter a valid address and 6-digit pin code.', style: GoogleFonts.poppins(),)),
+                        SnackBar(content: Text('Please enter a valid address and 6-digit pin code.', style: GoogleFonts.poppins())),
                       );
                     }
                   },
-                  child: Text('Save', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),),
+                  child: Text('Save', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18)),
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(5),

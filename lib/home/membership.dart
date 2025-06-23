@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/payment/payment3.dart'; // Import the PaymentPage from payment3.dart
 import 'package:shared_preferences/shared_preferences.dart'; // For SharedPreferences
+import 'package:flutter/foundation.dart'; // For debugPrint
 
 class MembershipDetailsScreen extends StatefulWidget {
   const MembershipDetailsScreen({super.key});
@@ -10,26 +11,44 @@ class MembershipDetailsScreen extends StatefulWidget {
   State<MembershipDetailsScreen> createState() => _MembershipDetailsScreenState();
 }
 
-class _MembershipDetailsScreenState extends State<MembershipDetailsScreen> {
+class _MembershipDetailsScreenState extends State<MembershipDetailsScreen> with WidgetsBindingObserver {
   bool _isMembershipActive = false; // Local state to control which UI to show
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Add observer for lifecycle events
     _checkMembershipStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // Remove observer
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // This method is called when the app's lifecycle state changes
+    if (state == AppLifecycleState.resumed) {
+      // When the app resumes (e.g., coming back from another screen like payment)
+      debugPrint('App resumed, re-checking membership status...');
+      _checkMembershipStatus();
+    }
   }
 
   // Method to check membership status from SharedPreferences
   Future<void> _checkMembershipStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    // Assuming 'isMembershipActive' is set to true after successful payment
     setState(() {
       _isMembershipActive = prefs.getBool('isMembershipActive') ?? false;
     });
-    debugPrint('Membership status on load: $_isMembershipActive');
+    debugPrint('Membership status loaded: $_isMembershipActive');
   }
 
-  // Method to activate membership (called after successful payment)
+  // Method to activate membership (called after successful payment) - now directly tied to SharedPreferences
+  // This method is primarily for internal state updates if you were to call it without pop/push.
+  // In the current flow, payment3.dart will set the flag, and didChangeAppLifecycleState will trigger refresh.
   Future<void> _activateMembership() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isMembershipActive', true);
@@ -37,7 +56,6 @@ class _MembershipDetailsScreenState extends State<MembershipDetailsScreen> {
       _isMembershipActive = true;
     });
     debugPrint('Membership activated!');
-    // Optionally show a snackbar or dialog to confirm activation
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Congratulations! Your membership is now active!', style: GoogleFonts.poppins())),
@@ -74,21 +92,6 @@ class _MembershipDetailsScreenState extends State<MembershipDetailsScreen> {
               ),
             ),
           ),
-          // Gradient Overlay (optional, if you want the dark gradient from the sample over the image)
-          // If you want the gradient, uncomment this and adjust colors
-          // Container(
-          //   decoration: const BoxDecoration(
-          //     gradient: LinearGradient(
-          //       begin: Alignment.topCenter,
-          //       end: Alignment.bottomCenter,
-          //       colors: [
-          //         Color(0xCC1A1A2E), // Example: A semi-transparent dark overlay
-          //         Color(0xCC16213E),
-          //         Color(0xCC0F3460),
-          //       ],
-          //     ),
-          //   ),
-          // ),
           SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 100, 16, 20),
@@ -183,9 +186,7 @@ class _MembershipDetailsScreenState extends State<MembershipDetailsScreen> {
               ),
             );
             // After returning from PaymentPage, check membership status again
-            // In a real app, payment3.dart would set isMembershipActive = true
-            // and then pop. When it pops, _checkMembershipStatus will be called.
-            _checkMembershipStatus(); // Re-check in case payment was successful and page popped
+            // This will be handled by didChangeAppLifecycleState when the screen resumes.
           },
           icon: const Icon(Icons.lock_open, color: Colors.white),
           label: Text('Unlock', style: GoogleFonts.poppins(fontSize: 18, color: Colors.white)),
@@ -235,7 +236,8 @@ class _MembershipDetailsScreenState extends State<MembershipDetailsScreen> {
                   builder: (context) => PaymentPage(orderId: 'MEMBERSHIP_ORDER_ID_ABC'),
                 ),
               );
-              _checkMembershipStatus(); // Re-check status after returning from payment
+              // After returning from PaymentPage, check membership status again
+              // This will be handled by didChangeAppLifecycleState when the screen resumes.
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,

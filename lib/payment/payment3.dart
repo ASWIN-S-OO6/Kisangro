@@ -8,6 +8,7 @@ import 'package:kisangro/models/order_model.dart'; // OrderModel and OrderStatus
 import 'package:kisangro/models/address_model.dart'; // AddressModel
 import 'package:intl/intl.dart'; // Date formatting
 import 'package:kisangro/home/rewards_popup.dart'; // Import RewardsPopup
+import 'package:shared_preferences/shared_preferences.dart'; // Import for SharedPreferences
 
 class PaymentPage extends StatefulWidget {
   final String orderId; // Receive the orderId from previous screen
@@ -87,12 +88,68 @@ class _PaymentPageState extends State<PaymentPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Dotted line
-              Container(
+              SizedBox(
                 width: double.infinity,
                 height: 1,
                 child: CustomPaint(
                   painter: DottedLinePainter(),
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // Display Saved Address and Pin Code
+              Consumer<AddressModel>(
+                builder: (context, addressModel, child) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Delivery Address',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xffEB7720),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          addressModel.currentAddress.isNotEmpty
+                              ? addressModel.currentAddress
+                              : 'No address provided',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          addressModel.currentPincode.isNotEmpty
+                              ? 'Pincode: ${addressModel.currentPincode}'
+                              : 'No pincode provided',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
@@ -129,7 +186,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
               // Dotted line
               const SizedBox(height: 16),
-              Container(
+              SizedBox(
                 width: double.infinity,
                 height: 1,
                 child: CustomPaint(
@@ -537,11 +594,12 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   @override
   void initState() {
     super.initState();
-    _handlePaymentSuccess();
+    // This delayed call handles setting the membership active status
+    _updateMembershipStatusOnSuccess();
   }
 
-  void _handlePaymentSuccess() {
-    Future.delayed(const Duration(seconds: 3), () {
+  void _updateMembershipStatusOnSuccess() {
+    Future.delayed(const Duration(seconds: 3), () async {
       final orderModel = Provider.of<OrderModel>(context, listen: false);
       orderModel.updateOrderStatus(widget.orderId, OrderStatus.confirmed);
       debugPrint('Order ${widget.orderId} status updated to CONFIRMED after payment.');
@@ -549,17 +607,24 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
       final cartModel = Provider.of<CartModel>(context, listen: false);
       cartModel.clearCart();
 
+      // NEW: Set the membership active flag in SharedPreferences here
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isMembershipActive', true);
+      debugPrint('Membership status set to true in SharedPreferences.');
+
       // Navigate to Bot with showRewardsPopup: true
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const Bot(
-            initialIndex: 0,
-            showRewardsPopup: true,
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const Bot(
+              initialIndex: 0,
+              showRewardsPopup: true,
+            ),
           ),
-        ),
-            (Route<dynamic> route) => false,
-      );
+              (Route<dynamic> route) => false,
+        );
+      }
     });
   }
 

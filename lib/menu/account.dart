@@ -131,30 +131,25 @@ class MyAccountPage extends StatelessWidget {
                         ),
                       ),
                       Positioned(
-                        right: -20,
+                        right: 1,
                         bottom: 0,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Action for editing details (e.g., navigate to KYC edit page)
-                            // You might want to navigate back to kyc screen for editing
+                            // Navigate to KYC edit page
                             Navigator.push(context, MaterialPageRoute(builder: (context) => kyc()));
                           },
-                          icon: const Icon(Icons.edit,
-                              color: Colors.white, size: 16),
-                          label: Text(
-                            "Edit Details",
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
+                          icon: const Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 16,
                           ),
+                          label: const SizedBox.shrink(), // Use SizedBox.shrink() to provide an empty widget
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: orange,
+                            backgroundColor: orange, // Ensure 'orange' is defined (e.g., const Color(0xffEB7720))
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                         ),
                       ),
