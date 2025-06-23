@@ -11,6 +11,8 @@ import 'package:kisangro/home/product.dart'; // ProductDetailPage
 import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // For carousel page indicators
 import 'package:dotted_border/dotted_border.dart'; // For dotted borders
 import 'package:provider/provider.dart'; // For state management
+import 'package:geolocator/geolocator.dart'; // Import geolocator
+import 'package:geocoding/geocoding.dart'; // Import geocoding for reverse geocoding
 
 // Import your custom models
 import 'package:kisangro/models/product_model.dart'; // Assuming this model exists
@@ -38,6 +40,7 @@ import '../menu/setting.dart'; // SettingsPage
 import '../menu/transaction.dart'; // TransactionHistoryPage
 import '../menu/wishlist.dart'; // WishlistPage
 import 'package:kisangro/home/cart.dart'; // Import the cart page for navigation to cart
+import 'package:kisangro/home/trending_products_screen.dart'; // NEW: Import TrendingProductsScreen
 
 
 class HomeScreen extends StatefulWidget { // Class name: HomeScreen - UNCHANGED
@@ -113,10 +116,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Loads initial product and category data from ProductService.
   /// This method is called once on initState and also during auto-refresh.
   Future<void> _loadInitialData() async {
-    // ProductService.loadProductsFromApi() is called in main.dart before runApp.
-    // However, calling it here again (or a dedicated refresh method) ensures
-    // that the _allProducts static list in ProductService is always up-to-date
-    // with the latest from the API before populating local state.
+    // ProductService.loadProductsFromApi() should ideally be called once at app startup
+    // and keep _allProducts updated. Here, we just retrieve the already loaded list.
+    // If you need to re-fetch from API specifically for this screen, uncomment the line below.
+    // await ProductService.loadProductsFromApi();
     try {
       await ProductService.loadProductsFromApi(); // Re-fetch products from API (POST request with type=1041)
       await ProductService.loadCategoriesFromApi(); // Ensure categories are loaded (type=1043)
@@ -349,27 +352,112 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Starts a timer for auto-scrolling the carousel.
   void _startCarousel() {
+    // Changed carousel auto-scrolling logic for seamless loop (1 to 4 and 4 to 1)
     _carouselTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (_pageController.hasClients && mounted) {
-        int nextPage = (_currentPage + 1) % _carouselImages.length;
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
+        int nextPageIndex = _currentPage + 1;
+        if (nextPageIndex >= _carouselImages.length) {
+          // If at the last image, jump directly to the first without animation
+          _pageController.jumpToPage(0);
+          nextPageIndex = 0; // Reset nextPageIndex for consistency
+        } else {
+          _pageController.animateToPage(
+            nextPageIndex,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+        setState(() {
+          _currentPage = nextPageIndex; // Update _currentPage after animation or jump
+        });
       }
     });
   }
 
-  /// Placeholder for location determination. In a real app, use geolocator package.
+  /// Fetches and updates the current location using geolocator.
   Future<void> _determinePosition() async {
-    // Simulate fetching location
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() {
-      _currentLocation = 'Coimbatore, Tamil Nadu';
-    });
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = 'Location services disabled.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location services are disabled. Please enable them.')),
+      );
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        setState(() {
+          _currentLocation = 'Location permission denied.';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permissions are denied. Cannot fetch current location.')),
+        );
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = 'Location permission permanently denied.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location permissions are permanently denied. Please enable from app settings.')),
+      );
+      return;
+    }
+
+    // When we reach here, permissions are granted and we can continue accessing the position of the device.
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10), // Added timeout for position retrieval
+      );
+
+      // Reverse geocoding to get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+
+      if (mounted) {
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks.first;
+          setState(() {
+            // Prioritize subLocality, locality, administrativeArea (state)
+            _currentLocation = '${place.subLocality ?? ''}, ${place.locality ?? place.administrativeArea ?? ''}';
+            _currentLocation = _currentLocation.trim().replaceAll(RegExp(r'^,?\s*'), '').replaceAll(RegExp(r',?\s*,+'), ', ').trim(); // Clean up commas
+            if (_currentLocation.isEmpty) { // Fallback if above is still empty
+              _currentLocation = 'Lat: ${position.latitude.toStringAsFixed(2)}, Lon: ${position.longitude.toStringAsFixed(2)}';
+            }
+          });
+        } else {
+          setState(() {
+            _currentLocation = 'Location found, but address unknown.';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+      if (mounted) {
+        setState(() {
+          _currentLocation = 'Could not get location.';
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting current location: ${e.toString()}.')),
+      );
+    }
   }
+
 
   @override
   void dispose() {
@@ -428,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> {
               GestureDetector(
                 child: Image.asset("assets/whats.png", width: 24, height: 24,),
               ),
-               // Consistent smaller spacing
+              const SizedBox(width: 5), // Consistent smaller spacing
 
               // My Orders icon
               IconButton(
@@ -445,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                 ),
               ),
-               // Consistent smaller spacing
+              const SizedBox(width: 5), // Consistent smaller spacing
 
               // Wishlist icon
               IconButton(
@@ -462,7 +550,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                 ),
               ),
-               // Consistent smaller spacing
+              const SizedBox(width: 5), // Consistent smaller spacing
 
               // Notifications icon (removed Padding as SizedBox handles spacing)
               IconButton(
@@ -479,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                 ),
               ),
-               // Small padding at the very end to keep icons from touching edge
+              const SizedBox(width: 10), // Small padding at the very end to keep icons from touching edge
             ],
           ),
         ],
@@ -499,19 +587,36 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Start of the Stack containing search bar, location, and carousel
               Stack(
                 children: [
-                  Image.asset(
-                    'assets/bghome.jpg', // Background image for the top section
-                    height: 290,
+                  // This Container ensures the Stack has a minimum height even if the image fails to load
+                  Container(
+                    height: 290, // Fixed height for the stack background
                     width: double.infinity,
-                    fit: BoxFit.cover,
+                    color: Colors.grey.shade200, // Fallback background color
+                    child: Image.asset(
+                      'assets/bghome.jpg', // Background image for the top section
+                      height: 290,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      // Add errorBuilder for debug visibility if image is missing
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Text(
+                            'Error loading image: assets/bghome.jpg',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(color: Colors.red),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                   Positioned(
                     top: 10,
                     left: 12,
                     right: 12,
-                    child: _buildSearchBar(), // Search bar widget
+                    child: _buildSearchBar(), // Search bar widget (includes location)
                   ),
                   Positioned(
                     top: 80,
@@ -548,6 +653,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+              // End of the Stack
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -563,8 +669,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        // Navigates to the general categories screen (lib/home/categories.dart)
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ProductCategoriesScreen()));
+                        // NEW: Navigate to TrendingProductsScreen
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const TrendingProductsScreen()));
                       },
                       child: Text(
                         "View All",
@@ -1117,24 +1223,46 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(width: 10),
+        // The container holding the location icon and text
         Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Container(
             height: 40,
+            // Changed constraints to Expanded and added Row with MainAxisSize.min
+            // This ensures it takes available space but doesn't force too much growth
+            // when the text is short.
+            constraints: const BoxConstraints(minWidth: 50, maxWidth: 150), // Set a reasonable max width
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(5),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min, // Key: Make Row consume minimum horizontal space
               children: [
-                const Icon(Icons.location_on_outlined, color: Color(0xffEB7720)), // Location icon (Orange)
+                // Replaced GestureDetector with IconButton
+                IconButton(
+                  icon: const Icon(Icons.location_on_outlined, color: Color(0xffEB7720)),
+                  onPressed: _determinePosition, // Re-call location detection on tap
+                  padding: EdgeInsets.zero, // Remove default padding
+                  constraints: const BoxConstraints(), // Remove default constraints
+                  splashRadius: 20, // Define splash radius
+                ),
                 const SizedBox(width: 4),
-                Text(
-                  _currentLocation, // Display current location
-                  style: GoogleFonts.poppins(
-                    color: const Color(0xffEB7720),
-                    fontSize: 12,
+                // Using Flexible with FittedBox to ensure text always tries to fit within available space
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown, // Shrink text if necessary
+                    alignment: Alignment.centerLeft, // Align text to the left within FittedBox
+                    child: Text(
+                      _currentLocation.isNotEmpty ? _currentLocation : 'Location', // Fallback text
+                      style: GoogleFonts.poppins(
+                        color: const Color(0xffEB7720),
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis, // Add ellipsis if text overflows
+                      maxLines: 1, // Ensure it doesn't wrap to multiple lines
+                    ),
                   ),
                 ),
               ],

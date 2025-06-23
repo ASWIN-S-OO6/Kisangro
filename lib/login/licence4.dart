@@ -4,49 +4,43 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kisangro/login/onprocess.dart'; // Assuming KisanProApp is here or remove if not used
-import 'package:shared_preferences/shared_preferences.dart'; // Keep for general preferences
+import 'package:kisangro/login/onprocess.dart'; // Correct import for KycSplashScreen
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io' show File;
-import 'package:provider/provider.dart'; // Import Provider
-import 'package:kisangro/models/license_provider.dart'; // NEW: Import LicenseProvider
+import 'package:provider/provider.dart';
+import 'package:kisangro/models/license_provider.dart';
+import 'package:kisangro/home/bottom.dart'; // Import Bot for direct navigation after process
 
 class licence4 extends StatefulWidget {
-  final String? licenseTypeToDisplay; // New parameter
+  final String? licenseTypeToDisplay;
 
-  const licence4({super.key, this.licenseTypeToDisplay}); // Updated constructor
+  const licence4({super.key, this.licenseTypeToDisplay});
 
   @override
   _licence4State createState() => _licence4State();
 }
 
 class _licence4State extends State<licence4> {
-  // Controllers for license numbers
   final TextEditingController _insecticideLicenseController = TextEditingController();
   final TextEditingController _fertilizerLicenseController = TextEditingController();
 
-  // State variables for expiration dates
   DateTime? _insecticideExpirationDate;
   DateTime? _fertilizerExpirationDate;
 
-  // State variables for "no expiry" checkboxes
   bool _insecticideNoExpiry = false;
   bool _fertilizerNoExpiry = false;
 
-  // State variables for uploaded document bytes
   Uint8List? _insecticideImageBytes;
   Uint8List? _fertilizerImageBytes;
 
-  // State variables to track if the uploaded file was an image or PDF for display
   bool _insecticideIsImage = true;
   bool _fertilizerIsImage = true;
 
-  // ML Kit text recognizer for images
   final TextRecognizer _textRecognizer = TextRecognizer();
 
-  // Regex patterns for extraction
   final RegExp _insecticideLicenseRegExp = RegExp(
     r'.*(?:License Number|Licence Number)\s*(TKK\s*/\s*PP\s*/\s*\d+\s*/\s*\d{4}\s*-\s*\d{2,4})',
     caseSensitive: false,
@@ -68,24 +62,21 @@ class _licence4State extends State<licence4> {
     caseSensitive: false,
   );
 
-  // Variable to store which section to display
   String? _currentLicenseTypeToDisplay;
 
   @override
   void initState() {
     super.initState();
-    _currentLicenseTypeToDisplay = widget.licenseTypeToDisplay; // Initialize from widget parameter
+    _currentLicenseTypeToDisplay = widget.licenseTypeToDisplay;
     _insecticideLicenseController.addListener(_checkFormValidity);
     _fertilizerLicenseController.addListener(_checkFormValidity);
     _checkFormValidity();
-    _loadExistingLicenseData(); // Load any previously saved license data
+    _loadExistingLicenseData();
   }
 
-  // NEW: Load existing license data into controllers and state variables
   Future<void> _loadExistingLicenseData() async {
     final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
 
-    // Load pesticide license data
     final pesticideData = licenseProvider.pesticideLicense;
     if (pesticideData != null) {
       setState(() {
@@ -97,7 +88,6 @@ class _licence4State extends State<licence4> {
       });
     }
 
-    // Load fertilizer license data
     final fertilizerData = licenseProvider.fertilizerLicense;
     if (fertilizerData != null) {
       setState(() {
@@ -111,12 +101,9 @@ class _licence4State extends State<licence4> {
     _checkFormValidity();
   }
 
-
-  // Getters to check validity of each section
   bool get _isInsecticideSectionValid {
-    // Determine visibility within the getter itself for accurate validation logic
     bool showPesticide = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'pesticide' || widget.licenseTypeToDisplay == 'all';
-    if (!showPesticide) return true; // If pesticide section is NOT displayed, it's considered valid
+    if (!showPesticide) return true;
 
     return _insecticideLicenseController.text.isNotEmpty &&
         (_insecticideNoExpiry || _insecticideExpirationDate != null) &&
@@ -124,18 +111,15 @@ class _licence4State extends State<licence4> {
   }
 
   bool get _isFertilizerSectionValid {
-    // Determine visibility within the getter itself for accurate validation logic
     bool showFertilizer = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'fertilizer' || widget.licenseTypeToDisplay == 'all';
-    if (!showFertilizer) return true; // If fertilizer section is NOT displayed, it's considered valid
+    if (!showFertilizer) return true;
 
     return _fertilizerLicenseController.text.isNotEmpty &&
         (_fertilizerNoExpiry || _fertilizerExpirationDate != null) &&
         _fertilizerImageBytes != null;
   }
 
-  // Overall form validity
   bool get isFormValid {
-    // Re-declare these variables within the scope where they are used
     bool showPesticideSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'pesticide' || _currentLicenseTypeToDisplay == 'all';
     bool showFertilizerSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'fertilizer' || _currentLicenseTypeToDisplay == 'all';
 
@@ -146,28 +130,18 @@ class _licence4State extends State<licence4> {
       return pesticideValid;
     } else if (_currentLicenseTypeToDisplay == 'fertilizer') {
       return fertilizerValid;
-    } else { // 'all' or null (meaning both are potentially displayed)
-      // If both are displayed, both must be valid.
-      // If none were initially chosen and it's the first time on the screen,
-      // the 'Proceed' button should be disabled until at least one is valid.
-      // The condition `(showPesticideSection || showFertilizerSection)`
-      // ensures that if no sections are explicitly chosen (e.g., if _currentLicenseTypeToDisplay is null
-      // but no data has been uploaded), the form is still considered invalid until some action is taken.
-      // However, if the user picks 'all' in licence1, then both sections are shown, and both
-      // must be filled to proceed.
+    } else {
       if (showPesticideSection && showFertilizerSection) {
         return pesticideValid && fertilizerValid;
-      } else if (showPesticideSection) { // Should only happen if licenseTypeToDisplay is 'pesticide'
+      } else if (showPesticideSection) {
         return pesticideValid;
-      } else if (showFertilizerSection) { // Should only happen if licenseTypeToDisplay is 'fertilizer'
+      } else if (showFertilizerSection) {
         return fertilizerValid;
-      } else { // This case should theoretically not be hit if initial licenseTypeToDisplay is properly set
-        // Or if it's null and no sections are yet defined/uploaded, then it's invalid
-        return false; // Should be invalid if no sections are shown or valid
+      } else {
+        return false;
       }
     }
   }
-
 
   void _checkFormValidity() {
     setState(() {});
@@ -467,7 +441,6 @@ class _licence4State extends State<licence4> {
       }
     }
 
-    // NEW: Save data to LicenseProvider
     final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
     if (isInsecticide) {
       await licenseProvider.setPesticideLicense(
@@ -579,7 +552,6 @@ class _licence4State extends State<licence4> {
 
   @override
   Widget build(BuildContext context) {
-    // These variables are now correctly scoped within the build method
     bool showPesticideSection = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'pesticide' || widget.licenseTypeToDisplay == 'all';
     bool showFertilizerSection = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'fertilizer' || widget.licenseTypeToDisplay == 'all';
 
@@ -657,17 +629,13 @@ class _licence4State extends State<licence4> {
                 ElevatedButton(
                   onPressed: isFormValid
                       ? () async {
-                    // No longer setting isLoggedIn here, assuming it's handled at login
-                    // The main app (KisanProApp) or a splash screen should handle navigation based on auth status.
-                    // This button should simply navigate back or to a confirmation screen.
-                    // If you intend to save `isLoggedIn` in shared preferences here:
                     final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('hasUploadedLicenses', true); // NEW: flag for license upload status
+                    await prefs.setBool('hasUploadedLicenses', true); // Set the new flag to true
 
-                    // Assuming KisanProApp is your main authenticated app entry
+                    // Navigate to KycSplashScreen from onprocess.dart
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) =>  KisanProApp()), // Ensure KisanProApp is correctly imported and exists
+                      MaterialPageRoute(builder: (context) => KycSplashScreen()), // Navigate to the KYC process screen
                     );
                   }
                       : null,

@@ -5,7 +5,8 @@ import 'package:image_picker/image_picker.dart'; // For image selection
 import 'package:google_fonts/google_fonts.dart'; // For custom fonts
 import 'package:kisangro/login/licence.dart'; // Assuming this is your next screen
 import 'package:provider/provider.dart'; // For state management
-import 'package:kisangro/models/kyc_image_provider.dart'; // Your custom KYC image provider
+import 'package:kisangro/models/kyc_image_provider.dart'; // Your custom KYC image provider (for temporary image handling)
+import 'package:kisangro/models/kyc_business_model.dart'; // NEW: Import KycBusinessData and KycBusinessDataProvider
 
 class kyc extends StatefulWidget {
   @override
@@ -16,29 +17,99 @@ class _kycState extends State<kyc> {
   // Local state to hold the selected image bytes for immediate display on this screen.
   Uint8List? _imageBytes;
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _panController = TextEditingController();
+
+  // Text Editing Controllers for all input fields
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _mailIdController = TextEditingController();
+  final TextEditingController _whatsAppNumberController = TextEditingController();
+  final TextEditingController _businessNameController = TextEditingController();
+  final TextEditingController _gstinController = TextEditingController();
+  final TextEditingController _aadhaarNumberController = TextEditingController();
+  final TextEditingController _panNumberController = TextEditingController();
+  String? _natureOfBusinessSelected; // For Dropdown
+  final TextEditingController _businessContactNumberController = TextEditingController();
+  final TextEditingController _businessAddressController = TextEditingController(); // To store the autofilled address
+
+  bool _isGstinVerified = false; // State to control visibility of Business Address
+  KycBusinessDataProvider? _kycBusinessDataProvider; // Reference to the provider
+
+  static const int maxChars = 100; // Max characters for review (unused in this file but was there)
+
+  @override
+  void initState() {
+    super.initState();
+    // Access the provider here. listen: false as we're not rebuilding on every change here.
+    _kycBusinessDataProvider = Provider.of<KycBusinessDataProvider>(context, listen: false);
+    _loadExistingKycData(); // Load existing data to pre-fill the form
+
+    // Add listener for autofill of Business Contact Number
+    _whatsAppNumberController.addListener(_autoFillBusinessContactNumber);
+  }
+
+  @override
+  void dispose() {
+    // Dispose all controllers to prevent memory leaks
+    _fullNameController.dispose();
+    _mailIdController.dispose();
+    _whatsAppNumberController.dispose();
+    _businessNameController.dispose();
+    _gstinController.dispose();
+    _aadhaarNumberController.dispose();
+    _panNumberController.dispose();
+    _businessContactNumberController.dispose();
+    _businessAddressController.dispose();
+    _whatsAppNumberController.removeListener(_autoFillBusinessContactNumber); // Remove listener
+    super.dispose();
+  }
+
+  /// Loads existing KYC data from the provider and populates the form fields.
+  void _loadExistingKycData() {
+    final existingData = _kycBusinessDataProvider?.kycBusinessData;
+    if (existingData != null) {
+      setState(() {
+        _fullNameController.text = existingData.fullName ?? '';
+        _mailIdController.text = existingData.mailId ?? '';
+        _whatsAppNumberController.text = existingData.whatsAppNumber ?? '';
+        _businessNameController.text = existingData.businessName ?? '';
+        _gstinController.text = existingData.gstin ?? '';
+        _isGstinVerified = existingData.isGstinVerified; // Set verification status
+        _aadhaarNumberController.text = existingData.aadhaarNumber ?? '';
+        _panNumberController.text = existingData.panNumber ?? '';
+        _natureOfBusinessSelected = existingData.natureOfBusiness; // Set dropdown value
+        _businessContactNumberController.text = existingData.businessContactNumber ?? '';
+        _businessAddressController.text = existingData.businessAddress ?? ''; // Load saved address
+        _imageBytes = existingData.shopImageBytes; // Set shop image
+      });
+    }
+  }
+
+  /// Autofills the Business Contact Number with the WhatsApp Number.
+  void _autoFillBusinessContactNumber() {
+    if (_whatsAppNumberController.text.length == 10 && _businessContactNumberController.text.isEmpty) { // Only autofill if WhatsApp number is complete AND business contact is empty
+      _businessContactNumberController.text = _whatsAppNumberController.text;
+    }
+  }
 
   /// Handles picking an image from the specified [source] (camera or gallery).
   /// Reads the image as raw bytes (Uint8List) and updates both local state
-  /// and the shared [KycImageProvider].
+  /// and the shared [KycBusinessDataProvider].
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await ImagePicker().pickImage(source: source);
     if (pickedFile != null) {
-      // Read the image content as bytes. This is cross-platform compatible.
       final bytes = await pickedFile.readAsBytes();
       setState(() {
         _imageBytes = bytes; // Update local state for immediate UI refresh
       });
-      // Update the shared KycImageProvider so other screens can access this image.
-      Provider.of<KycImageProvider>(context, listen: false).setKycImage(bytes); // Changed to setKycImage as per KycImageProvider
-      print('KycImageProvider: Image bytes set. Length: ${bytes.lengthInBytes} bytes'); // Debug print for monitoring
+      // Save image bytes to KycBusinessDataProvider
+      await _kycBusinessDataProvider?.setKycBusinessData(shopImageBytes: bytes);
+      debugPrint('KycBusinessDataProvider: Shop image bytes set. Length: ${bytes.lengthInBytes} bytes'); // Debug print for monitoring
     } else {
-      print('Image picking cancelled from $source.');
+      debugPrint('Image picking cancelled from $source.');
     }
   }
 
   /// Displays a modal bottom sheet allowing the user to choose between
-  /// taking a new photo with the camera. The "Choose from Gallery" option is removed.
+  /// taking a new photo with the camera.
   void _showImageSourceSelection() {
     showModalBottomSheet(
       context: context,
@@ -58,18 +129,6 @@ class _kycState extends State<kyc> {
                   _pickImage(ImageSource.camera); // Call pick image from camera
                 },
               ),
-              // Removed the "Choose from Gallery" ListTile
-              // ListTile(
-              //   leading: const Icon(Icons.photo_library, color: Color(0xffEB7720)),
-              //   title: Text(
-              //     'Choose from Gallery',
-              //     style: GoogleFonts.poppins(color: Colors.black87),
-              //   ),
-              //   onTap: () {
-              //     Navigator.pop(context); // Close the bottom sheet
-              //     _pickImage(ImageSource.gallery); // Call pick image from gallery
-              //   },
-              // ),
             ],
           ),
         );
@@ -80,7 +139,7 @@ class _kycState extends State<kyc> {
   /// A helper widget to create styled section titles.
   Widget _sectionTitle(String title) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -88,7 +147,7 @@ class _kycState extends State<kyc> {
           style: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xffEB7720),
+            color: const Color(0xffEB7720),
           ),
         ),
       ),
@@ -129,11 +188,11 @@ class _kycState extends State<kyc> {
           decoration: InputDecoration(
             counterText: "", // Hides the default maxLength counter
             // Using OutlineInputBorder directly for transparent borders (web compatible)
-            border: OutlineInputBorder(borderSide: BorderSide(color: Colors.transparent)),
-            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.transparent)),
-            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xfff8bc8c), width: 2)),
+            border: const OutlineInputBorder(borderSide: BorderSide(color: Colors.transparent)),
+            enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.transparent)),
+            focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xfff8bc8c), width: 2)),
             filled: true,
-            fillColor: Color(0xfff8bc8c),
+            fillColor: const Color(0xfff8bc8c),
             labelText: label,
             hintText: hintText,
             hintStyle: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold),
@@ -142,13 +201,33 @@ class _kycState extends State<kyc> {
               padding: const EdgeInsets.only(right: 8.0),
               child: ElevatedButton(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('GST Verified (dummy logic)!', style: GoogleFonts.poppins())),
-                  );
+                  // Validate GSTIN field only before setting verified status
+                  if (controller != null && controller.text.isNotEmpty) {
+                    // Dummy GSTIN verification logic
+                    // In a real app, this would be an API call that returns the address
+                    setState(() {
+                      _isGstinVerified = true;
+                      // NEW: Autofill dummy business address here
+                      _businessAddressController.text = "123 Verified Street, Business City, State - 600001";
+                    });
+                    // Also update in the provider
+                    _kycBusinessDataProvider?.setKycBusinessData(
+                        gstin: controller.text,
+                        isGstinVerified: true,
+                        businessAddress: _businessAddressController.text // Save the autofilled address
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('GST Verified (dummy logic)!', style: GoogleFonts.poppins())),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Please enter GSTIN to verify.', style: GoogleFonts.poppins())),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
-                  backgroundColor: Color(0xffEB7720),
+                  backgroundColor: const Color(0xffEB7720),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                 ),
                 child: Text(
@@ -191,26 +270,25 @@ class _kycState extends State<kyc> {
   }
 
   /// A helper widget to create styled dropdown form fields.
-  Widget _dropdownField(String label) {
+  Widget _dropdownField(String label, String? selectedValue, ValueChanged<String?> onChanged) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: SizedBox(
         height: 70, // Fixed height
         child: DropdownButtonFormField<String>(
+          value: selectedValue,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Color(0xfff8bc8c),
+            fillColor: const Color(0xfff8bc8c),
             labelText: label,
-            border: OutlineInputBorder(), // Default OutlineInputBorder
+            border: const OutlineInputBorder(), // Default OutlineInputBorder
           ),
-          items: const [ // Added const for DropdownMenuItem list
+          items: const [
             DropdownMenuItem(value: 'Retail', child: Text('Retail')),
             DropdownMenuItem(value: 'Wholesale', child: Text('Wholesale')),
             DropdownMenuItem(value: 'Other', child: Text('Other')),
           ],
-          onChanged: (value) {
-            // Handle dropdown value change if needed
-          },
+          onChanged: onChanged,
           validator: (value) {
             if (value == null || value.isEmpty) return 'Please select $label';
             return null;
@@ -236,9 +314,9 @@ class _kycState extends State<kyc> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.grey, width: 1),
               ),
-              // Display either the camera icon or the uploaded image
+              // Display either the camera icon or the selected image
               child: _imageBytes == null
-                  ? Icon(Icons.camera_alt, size: 50, color: Color(0xffEB7720))
+                  ? const Icon(Icons.camera_alt, size: 50, color: Color(0xffEB7720))
                   : ClipOval(
                 child: Image.memory( // Use Image.memory to display Uint8List
                   _imageBytes!, // Display the selected image bytes
@@ -249,7 +327,7 @@ class _kycState extends State<kyc> {
               ),
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Tap to upload a photo of your shop with good quality.', // Updated text
@@ -264,11 +342,13 @@ class _kycState extends State<kyc> {
 
   @override
   Widget build(BuildContext context) {
+    final orange = const Color(0xffEB7720); // Define orange color here for local use
+
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -276,57 +356,111 @@ class _kycState extends State<kyc> {
           ),
         ),
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey, // Associate form key for validation
             child: Column(
               children: [
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Image.asset("assets/kyc1.gif"), // Your KYC illustration
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Text(
                   '"Safe, Secure, And Hassle-Free KYC"',
                   style: GoogleFonts.poppins(fontSize: 16, color: Colors.black87),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
                 Text(
                   "Submit Your Details And Unlock Access To All KISANGRO B2B Products",
                   style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
                   textAlign: TextAlign.center,
                 ),
-                Divider(endIndent: 130, indent: 130, color: Colors.black),
+                const Divider(endIndent: 130, indent: 130, color: Colors.black),
                 _sectionTitle("Primary Details"),
-                _textFormField("Full Name"),
-                _textFormField("Mail Id"),
-                _textFormField("WhatsApp Number", isNumber: true),
+                _textFormField("Full Name", controller: _fullNameController),
+                _textFormField("Mail Id", controller: _mailIdController),
+                _textFormField("WhatsApp Number", isNumber: true, controller: _whatsAppNumberController),
                 _sectionTitle("Business Details"),
-                _textFormField("Business Name"),
-                _textFormField("GSTIN", showVerify: true),
-                _textFormField("Aadhaar Number (Owner)", isNumber: true),
-                _textFormField("Business PAN Number", isPAN: true, controller: _panController),
-                _dropdownField("Nature Of Core Business"),
-                _textFormField("Business Contact Number", isNumber: true),
+                _textFormField("Business Name", controller: _businessNameController),
+                _textFormField("GSTIN", showVerify: true, controller: _gstinController),
+                _textFormField("Aadhaar Number (Owner)", isNumber: true, controller: _aadhaarNumberController),
+                _textFormField("Business PAN Number", isPAN: true, controller: _panNumberController),
+                _dropdownField(
+                  "Nature Of Core Business",
+                  _natureOfBusinessSelected,
+                      (newValue) {
+                    setState(() {
+                      _natureOfBusinessSelected = newValue;
+                    });
+                  },
+                ),
+                _textFormField("Business Contact Number", isNumber: true, controller: _businessContactNumberController),
+                // NEW: Conditionally show Business Address HEADING and CONTENT
+                if (_isGstinVerified) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "Business Address", // Highlighted heading
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: orange, // Highlight in orange
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _businessAddressController.text.isNotEmpty
+                            ? _businessAddressController.text
+                            : 'Address not available.', // Display the autofilled address
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+                        textAlign: TextAlign.left,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10), // Spacing after address
+                ],
                 _sectionTitle("Establishment Photo"),
                 _photoUploadBox(), // The updated photo upload box
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text(
                     '(Note: A verification team will be arriving within 3 working days at the given address to verify your business. Make sure you are available at that time.)',
                     textAlign: TextAlign.start,
                     style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
                   ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 SizedBox(
                   width: 250,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       // Validate form fields and check if an image has been uploaded
                       if (_formKey.currentState!.validate() && _imageBytes != null) {
-                        // In a real app, you would send this data to your KYC API here.
-                        // For now, we navigate.
+                        // Save all form data to KycBusinessDataProvider
+                        await _kycBusinessDataProvider?.setKycBusinessData(
+                          fullName: _fullNameController.text,
+                          mailId: _mailIdController.text,
+                          whatsAppNumber: _whatsAppNumberController.text,
+                          businessName: _businessNameController.text,
+                          gstin: _gstinController.text,
+                          isGstinVerified: _isGstinVerified,
+                          aadhaarNumber: _aadhaarNumberController.text,
+                          panNumber: _panNumberController.text,
+                          natureOfBusiness: _natureOfBusinessSelected,
+                          businessContactNumber: _businessContactNumberController.text,
+                          businessAddress: _businessAddressController.text, // Ensure this is saved
+                          shopImageBytes: _imageBytes,
+                        );
+
+                        // Then navigate to the next screen
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => licence1()), // Navigate to license selection screen
@@ -340,8 +474,8 @@ class _kycState extends State<kyc> {
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                      backgroundColor: Color(0xffEB7720),
-                      minimumSize: Size(double.infinity, 50),
+                      backgroundColor: orange,
+                      minimumSize: const Size(double.infinity, 50),
                     ),
                     child: Text(
                       'Next',

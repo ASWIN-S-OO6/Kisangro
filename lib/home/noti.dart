@@ -6,8 +6,252 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/home/myorder.dart'; // For navigating to My Orders
 import 'package:kisangro/menu/wishlist.dart'; // For navigating to Wishlist
 
-class noti extends StatelessWidget {
+// NEW: Order Arriving Details screen UI
+class OrderArrivingDetailsPage extends StatelessWidget {
+  const OrderArrivingDetailsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color orange = const Color(0xffEB7720); // Your app's theme orange
+    final Color textColor = Colors.black87; // Consistent text color
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: orange, // Consistent app bar color
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration( // Use const for BoxDecoration
+                color: Colors.black87, // Dark circle
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  'K',
+                  style: GoogleFonts.poppins( // Use GoogleFonts
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12), // Use const
+            Text(
+              'Order',
+              style: GoogleFonts.poppins( // Now using GoogleFonts.poppins for the heading
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Container( // Apply gradient background
+        height: double.infinity,
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)], // Consistent theme gradient
+          ),
+        ),
+        child: SingleChildScrollView( // Added SingleChildScrollView
+          padding: const EdgeInsets.all(16.0), // Use const
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date and time
+              Center(
+                child: Text(
+                  'Friday, 3 November 2024  2:40 pm',
+                  style: GoogleFonts.poppins( // Use GoogleFonts
+                    color: Colors.grey[600],
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24), // Use const
+
+              // Order card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20), // Use const
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, 2), // Use const
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Order status
+                    Text(
+                      'Order Arriving Today',
+                      style: GoogleFonts.poppins( // Use GoogleFonts
+                        color: orange, // Use consistent orange
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 20), // Use const
+
+                    // Product name
+                    Text(
+                      'AURASTAR',
+                      style: GoogleFonts.poppins( // Use GoogleFonts
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8), // Use const
+
+                    // Product details
+                    Text(
+                      'Fungicide  |  Order Quantity: 04',
+                      style: GoogleFonts.poppins( // Use GoogleFonts
+                        fontSize: 16,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12), // Use const
+
+                    // Order date
+                    Text(
+                      'Ordered on: 27/10/2024  2:23 pm',
+                      style: GoogleFonts.poppins( // Use GoogleFonts
+                        fontSize: 16,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 20), // Use const
+
+                    // Specification
+                    Text(
+                      'Specification',
+                      style: GoogleFonts.poppins( // Use GoogleFonts
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8), // Use const
+
+                    Text(
+                      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad.',
+                      style: GoogleFonts.poppins( // Use GoogleFonts
+                        fontSize: 14,
+                        color: textColor,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 24), // Use const
+
+                    // Track Status button
+                    SizedBox( // Use SizedBox instead of Container for width
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Handle track status button press
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Tracking order status...', style: GoogleFonts.poppins())), // Use GoogleFonts
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: orange, // Use consistent orange
+                          padding: const EdgeInsets.symmetric(vertical: 16), // Use const
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Track Status',
+                              style: GoogleFonts.poppins( // Use GoogleFonts
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 8), // Use const
+                            const Icon( // Use const
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class noti extends StatefulWidget { // Changed to StatefulWidget
   const noti({Key? key}) : super(key: key);
+
+  @override
+  State<noti> createState() => _notiState();
+}
+
+class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Added SingleTickerProviderStateMixin for animation
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300), // Animation duration
+    );
+    _animation = Tween<double>(begin: 1.0, end: 1.2).animate( // Scale from 1.0 to 1.2
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    // Start animation on initial load
+    _animationController.forward(); // Scale up
+    _animationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _animationController.reverse(); // Scale down after completing forward
+      } else if (status == AnimationStatus.dismissed) {
+        _animationController.forward(); // Scale up again after completing reverse
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose(); // Dispose the controller
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,15 +259,13 @@ class noti extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xffEB7720),
         elevation: 0,
-        // Aligned title as per other screens (homepage.dart, wishlist.dart)
         title: Transform.translate(
           offset: const Offset(-20, 0),
           child: Text(
             "Notification",
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 18, // Consistent font size
-              // Removed fontWeight: FontWeight.bold for consistency
+              fontSize: 18,
             ),
           ),
         ),
@@ -31,7 +273,7 @@ class noti extends StatelessWidget {
           onPressed: () {
             Navigator.pop(context); // Go back to the previous screen
           },
-          icon: const Icon(Icons.arrow_back, color: Colors.white), // Added const
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),
         actions: [
           IconButton(
@@ -49,7 +291,7 @@ class noti extends StatelessWidget {
           IconButton(
             onPressed: () {
               // Navigate to WishlistPage
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistPage())); // Added const
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistPage()));
             },
             icon: Image.asset(
               'assets/heart.png',
@@ -58,16 +300,21 @@ class noti extends StatelessWidget {
               color: Colors.white,
             ),
           ),
-          IconButton(
-            onPressed: () {
-              // This is the current screen, so no navigation needed.
-              // You could potentially add a refresh logic here if needed.
-            },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
+          // NEW: AnimatedScale for the notification icon
+          AnimatedScale(
+            scale: _animation.value, // Apply the animation value here
+            duration: _animationController.duration!, // Use controller's duration
+            child: IconButton(
+              onPressed: () {
+                // This is the current screen, so no navigation needed.
+                // You could potentially add a refresh logic here if needed.
+              },
+              icon: Image.asset(
+                'assets/noti.png',
+                height: 28, // Slightly larger icon size
+                width: 28, // Slightly larger icon size
+                color: Colors.white,
+              ),
             ),
           ),
         ],
@@ -75,7 +322,7 @@ class noti extends StatelessWidget {
       body: Container(
         height: double.infinity,
         width: double.infinity,
-        decoration: const BoxDecoration( // Added const
+        decoration: const BoxDecoration(
             gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -88,12 +335,21 @@ class noti extends StatelessWidget {
         child: ListView(
           children: [
             const SizedBox(height: 10),
-            _buildNotificationItem(
-              isNew: true,
-              title: 'Order Arriving Today',
-              timestamp: '03/11/2024 2:40 pm',
-              product: 'AURASTAR',
-              description: 'Fungicide | Order Units: 02',
+            // NEW: Wrap with GestureDetector for navigation to the new OrderArrivingDetailsPage
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const OrderArrivingDetailsPage()), // Navigate to new screen
+                );
+              },
+              child: _buildNotificationItem(
+                isNew: true,
+                title: 'Order Arriving Today',
+                timestamp: '03/11/2024 2:40 pm',
+                product: 'AURASTAR',
+                description: 'Fungicide | Order Units: 02',
+              ),
             ),
             const Divider(height: 1, thickness: 1),
             Center(
@@ -193,7 +449,7 @@ class noti extends StatelessWidget {
                       child: Text(
                         title,
                         style: GoogleFonts.poppins(
-                          color: const Color(0xffEB7720), // Added const
+                          color: const Color(0xffEB7720),
                           fontSize: 14,
                           fontWeight: isNew ? FontWeight.bold : FontWeight.w500,
                         ),
@@ -218,7 +474,7 @@ class noti extends StatelessWidget {
                   product,
                   style: GoogleFonts.poppins(
                     fontSize: 15,
-                    fontWeight: FontWeight.w600, // Made thicker
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -227,7 +483,7 @@ class noti extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.grey,
-                    fontWeight: FontWeight.w500, // Made thicker
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -282,9 +538,9 @@ class noti extends StatelessWidget {
                       child: Text(
                         title,
                         style: GoogleFonts.poppins(
-                          color: const Color(0xffEB7720), // Added const
+                          color: const Color(0xffEB7720),
                           fontSize: 12, // Slightly increased font size for readability
-                          fontWeight: FontWeight.w500, // Made thicker
+                          fontWeight: FontWeight.w500,
                         ),
                         overflow: TextOverflow.ellipsis, // Add ellipsis for long titles
                       ),
@@ -308,7 +564,7 @@ class noti extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 13, // Adjusted font size to prevent overflow with thicker text
                     color: Colors.grey,
-                    fontWeight: FontWeight.w500, // Made thicker
+                    fontWeight: FontWeight.w500,
                   ),
                   maxLines: 2, // Allow text to wrap if necessary
                   overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
@@ -319,7 +575,7 @@ class noti extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 13, // Adjusted font size
                     color: Colors.grey,
-                    fontWeight: FontWeight.w500, // Made thicker
+                    fontWeight: FontWeight.w500,
                   ),
                   maxLines: 2, // Allow text to wrap
                   overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
@@ -342,7 +598,7 @@ class noti extends StatelessWidget {
           // Example: Navigator.push(context, MaterialPageRoute(builder: (context) => const CategoriesScreen()));
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xffEB7720), // Added const
+          backgroundColor: const Color(0xffEB7720),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),

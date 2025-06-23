@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Keep if you use SVG for logo
+import 'package:flutter_svg/flutter_svg.dart'; // Keep if you use SVG for logo, though your snippet uses Image.asset
 import 'package:kisangro/login/secondscreen.dart'; // Path to your second screen
 import 'package:kisangro/home/bottom.dart'; // Path to your home screen (Bot class)
 import 'package:shared_preferences/shared_preferences.dart'; // Import shared_preferences
-import "package:kisangro/home/homepage.dart";
+import 'package:kisangro/login/onprocess.dart'; // Import KycSplashScreen
 
 class splashscreen extends StatefulWidget {
   const splashscreen({super.key});
@@ -19,10 +19,10 @@ class _splashscreenState extends State<splashscreen> {
     _checkLoginStatusAndNavigate();
   }
 
-  // Asynchronously checks the login status and navigates accordingly
+  // Asynchronously checks the login and KYC/license status and navigates accordingly
   Future<void> _checkLoginStatusAndNavigate() async {
     // Simulate splash screen delay
-    await Future.delayed(Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 3));
 
     // Ensure the widget is still mounted before attempting navigation
     if (!mounted) {
@@ -33,15 +33,26 @@ class _splashscreenState extends State<splashscreen> {
     final prefs = await SharedPreferences.getInstance();
     // Check if the 'isLoggedIn' key exists and is true
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    // NEW: Check for the license upload completion flag
+    final hasUploadedLicenses = prefs.getBool('hasUploadedLicenses') ?? false;
+
 
     if (mounted) {
       if (isLoggedIn) {
-        // If logged in, navigate directly to the home screen (Bot)
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const Bot()), // Assuming Bot is your main home screen
-        );
+        if (hasUploadedLicenses) {
+          // If logged in AND licenses uploaded, go directly to home
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const Bot()), // Assuming Bot is your main home screen
+          );
+        } else {
+          // If logged in BUT licenses NOT uploaded, go to KYC process screen
+          // This covers cases where user logged in but didn't complete KYC/licenses or exited mid-way
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => KycSplashScreen()),
+          );
+        }
       } else {
-        // If not logged in, proceed to the onboarding screens
+        // If not logged in at all, proceed to the onboarding screens
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const secondscreen()),
         );
@@ -55,13 +66,27 @@ class _splashscreenState extends State<splashscreen> {
     final isTablet = screenSize.shortestSide >= 600;
 
     return Scaffold(
-      body: Center(
-        child: Container(
-          // Adjust size based on tablet or phone
-          height: isTablet ? screenSize.height * 0.5 : 192,
-          width: isTablet ? screenSize.width * 0.4 : 149,
-          // Use Image.asset for local images
-          child: Image.asset("assets/logo.png", fit: BoxFit.contain),
+      // Removed backgroundColor from Scaffold
+      body: Container( // Wrapped the content in a Container for the gradient
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)], // Consistent gradient colors
+          ),
+        ),
+        child: Center(
+          child: Container(
+            // Adjust size based on tablet or phone
+            height: isTablet ? screenSize.height * 0.5 : 192,
+            width: isTablet ? screenSize.width * 0.4 : 149,
+            child: Image.asset(
+              "assets/logo.png",
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
       ),
     );

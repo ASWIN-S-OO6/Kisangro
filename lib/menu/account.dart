@@ -8,9 +8,12 @@ import 'package:kisangro/menu/wishlist.dart'; // Assuming this page exists
 import 'package:provider/provider.dart'; // For state management
 import 'package:kisangro/models/kyc_image_provider.dart'; // Your custom KYC image provider
 import 'dart:typed_data'; // Essential for Uint8List, which holds raw image data
-import 'package:kisangro/models/license_provider.dart'; // NEW: Import LicenseProvider
+import 'package:kisangro/models/license_provider.dart'; // Import LicenseProvider
 import 'package:kisangro/login/licence.dart'; // Import licence1 for "Upload New" button
-import 'package:kisangro/common/document_viewer_screen.dart'; // NEW: Import DocumentViewerScreen
+import 'package:kisangro/common/document_viewer_screen.dart'; // Import DocumentViewerScreen
+import 'package:kisangro/models/kyc_business_model.dart';
+
+import '../login/kyc.dart'; // NEW: Import KycBusinessData and KycBusinessDataProvider
 
 class MyAccountPage extends StatelessWidget {
   const MyAccountPage({super.key});
@@ -18,18 +21,18 @@ class MyAccountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orange = const Color(0xFFEB7720); // Your app's orange theme color
-    // Removed backgroundColor, as we will use a gradient for the body
     final licenseProvider = Provider.of<LicenseProvider>(context); // Access LicenseProvider
+    final kycBusinessDataProvider = Provider.of<KycBusinessDataProvider>(context); // NEW: Access KycBusinessDataProvider
+    final kycData = kycBusinessDataProvider.kycBusinessData; // Get the KYC data
 
     return Scaffold(
-      // Removed direct backgroundColor from Scaffold to allow gradient in body
       appBar: AppBar(
         backgroundColor: orange,
         elevation: 0,
         centerTitle: false,
         titleSpacing: 0,
         title: Transform.translate(
-          offset: const Offset(-15, 0), // Added const
+          offset: const Offset(-15, 0),
           child: Text(
             "My Account",
             style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
@@ -45,7 +48,7 @@ class MyAccountPage extends StatelessWidget {
           IconButton(
             onPressed: () {
               Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const MyOrder())); // Added const
+                  context, MaterialPageRoute(builder: (context) => const MyOrder()));
             },
             icon: Image.asset(
               'assets/box.png',
@@ -57,7 +60,7 @@ class MyAccountPage extends StatelessWidget {
           IconButton(
             onPressed: () {
               Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const WishlistPage())); // Added const
+                  MaterialPageRoute(builder: (context) => const WishlistPage()));
             },
             icon: Image.asset(
               'assets/heart.png',
@@ -69,7 +72,7 @@ class MyAccountPage extends StatelessWidget {
           IconButton(
             onPressed: () {
               Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const noti())); // Added const
+                  context, MaterialPageRoute(builder: (context) => const noti()));
             },
             icon: Image.asset(
               'assets/noti.png',
@@ -111,23 +114,18 @@ class MyAccountPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(50),
                             // Use Consumer to listen for changes in KycImageProvider
                             // and display the image dynamically.
-                            child: Consumer<KycImageProvider>(
-                              builder: (context, kycImageProvider, child) {
-                                final Uint8List? kycImageBytes = kycImageProvider.kycImageBytes; // Get the image bytes from the provider
-                                return kycImageBytes != null
-                                    ? Image.memory( // Use Image.memory for Uint8List display
-                                  kycImageBytes,
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
-                                )
-                                    : Image.asset(
-                                  'assets/profile.png', // Fallback to default profile image if no image is uploaded
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
-                                );
-                              },
+                            child: kycData?.shopImageBytes != null
+                                ? Image.memory( // Use Image.memory for Uint8List display
+                              kycData!.shopImageBytes!,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            )
+                                : Image.asset(
+                              'assets/profile.png', // Fallback to default profile image if no image is uploaded
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),
@@ -137,7 +135,9 @@ class MyAccountPage extends StatelessWidget {
                         bottom: 0,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Action for editing details (e.g., navigate to edit profile page)
+                            // Action for editing details (e.g., navigate to KYC edit page)
+                            // You might want to navigate back to kyc screen for editing
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => kyc()));
                           },
                           icon: const Icon(Icons.edit,
                               color: Colors.white, size: 16),
@@ -173,12 +173,9 @@ class MyAccountPage extends StatelessWidget {
                             fontSize: 18,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    _buildIconTextRow(
-                        Icons.person_outline, "Full Name", "Smart Global"),
-                    _buildIconTextRow(Icons.email_outlined, "Mail Id",
-                        "smartg123@gmail.com"),
-                    _buildIconTextRow(CupertinoIcons.phone_circle,
-                        "WhatsApp Number", "+91 98765 43210"),
+                    _buildIconTextRow(Icons.person_outline, "Full Name", kycData?.fullName ?? "N/A"),
+                    _buildIconTextRow(Icons.email_outlined, "Mail Id", kycData?.mailId ?? "N/A"),
+                    _buildIconTextRow(CupertinoIcons.phone_circle, "WhatsApp Number", kycData?.whatsAppNumber ?? "N/A"),
                   ],
                 ),
               ),
@@ -193,17 +190,15 @@ class MyAccountPage extends StatelessWidget {
                             fontSize: 18,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    _buildBusinessDetail("Business Name", "Abc farms shop"),
-                    _buildBusinessDetail("GSTIN", "8453CACA5A"),
-                    _buildBusinessDetail(
-                        "Aadhaar Number (Owner)", "9999 5555 4444"),
-                    _buildBusinessDetail("PAN Number", "ABC1237B"),
-                    _buildBusinessDetail(
-                        "Nature Of Core Business", "Farm products selling"),
-                    _buildBusinessDetail(
-                        "Business Contact Number", "+91 98765 43210"),
-                    _buildBusinessDetail("Business Address",
-                        "102, Vellakar St, Ayyanbakkam, Chennai, Tamil Nadu 600-095"),
+                    _buildBusinessDetail("Business Name", kycData?.businessName ?? "N/A"),
+                    _buildBusinessDetail("GSTIN", kycData?.gstin ?? "N/A"),
+                    _buildBusinessDetail("Aadhaar Number (Owner)", kycData?.aadhaarNumber ?? "N/A"),
+                    _buildBusinessDetail("PAN Number", kycData?.panNumber ?? "N/A"),
+                    _buildBusinessDetail("Nature Of Core Business", kycData?.natureOfBusiness ?? "N/A"),
+                    _buildBusinessDetail("Business Contact Number", kycData?.businessContactNumber ?? "N/A"),
+                    // Conditionally display Business Address
+                    if (kycData?.isGstinVerified == true && (kycData?.businessAddress?.isNotEmpty ?? false))
+                      _buildBusinessDetail("Business Address", kycData?.businessAddress ?? "N/A"),
                   ],
                 ),
               ),
@@ -388,7 +383,7 @@ class MyAccountPage extends StatelessWidget {
           const SizedBox(height: 10),
           // Display License Number and Expiry Date
           if (isUploaded) ...[
-            Text('License Number: $licenseNumber', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text('License Number: ${licenseNumber}', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
             Text('Expiry Date: ${licenseData!.noExpiry ? 'Permanent' : expiryDisplay}', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
             const SizedBox(height: 10),

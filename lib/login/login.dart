@@ -4,6 +4,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http; // Import the http package
 import 'dart:convert'; // For JSON encoding/decoding
+import 'package:shared_preferences/shared_preferences.dart'; // Import for SharedPreferences
 
 import 'package:kisangro/login/otp.dart';
 
@@ -65,22 +66,25 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         'mobile': _enteredPhoneNumber, // Use the 10-digit number directly
       };
 
-      print("Sending login request to $_loginApiUrl with body: $body");
+      debugPrint("Sending login request to $_loginApiUrl with body: $body"); // Changed to debugPrint
 
       final response = await http.post(
         url,
-        // Ensure headers are correct if your API expects JSON body
         headers: <String, String>{
-          'Content-Type': 'application/x-www-form-urlencoded', // Change if your API expects JSON
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: body, // For application/x-www-form-urlencoded, send map directly
+        body: body,
       ).timeout(const Duration(seconds: 10)); // Add a timeout for network requests
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        print('API Response: $responseData'); // Debug print for the raw response
+        debugPrint('API Response: $responseData'); // Changed to debugPrint
 
         if (responseData['error'] == false) {
+          // OTP sent successfully, now set isLoggedIn flag
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', true); // Set isLoggedIn to true
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(responseData['error_msg'] ?? 'OTP sent successfully!',
@@ -116,7 +120,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
             content: Text('Network Error: $e. Please check your internet connection.',
                 style: GoogleFonts.poppins())),
       );
-      print('Network/API Error: $e'); // Print error for debugging
+      debugPrint('Network/API Error: $e'); // Print error for debugging
     } finally {
       setState(() {
         _isLoading = false; // End loading
@@ -127,7 +131,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.orange[50],
+      backgroundColor: Colors.orange[50], // This background will be overridden by the Container gradient
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -287,12 +291,12 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
                         : Text(
-                            'Send OTP',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
+                      'Send OTP',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),
