@@ -1,9 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/payment/payment3.dart'; // Import the PaymentPage from payment3.dart
+import 'package:shared_preferences/shared_preferences.dart'; // For SharedPreferences
 
-class MembershipDetailsScreen extends StatelessWidget {
+class MembershipDetailsScreen extends StatefulWidget {
   const MembershipDetailsScreen({super.key});
+
+  @override
+  State<MembershipDetailsScreen> createState() => _MembershipDetailsScreenState();
+}
+
+class _MembershipDetailsScreenState extends State<MembershipDetailsScreen> {
+  bool _isMembershipActive = false; // Local state to control which UI to show
+
+  @override
+  void initState() {
+    super.initState();
+    _checkMembershipStatus();
+  }
+
+  // Method to check membership status from SharedPreferences
+  Future<void> _checkMembershipStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Assuming 'isMembershipActive' is set to true after successful payment
+    setState(() {
+      _isMembershipActive = prefs.getBool('isMembershipActive') ?? false;
+    });
+    debugPrint('Membership status on load: $_isMembershipActive');
+  }
+
+  // Method to activate membership (called after successful payment)
+  Future<void> _activateMembership() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isMembershipActive', true);
+    setState(() {
+      _isMembershipActive = true;
+    });
+    debugPrint('Membership activated!');
+    // Optionally show a snackbar or dialog to confirm activation
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Congratulations! Your membership is now active!', style: GoogleFonts.poppins())),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +65,7 @@ class MembershipDetailsScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
+          // Background Image
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -33,164 +74,437 @@ class MembershipDetailsScreen extends StatelessWidget {
               ),
             ),
           ),
+          // Gradient Overlay (optional, if you want the dark gradient from the sample over the image)
+          // If you want the gradient, uncomment this and adjust colors
+          // Container(
+          //   decoration: const BoxDecoration(
+          //     gradient: LinearGradient(
+          //       begin: Alignment.topCenter,
+          //       end: Alignment.bottomCenter,
+          //       colors: [
+          //         Color(0xCC1A1A2E), // Example: A semi-transparent dark overlay
+          //         Color(0xCC16213E),
+          //         Color(0xCC0F3460),
+          //       ],
+          //     ),
+          //   ),
+          // ),
           SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 100, 16, 20),
-              child: Column(
-                children: [
-                  Text(
-                    '“Be A Part Of Something Bigger”',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Column(
+              child: _isMembershipActive ? _buildMembershipActiveUI(context) : _buildMembershipOfferUI(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // UI for when membership is NOT active (your original UI)
+  Widget _buildMembershipOfferUI(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          '“Be A Part Of Something Bigger”',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Column(
+          children: [
+            Text(
+              'Join Our Membership',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                color: Colors.yellow,
+              ),
+            ),
+            Text(
+              'Today!',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                color: Colors.yellow,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 120,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(1),
+            ),
+            child: Row(
+              children: [
+                Image.asset('assets/logo.png', height: 90),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Join Our Membership',
+                        'Agri-Products Delivered\nTo Your Door Step',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 20,
-                          color: Colors.yellow,
-                        ),
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 12),
                       ),
+                      const SizedBox(height: 10),
                       Text(
-                        'Today!',
+                        'Effortless Bulk Ordering With\nExclusive Membership Discounts.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 20,
-                          color: Colors.yellow,
-                        ),
+                        style: GoogleFonts.poppins(fontSize: 12),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity, // Use double.infinity for full width
-                    height: 120,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(1),
-                      ),
-                      child: Row(
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton.icon(
+          onPressed: () async {
+            // Navigate to the PaymentPage to process membership fee
+            await Navigator.push( // Await the navigation to know when it returns
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentPage(orderId: 'MEMBERSHIP_ORDER_ID_ABC'),
+              ),
+            );
+            // After returning from PaymentPage, check membership status again
+            // In a real app, payment3.dart would set isMembershipActive = true
+            // and then pop. When it pops, _checkMembershipStatus will be called.
+            _checkMembershipStatus(); // Re-check in case payment was successful and page popped
+          },
+          icon: const Icon(Icons.lock_open, color: Colors.white),
+          label: Text('Unlock', style: GoogleFonts.poppins(fontSize: 18, color: Colors.white)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Your Membership @ ₹ 500',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '2% Membership Discount For Every\nProduct You Purchase',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'For',
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
+        ),
+        Text(
+          '1 YEAR',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 28,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 70),
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          child: ElevatedButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PaymentPage(orderId: 'MEMBERSHIP_ORDER_ID_ABC'),
+                ),
+              );
+              _checkMembershipStatus(); // Re-check status after returning from payment
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Text(
+              'Proceed to Payment',
+              style: GoogleFonts.poppins(
+                color: Colors.indigo,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // UI for when membership IS active (your new sample UI)
+  Widget _buildMembershipActiveUI(BuildContext context) {
+    return Column(
+      children: [
+        // Top motivational text
+        Text(
+          '"Be A Part Of Something Bigger"',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Success message
+        Column(
+          children: [
+            Text(
+              'You Are A Member Now!',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 24,
+                color: Colors.yellow,
+              ),
+            ),
+            const SizedBox(height: 5),
+            // Yellow underline
+            Container(
+              height: 3,
+              width: 100,
+              color: Colors.yellow,
+            ),
+          ],
+        ),
+        const SizedBox(height: 30),
+
+        // White info card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(1),
+          ),
+          child: Row(
+            children: [
+              Image.asset('assets/logo.png', height: 90),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
                         children: [
-                          Image.asset('assets/logo.png', height: 90),
-                          const SizedBox(width: 10), // Changed from height to width for horizontal spacing
-                          Expanded( // Use Expanded to allow text to take available space
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center, // Center text vertically
-                              children: [
-                                Text(
-                                  'Agri-Products Delivered\nTo Your Door Step',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 12),
-                                ),
-                                const SizedBox(height: 10), // Adjusted spacing
-                                Text(
-                                  'Effortless Bulk Ordering With\nExclusive Membership Discounts.',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.poppins(fontSize: 12),
-                                ),
-                              ],
+                          TextSpan(
+                            text: 'Agri-Products ',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'Delivered\nTo Your ',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w400,
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'Door Step',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: Colors.black,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Navigate to the PaymentPage to process membership fee
-                      // Using a dummy orderId for membership. In a real app,
-                      // you might generate a specific order ID for membership purchases.
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PaymentPage(orderId: 'MEMBERSHIP_ORDER_ID_ABC'),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.lock_open, color: Colors.white),
-                    label: Text('Unlock', style: GoogleFonts.poppins(fontSize: 18, color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Your Membership @ ₹ 500',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '2% Membership Discount For Every\nProduct You Purchase',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'For',
-                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
-                  ),
-                  Text(
-                    '1 YEAR', // Changed to "1 YEAR" for clarity
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 28,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 70), // Maintain spacing at the bottom
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // This button seems to duplicate the "Unlock" button's function.
-                        // I'm making it navigate to PaymentPage as well.
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PaymentPage(orderId: 'MEMBERSHIP_ORDER_ID_ABC'),
+                    const SizedBox(height: 10),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Effortless Bulk Ordering With\nExclusive ',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                          TextSpan(
+                            text: 'Membership ',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'Discounts.',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        'Proceed to Payment', // Changed text for clarity
-                        style: GoogleFonts.poppins(
-                          color: Colors.indigo,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+
+        // Membership status section
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Membership',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_open, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Unlocked',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 30),
+
+        // Benefits text
+        Text(
+          '2% Membership Discount For Every\nProduct You Purchase',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 40),
+
+        // Year plan and community section
+        Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: Column(
+                children: [
+                  Text(
+                    'YEAR',
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'PLAN',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                'You Are A Part Of\nOur Community Now!',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 60),
+
+        // Expiry date
+        Text(
+          'Plan Expires On: 23rd Dec, 2025',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 40),
+
+        // Continue button
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          child: ElevatedButton(
+            onPressed: () {
+              // Navigate back to home or previous screen
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Text(
+              'Continue',
+              style: GoogleFonts.poppins(
+                color: Colors.indigo,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -541,34 +541,25 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   }
 
   void _handlePaymentSuccess() {
-    // Simulate a network call/processing time
     Future.delayed(const Duration(seconds: 3), () {
       final orderModel = Provider.of<OrderModel>(context, listen: false);
-
-      // Update the order status to confirmed after successful payment
       orderModel.updateOrderStatus(widget.orderId, OrderStatus.confirmed);
       debugPrint('Order ${widget.orderId} status updated to CONFIRMED after payment.');
 
       final cartModel = Provider.of<CartModel>(context, listen: false);
-      cartModel.clearCart(); // Clear the cart after the payment is successful
+      cartModel.clearCart();
 
-      // Navigate to the main home screen (Bot) and clear the entire stack
+      // Navigate to Bot with showRewardsPopup: true
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const Bot(initialIndex: 0)),
+        MaterialPageRoute(
+          builder: (_) => const Bot(
+            initialIndex: 0,
+            showRewardsPopup: true,
+          ),
+        ),
             (Route<dynamic> route) => false,
       );
-
-      // Show the RewardsPopup after navigation
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext dialogContext) => const RewardsPopup(coinsEarned: 100),
-          );
-        }
-      });
     });
   }
 

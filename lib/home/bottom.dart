@@ -1,34 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart'; // For post-frame callback
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kisangro/home/cart.dart'; // Corrected import
-import 'package:kisangro/home/categories.dart'; // Corrected import
-import 'package:kisangro/home/homepage.dart'; // Corrected import
-import 'package:kisangro/home/reward_screen.dart'; // Corrected import
-// MyOrder, WishlistPage, and noti are intentionally not imported here
-// as they are no longer part of the bottom navigation.
-
+import 'package:kisangro/home/cart.dart';
+import 'package:kisangro/home/categories.dart';
+import 'package:kisangro/home/homepage.dart';
+import 'package:kisangro/home/reward_screen.dart';
+import 'package:kisangro/home/rewards_popup.dart'; // Import RewardsPopup
 
 class Bot extends StatefulWidget {
-  // Added initialIndex to the constructor to allow setting the starting tab
   final int initialIndex;
+  final bool showRewardsPopup; // Parameter to trigger RewardsPopup
 
-  const Bot({super.key, this.initialIndex = 0}); // Default to 0 (Home)
+  const Bot({
+    super.key,
+    this.initialIndex = 0, // Default to Home tab
+    this.showRewardsPopup = false, // Default to false
+  });
 
   @override
   State<Bot> createState() => _BotState();
 }
 
 class _BotState extends State<Bot> {
-  late int _selectedIndex; // Make it late to initialize from widget
+  late int _selectedIndex;
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex; // Initialize from the passed index
+    _selectedIndex = widget.initialIndex;
+
+    // Show RewardsPopup if showRewardsPopup is true and we're on the Home tab
+    if (widget.showRewardsPopup && widget.initialIndex == 0) {
+      // Use post-frame callback to show dialog after the widget is built
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false, // Keep as false per your RewardsPopup design
+            builder: (BuildContext dialogContext) => const RewardsPopup(coinsEarned: 100),
+          );
+        }
+      });
+    }
   }
 
-  // If the widget is rebuilt with a different initialIndex (e.g., from a programmatic
-  // navigation that rebuilds Bot), update the selected index.
   @override
   void didUpdateWidget(covariant Bot oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -42,9 +57,9 @@ class _BotState extends State<Bot> {
   // List of main screens for the bottom navigation
   final List<Widget> _screens = [
     const HomeScreen(), // Index 0
-    ProductCategoriesScreen(), // Index 1
-    RewardScreen(), // Index 2
-    Cart(), // Index 3 - Your original cart class
+    const ProductCategoriesScreen(), // Index 1
+    const RewardScreen(), // Index 2
+    const Cart(), // Index 3
   ];
 
   void _onItemTapped(int index) {
@@ -61,7 +76,7 @@ class _BotState extends State<Bot> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2), // Adjust shadow opacity
+              color: Colors.black.withOpacity(0.2),
               spreadRadius: 1,
               blurRadius: 6,
               offset: const Offset(0, -2),
@@ -73,9 +88,7 @@ class _BotState extends State<Bot> {
           selectedItemColor: const Color(0xffEB7720),
           unselectedItemColor: const Color(0xff575757),
           onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed, // Ensures all items are visible
-
-          // Apply Poppins font for labels
+          type: BottomNavigationBarType.fixed,
           selectedLabelStyle: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
             fontSize: 12,
@@ -84,7 +97,6 @@ class _BotState extends State<Bot> {
             fontWeight: FontWeight.w400,
             fontSize: 12,
           ),
-
           items: [
             BottomNavigationBarItem(
               icon: Image.asset(
@@ -114,7 +126,6 @@ class _BotState extends State<Bot> {
               label: "Rewards",
             ),
             BottomNavigationBarItem(
-              // Cart tab - now at index 3
               icon: Image.asset(
                 'assets/cart.png',
                 width: 24,
@@ -123,7 +134,6 @@ class _BotState extends State<Bot> {
               ),
               label: "Cart",
             ),
-            // Removed 'Orders', 'Wishlist', 'Notifications' from bottom bar as per request
           ],
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:kisangro/home/reward_screen.dart';
 
 class RewardsPopup extends StatelessWidget {
   final int coinsEarned;
@@ -79,22 +80,7 @@ class RewardsPopup extends StatelessWidget {
                       ),
 
                       // Main coin icon
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.orange[400],
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.orange.withOpacity(0.3),
-                              blurRadius: 10,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Image.asset('assets/wings.gif')
-                      ),
+                      Image.asset('assets/wings.gif',scale: 1,),
                     ],
                   ),
 
@@ -136,41 +122,36 @@ class RewardsPopup extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 30),
+                ],
+              ),
+            ),
 
-                  // View Reward Coins button
-                  Container(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Viewing reward coins!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: Text(
-                        "View Reward Coins",
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+            // View Reward Coins button - positioned at bottom with no padding
+            Container(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => RewardScreen()));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
                   ),
-
-                  const SizedBox(height: 25),
-                ],
+                  elevation: 2,
+                ),
+                child: Text(
+                  "View Reward Coins",
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
