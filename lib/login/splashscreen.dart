@@ -4,6 +4,8 @@ import 'package:kisangro/login/secondscreen.dart'; // Path to your second screen
 import 'package:kisangro/home/bottom.dart'; // Path to your home screen (Bot class)
 import 'package:shared_preferences/shared_preferences.dart'; // Import shared_preferences
 import 'package:kisangro/login/onprocess.dart'; // Import KycSplashScreen
+import 'package:kisangro/services/product_service.dart'; // NEW: Import ProductService for data loading
+import 'dart:async'; // For Future.delayed
 
 class splashscreen extends StatefulWidget {
   const splashscreen({super.key});
@@ -19,23 +21,45 @@ class _splashscreenState extends State<splashscreen> {
     _checkLoginStatusAndNavigate();
   }
 
-  // Asynchronously checks the login and KYC/license status and navigates accordingly
+  // Asynchronously checks the login and KYC/license status, loads product data, and navigates accordingly
   Future<void> _checkLoginStatusAndNavigate() async {
     // Simulate splash screen delay
     await Future.delayed(const Duration(seconds: 3));
 
-    // Ensure the widget is still mounted before attempting navigation
+    // Ensure the widget is still mounted before attempting navigation or data loading
     if (!mounted) {
       return;
+    }
+
+    // NEW: Load product data from the API service
+    try {
+      debugPrint('SplashScreen: Starting to load product data...');
+      await ProductService.loadProductsFromApi(); // Load general products (type 1041)
+      await ProductService.loadCategoriesFromApi(); // Load categories (type 1043)
+      debugPrint('SplashScreen: Product and Category data loaded successfully.');
+    } catch (e) {
+      debugPrint('SplashScreen: Failed to load product/category data: $e');
+      if (mounted) {
+        // Optionally, show a critical error and prevent navigation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load app data: $e. Please check your internet connection.', style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        // You might want to halt navigation here or go to an error screen.
+        // For now, it will proceed, but subsequent screens might fail if data is truly missing.
+      }
+      return; // Exit if critical data load fails
     }
 
     // Get an instance of SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     // Check if the 'isLoggedIn' key exists and is true
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    // NEW: Check for the license upload completion flag
+    // Check for the license upload completion flag
     final hasUploadedLicenses = prefs.getBool('hasUploadedLicenses') ?? false;
-
 
     if (mounted) {
       if (isLoggedIn) {
@@ -66,7 +90,6 @@ class _splashscreenState extends State<splashscreen> {
     final isTablet = screenSize.shortestSide >= 600;
 
     return Scaffold(
-      // Removed backgroundColor from Scaffold
       body: Container( // Wrapped the content in a Container for the gradient
         width: double.infinity,
         height: double.infinity,
