@@ -15,9 +15,12 @@ import 'package:kisangro/home/categories.dart'; // Assuming Categories screen is
 import 'package:kisangro/home/cart.dart'; // Assuming CartScreen exists
 
 // NEW: Import the CustomDrawer
-import 'package:kisangro/home/custom_drawer.dart';
+import 'package:kisangro/home/custom_drawer.dart'; // This is the shared drawer
+// NEW: Import the KycBusinessDataProvider
+import 'package:kisangro/models/kyc_business_model.dart';
 
-import '../models/kyc_image_provider.dart'; // This is the shared drawer
+import '../models/kyc_image_provider.dart';
+
 
 class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
@@ -29,22 +32,30 @@ class RewardScreen extends StatefulWidget {
 class _RewardScreenState extends State<RewardScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Key for Scaffold to open drawer
 
-  // Removed: _rating, _reviewController, maxChars as they are now handled by CustomDrawer
-  // Removed: _showLogoutDialog and showComplaintDialog as they are now in CustomDrawer
-
   @override
   void initState() {
     super.initState();
+    // Removed the problematic line:
+    // Provider.of<KycBusinessDataProvider>(context, listen: false).loadKycData();
+    // The KycBusinessDataProvider's constructor already handles loading data from SharedPreferences.
   }
 
   @override
   void dispose() {
-    // Removed: _reviewController.dispose() as it's no longer here
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Access the KycBusinessDataProvider
+    final kycBusinessProvider = Provider.of<KycBusinessDataProvider>(context);
+    final kycData = kycBusinessProvider.kycBusinessData;
+
+    // Use a default name and number if KYC data is not yet available
+    final String displayName = kycData?.fullName?.isNotEmpty == true ? "Hi ${kycData!.fullName!.split(' ').first}!" : "Hi Smart!";
+    final String displayWhatsAppNumber = kycData?.whatsAppNumber?.isNotEmpty == true ? kycData!.whatsAppNumber! : "98765 43210";
+
+
     return Scaffold(
       key: _scaffoldKey, // Assign scaffold key to control drawer
       backgroundColor: const Color(0xFFFFF3E9),
@@ -97,7 +108,7 @@ class _RewardScreenState extends State<RewardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Top Profile Card (This part uses KycImageProvider, so it remains)
+            // Top Profile Card
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -149,12 +160,12 @@ class _RewardScreenState extends State<RewardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Hi Smart!",
+                        displayName, // Display dynamic name from KYC data
                         style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "98765 43210",
+                        displayWhatsAppNumber, // Display dynamic WhatsApp number from KYC data
                         style: GoogleFonts.poppins(fontSize: 16, color: const Color(0xffEB7720)),
                       ),
                     ],

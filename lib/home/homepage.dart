@@ -21,7 +21,6 @@ import 'package:kisangro/models/kyc_image_provider.dart'; // Your custom KYC ima
 import 'package:kisangro/services/product_service.dart'; // Import ProductService
 
 // Your existing page imports (ensure these paths are correct in your project)
-// import 'package:kisangro/home/membership.dart'; // MembershipDetailsScreen - NO LONGER NEEDED as section is removed
 import 'package:kisangro/home/myorder.dart'; // MyOrder
 import 'package:kisangro/home/noti.dart'; // noti
 import 'package:kisangro/home/search_bar.dart'; // SearchScreen
@@ -389,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       child: PageView.builder(
                         controller: _pageController,
                         itemCount: _carouselImages.length,
-                        onPageChanged: (index) => setState(() => _currentPage = index), // Update current page index
+                        onPageChanged: (index) => setState(() => _currentPage = index),
                         itemBuilder: (context, index) {
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
@@ -452,7 +451,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     final product = _trendingItems[index];
                     return Padding( // Wrap _buildProductTile with Padding
                       padding: const EdgeInsets.only(right: 12), // Add space to the right of each tile
-                      child: _buildProductTile(context, product, tileWidth: 150), // *** PASS FIXED WIDTH HERE ***
+                      // Pass the product object when tapping the tile
+                      child: GestureDetector( // Added GestureDetector here for navigation
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProductDetailPage(product: product),
+                            ),
+                          );
+                        },
+                        child: _buildProductTile(context, product, tileWidth: 150), // *** PASS FIXED WIDTH HERE ***
+                      ),
                     );
                   },
                 ),
@@ -627,9 +637,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   itemCount: _newOnKisangroItems.length,
                   itemBuilder: (context, index) {
                     final product = _newOnKisangroItems[index];
-                    // The _buildProductTile function now defaults to taking available width if tileWidth is null,
-                    // which is suitable for GridView items.
-                    return _buildProductTile(context, product);
+                    // Pass the product object when tapping the tile
+                    return GestureDetector( // Added GestureDetector here for navigation
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProductDetailPage(product: product),
+                          ),
+                        );
+                      },
+                      child: _buildProductTile(context, product),
+                    );
                   },
                 ),
               ),
@@ -741,31 +760,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           SizedBox(
             height: 100, // Adjusted height to give more space to other components
             width: double.infinity, // Take full width of the tile
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProductDetailPage(product: product),
-                  ),
-                );
-              },
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: _getEffectiveImageUrl(product.imageUrl).startsWith('http')
-                      ? Image.network(
-                    _getEffectiveImageUrl(product.imageUrl),
-                    fit: BoxFit.contain, // Use BoxFit.contain to ensure the whole image is visible
-                    errorBuilder: (context, error, stackTrace) => Image.asset(
-                      'assets/placeholder.png', // Fallback local image
-                      fit: BoxFit.contain,
-                    ),
-                  )
-                      : Image.asset(
-                    _getEffectiveImageUrl(product.imageUrl),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: _getEffectiveImageUrl(product.imageUrl).startsWith('http')
+                    ? Image.network(
+                  _getEffectiveImageUrl(product.imageUrl),
+                  fit: BoxFit.contain, // Use BoxFit.contain to ensure the whole image is visible
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                    'assets/placeholder.png', // Fallback local image
                     fit: BoxFit.contain,
                   ),
+                )
+                    : Image.asset(
+                  _getEffectiveImageUrl(product.imageUrl),
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
