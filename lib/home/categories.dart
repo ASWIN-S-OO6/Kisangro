@@ -19,7 +19,9 @@ import '../menu/logout.dart'; // For LogoutConfirmationDialog
 import '../menu/setting.dart'; // For Settings navigation
 import '../menu/transaction.dart'; // For Transaction History navigation
 import '../models/kyc_image_provider.dart'; // Import your custom KYC image provider
-import 'package:kisangro/categories/category_products_screen.dart'; // Import the new category products screen
+import 'package:kisangro/categories/category_products_screen.dart';
+
+import 'custom_drawer.dart'; // Import the new category products screen
 
 class ProductCategoriesScreen extends StatefulWidget {
   const ProductCategoriesScreen({super.key}); // Add const constructor
@@ -295,26 +297,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey, // Assign scaffold key to control drawer
-      drawer: Drawer(
-        child: SafeArea(
-          // Ensures content is not under status bar
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(), // Custom header for the drawer, now displaying KYC image
-              _buildMenuItem(Icons.person_outline, "My Account"), // Drawer menu items
-              _buildMenuItem(Icons.favorite_border, "Wishlist"),
-              _buildMenuItem(Icons.history, "Transaction History"),
-              _buildMenuItem(Icons.headset_mic, "Ask Us!"),
-              _buildMenuItem(Icons.info_outline, "About Us"),
-              _buildMenuItem(Icons.star_border, "Rate Us"),
-              _buildMenuItem(Icons.share_outlined, "Share Kisangro"),
-              _buildMenuItem(Icons.settings_outlined, "Settings"),
-              _buildMenuItem(Icons.logout, "Logout"),
-            ],
-          ),
-        ),
-      ),
+      drawer: CustomDrawer(),
       appBar: AppBar(
         backgroundColor: const Color(0xffEB7720),
         centerTitle: false,

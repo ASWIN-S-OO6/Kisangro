@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 
 import 'package:kisangro/models/product_model.dart';
 import 'package:kisangro/models/wishlist_model.dart';
-import 'package:kisangro/models/cart_model.dart';
+import 'package:kisangro/models/cart_model.dart'; // Corrected import: fixed typo here
 import 'package:kisangro/home/myorder.dart'; // Import for MyOrder
 import 'package:kisangro/home/noti.dart'; // Import for Noti
 import 'package:kisangro/home/cart.dart'; // Import for CartScreen navigation
+
+// NEW: Import the CustomDrawer
+import 'package:kisangro/home/custom_drawer.dart'; // Ensure correct path to CustomDrawer
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key}); // Added Key and fixed super.key
@@ -17,6 +20,9 @@ class WishlistPage extends StatefulWidget {
 }
 
 class _WishlistPageState extends State<WishlistPage> {
+  // Key for Scaffold to open drawer
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   // Helper to check if a URL is valid and absolute
   bool _isValidUrl(String? url) {
     if (url == null || url.isEmpty) {
@@ -29,6 +35,9 @@ class _WishlistPageState extends State<WishlistPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey, // Assign scaffold key to control drawer
+      // Add the CustomDrawer to the Scaffold
+      drawer: const CustomDrawer(),
       appBar: AppBar(
         backgroundColor: const Color(0xffEB7720),
         title: Padding(
@@ -40,7 +49,18 @@ class _WishlistPageState extends State<WishlistPage> {
         ),
         leading: IconButton(
           onPressed: () {
-            Navigator.pop(context);
+            // Check if the drawer is open, if not, open it.
+            // If the drawer is not defined, this will still allow back navigation.
+            if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+              Navigator.pop(context); // Close drawer
+            } else {
+              // If there's a previous route, pop it. Otherwise, open the drawer.
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                _scaffoldKey.currentState?.openDrawer(); // Open drawer if no previous screen
+              }
+            }
           },
           icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),

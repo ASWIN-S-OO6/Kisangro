@@ -31,15 +31,18 @@ class _kycState extends State<kyc> {
   final TextEditingController _businessAddressController = TextEditingController(); // To store the autofilled address
 
   bool _isGstinVerified = false; // State to control visibility of Business Address
-  KycBusinessDataProvider? _kycBusinessDataProvider; // Reference to the provider
+  KycBusinessDataProvider? _kycBusinessDataProvider; // Reference to the business provider
+  KycImageProvider? _kycImageProvider; // Reference to the image provider
 
   static const int maxChars = 100; // Max characters for review (unused in this file but was there)
 
   @override
   void initState() {
     super.initState();
-    // Access the provider here. listen: false as we're not rebuilding on every change here.
+    // Access the providers here. listen: false as we're not rebuilding on every change here.
     _kycBusinessDataProvider = Provider.of<KycBusinessDataProvider>(context, listen: false);
+    _kycImageProvider = Provider.of<KycImageProvider>(context, listen: false); // Initialize image provider
+
     _loadExistingKycData(); // Load existing data to pre-fill the form
 
     // Add listener for autofill of Business Contact Number
@@ -64,21 +67,26 @@ class _kycState extends State<kyc> {
 
   /// Loads existing KYC data from the provider and populates the form fields.
   void _loadExistingKycData() {
-    final existingData = _kycBusinessDataProvider?.kycBusinessData;
-    if (existingData != null) {
+    final existingBusinessData = _kycBusinessDataProvider?.kycBusinessData;
+    if (existingBusinessData != null) {
       setState(() {
-        _fullNameController.text = existingData.fullName ?? '';
-        _mailIdController.text = existingData.mailId ?? '';
-        _whatsAppNumberController.text = existingData.whatsAppNumber ?? '';
-        _businessNameController.text = existingData.businessName ?? '';
-        _gstinController.text = existingData.gstin ?? '';
-        _isGstinVerified = existingData.isGstinVerified; // Set verification status
-        _aadhaarNumberController.text = existingData.aadhaarNumber ?? '';
-        _panNumberController.text = existingData.panNumber ?? '';
-        _natureOfBusinessSelected = existingData.natureOfBusiness; // Set dropdown value
-        _businessContactNumberController.text = existingData.businessContactNumber ?? '';
-        _businessAddressController.text = existingData.businessAddress ?? ''; // Load saved address
-        _imageBytes = existingData.shopImageBytes; // Set shop image
+        _fullNameController.text = existingBusinessData.fullName ?? '';
+        _mailIdController.text = existingBusinessData.mailId ?? '';
+        _whatsAppNumberController.text = existingBusinessData.whatsAppNumber ?? '';
+        _businessNameController.text = existingBusinessData.businessName ?? '';
+        _gstinController.text = existingBusinessData.gstin ?? '';
+        _isGstinVerified = existingBusinessData.isGstinVerified; // Set verification status
+        _aadhaarNumberController.text = existingBusinessData.aadhaarNumber ?? '';
+        _panNumberController.text = existingBusinessData.panNumber ?? '';
+        _natureOfBusinessSelected = existingBusinessData.natureOfBusiness; // Set dropdown value
+        _businessContactNumberController.text = existingBusinessData.businessContactNumber ?? '';
+        _businessAddressController.text = existingBusinessData.businessAddress ?? ''; // Load saved address
+        _imageBytes = existingBusinessData.shopImageBytes; // Set shop image for local display
+
+        // Also ensure KycImageProvider is updated on load, if data exists
+        if (existingBusinessData.shopImageBytes != null) {
+          _kycImageProvider?.setKycImage(existingBusinessData.shopImageBytes!);
+        }
       });
     }
   }
@@ -91,8 +99,8 @@ class _kycState extends State<kyc> {
   }
 
   /// Handles picking an image from the specified [source] (camera or gallery).
-  /// Reads the image as raw bytes (Uint8List) and updates both local state
-  /// and the shared [KycBusinessDataProvider].
+  /// Reads the image as raw bytes (Uint8List) and updates both local state,
+  /// [KycBusinessDataProvider] (for persistence), and [KycImageProvider] (for UI display).
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await ImagePicker().pickImage(source: source);
     if (pickedFile != null) {
@@ -100,9 +108,11 @@ class _kycState extends State<kyc> {
       setState(() {
         _imageBytes = bytes; // Update local state for immediate UI refresh
       });
-      // Save image bytes to KycBusinessDataProvider
+      // Save image bytes to KycBusinessDataProvider for persistence
       await _kycBusinessDataProvider?.setKycBusinessData(shopImageBytes: bytes);
-      debugPrint('KycBusinessDataProvider: Shop image bytes set. Length: ${bytes.lengthInBytes} bytes'); // Debug print for monitoring
+      // Also update KycImageProvider for real-time UI changes in CustomDrawer
+      _kycImageProvider?.setKycImage(bytes); // *** THIS IS THE KEY ADDITION ***
+      debugPrint('KYC Screen: Shop image bytes set to both business and image providers. Length: ${bytes.lengthInBytes} bytes'); // Debug print for monitoring
     } else {
       debugPrint('Image picking cancelled from $source.');
     }
