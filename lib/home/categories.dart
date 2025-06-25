@@ -19,7 +19,7 @@ import '../menu/logout.dart'; // For LogoutConfirmationDialog
 import '../menu/setting.dart'; // For Settings navigation
 import '../menu/transaction.dart'; // For Transaction History navigation
 import '../models/kyc_image_provider.dart'; // Import your custom KYC image provider
-import 'package:kisangro/categories/category_products_screen.dart';
+import 'package:kisangro/categories/category_products_screen.dart'; // Ensure this import is correct
 
 import 'custom_drawer.dart'; // Import the new category products screen
 
@@ -34,8 +34,6 @@ class ProductCategoriesScreen extends StatefulWidget {
 class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey =
   GlobalKey<ScaffoldState>(); // Key for Scaffold to open drawer
-
-  // Removed _currentPage, _pageController, _timer, _currentLocation as they are not used here.
 
   double _rating = 4.0; // Initial rating for the review dialog
   final TextEditingController _reviewController =
@@ -297,7 +295,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey, // Assign scaffold key to control drawer
-      drawer: CustomDrawer(),
+      drawer: const CustomDrawer(), // Ensure CustomDrawer is imported and correctly used
       appBar: AppBar(
         backgroundColor: const Color(0xffEB7720),
         centerTitle: false,
@@ -321,7 +319,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyOrder())); // Added const
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyOrder()));
             },
             icon: Image.asset(
               'assets/box.png',
@@ -333,7 +331,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
           IconButton(
             onPressed: () {
               Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const WishlistPage())); // Added const
+                  context, MaterialPageRoute(builder: (context) => const WishlistPage()));
             },
             icon: Image.asset(
               'assets/heart.png',
@@ -346,7 +344,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
             padding: const EdgeInsets.only(right: 10.0),
             child: IconButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const noti())); // Added const
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const noti()));
               },
               icon: Image.asset(
                 'assets/noti.png',
@@ -393,8 +391,8 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => CategoryProductsScreen(
-                        categoryTitle: category['label']!, // Use 'label' key
                         categoryId: category['cat_id']!, // Pass the 'cat_id'
+                        categoryName: category['label']!, // Pass the 'categoryName'
                       ),
                     ),
                   );
@@ -587,7 +585,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
               case 'Ask Us!':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) =>  AskUsPage()), // Added const
+                  MaterialPageRoute(builder: (context) => AskUsPage()), // Added const
                 );
                 break;
               case 'Rate Us':
@@ -596,7 +594,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
               case 'Settings':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) =>  SettingsPage()), // Added const
+                  MaterialPageRoute(builder: (context) => SettingsPage()), // Added const
                 );
                 break;
               case 'Logout':
