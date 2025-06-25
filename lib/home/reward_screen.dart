@@ -1,4 +1,4 @@
-import 'dart:async'; // Still might be useful for general screen logic, or remove if not used elsewhere
+import 'dart:async';
 import 'dart:typed_data'; // Needed for Uint8List to display image bytes (for profile image in main body)
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,8 +35,6 @@ class _RewardScreenState extends State<RewardScreen> {
   @override
   void initState() {
     super.initState();
-    // Removed the problematic line:
-    // Provider.of<KycBusinessDataProvider>(context, listen: false).loadKycData();
     // The KycBusinessDataProvider's constructor already handles loading data from SharedPreferences.
   }
 
@@ -59,7 +57,7 @@ class _RewardScreenState extends State<RewardScreen> {
     return Scaffold(
       key: _scaffoldKey, // Assign scaffold key to control drawer
       backgroundColor: const Color(0xFFFFF3E9),
-      // *** LINKING THE CUSTOM DRAWER HERE ***
+      // LINKING THE CUSTOM DRAWER HERE
       drawer: const CustomDrawer(),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF7A00),
@@ -73,6 +71,8 @@ class _RewardScreenState extends State<RewardScreen> {
           "Reward Points",
           style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
         ),
+        centerTitle: false, // Ensures title is left-aligned
+        titleSpacing: 0.0, // NEW: Removes space between leading icon and title
         actions: [
           IconButton(
             onPressed: () {
@@ -80,23 +80,23 @@ class _RewardScreenState extends State<RewardScreen> {
             },
             icon: Image.asset('assets/box.png', height: 24, width: 24, color: Colors.white),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 2),
           IconButton(
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistPage()));
             },
-            icon: Image.asset('assets/heart.png', height: 24, width: 24, color: Colors.white),
+            icon: Image.asset('assets/heart.png', height: 26, width: 26, color: Colors.white),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 10.0),
+            padding: const EdgeInsets.only(right: 6.0),
             child: IconButton(
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const noti()));
               },
               icon: Image.asset(
                 'assets/noti.png',
-                height: 24,
-                width: 24,
+                height: 28,
+                width: 28,
                 color: Colors.white,
               ),
             ),
@@ -127,7 +127,7 @@ class _RewardScreenState extends State<RewardScreen> {
                   // Profile Image (from KYC)
                   DottedBorder(
                     borderType: BorderType.Circle,
-                    color: Colors.red,
+                    color: Colors.red, // Assuming this is your theme orange for this screen
                     strokeWidth: 2,
                     dashPattern: const [6, 3],
                     child: Container(

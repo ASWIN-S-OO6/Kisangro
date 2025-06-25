@@ -12,6 +12,7 @@ import 'package:provider/provider.dart'; // For state management
 import 'package:geolocator/geolocator.dart'; // Import geolocator
 import 'package:geocoding/geocoding.dart'; // Import geocoding for reverse geocoding
 import 'package:shared_preferences/shared_preferences.dart'; // Import for SharedPreferences
+import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // NEW: Import for Font Awesome icons
 
 // Import your custom models
 import 'package:kisangro/models/product_model.dart'; // Assuming this model exists
@@ -29,6 +30,8 @@ import 'package:kisangro/home/bottom.dart'; // Import the Bot widget for navigat
 import '../categories/category_products_screen.dart';
 import 'package:kisangro/home/cart.dart'; // Import the cart page for navigation to cart
 import 'package:kisangro/home/trending_products_screen.dart'; // TrendingProductsScreen
+import 'package:kisangro/home/new_on_kisangro_screen.dart'; // Import the new screen
+
 
 // NEW: Import the CustomDrawer
 import 'custom_drawer.dart';
@@ -257,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: Transform.translate(
           offset: const Offset(-20, 0), // Adjust title position
           child: Text(
-            "Hello Smart Global!",
+            "Hello !",
             style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
           ),
         ),
@@ -274,10 +277,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               // WhatsApp icon
-              GestureDetector(
-                child: Image.asset("assets/whats.png", width: 24, height: 24,),
+              IconButton( // Changed to IconButton for consistency
+                onPressed: () {
+                  // Implement WhatsApp functionality here (e.g., launch URL)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('WhatsApp functionality coming soon!')),
+                  );
+                },
+                icon: const FaIcon( // Replaced with Font Awesome outline icon
+                  FontAwesomeIcons.whatsapp,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-              const SizedBox(width: 5), // Consistent smaller spacing
+              const SizedBox(width: 1), // Standardized spacing to 8
 
               // My Orders icon
               IconButton(
@@ -294,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 5), // Consistent smaller spacing
+              const SizedBox(width: 1), // Standardized spacing to 8
 
               // Wishlist icon
               IconButton(
@@ -306,14 +319,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 },
                 icon: Image.asset(
                   'assets/heart.png',
-                  height: 24,
-                  width: 24,
+                  height: 26,
+                  width: 26,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 5), // Consistent smaller spacing
+              const SizedBox(width: 1), // Standardized spacing to 8
 
-              // Notifications icon (removed Padding as SizedBox handles spacing)
+              // Notifications icon
               IconButton(
                 onPressed: () {
                   Navigator.push(
@@ -323,12 +336,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 },
                 icon: Image.asset(
                   'assets/noti.png',
-                  height: 24,
-                  width: 24,
+                  height: 28,
+                  width: 28,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 10), // Small padding at the very end to keep icons from touching edge
+              const SizedBox(width: 2), // Standardized padding at the very end
             ],
           ),
         ],
@@ -608,7 +621,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   vertical: 10,
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start, // Aligned to start as "View All" is removed
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Changed to spaceBetween
                   children: [
                     Text(
                       "New On Kisangro",
@@ -617,7 +630,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    // "View All" button is removed from here
+                    GestureDetector( // Added GestureDetector for "View All"
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const NewOnKisangroScreen()));
+                      },
+                      child: Text(
+                        "View All",
+                        style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
+                      ),
+                    ),
                   ],
                 ),
               ),

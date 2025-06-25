@@ -15,7 +15,7 @@ import 'package:kisangro/models/kyc_business_model.dart'; // Import KycBusinessD
 import 'package:kisangro/home/membership.dart';
 import 'package:kisangro/home/myorder.dart';
 import 'package:kisangro/home/noti.dart';
-import 'package:kisangro/login/login.dart';
+import 'package:kisangro/login/login.dart'; // Assumed LoginApp is in this file
 import 'package:kisangro/menu/account.dart';
 import 'package:kisangro/menu/ask.dart';
 import 'package:kisangro/menu/logout.dart';
@@ -72,9 +72,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
           await prefs.setBool('hasUploadedLicenses', false);
           await prefs.setBool('isMembershipActive', false);
 
+          // Clear provider data on logout
+          Provider.of<KycBusinessDataProvider>(context, listen: false).clearKycData();
+          Provider.of<KycImageProvider>(context, listen: false).clearKycImage();
+
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const LoginApp()),
+            MaterialPageRoute(builder: (context) => const LoginApp()), // Corrected to LoginApp
                 (Route<dynamic> route) => false,
           );
           ScaffoldMessenger.of(context).showSnackBar(
@@ -268,26 +272,28 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  // Adjusted _buildHeader to perfectly align logo and text
   Widget _buildHeader() {
-    return Consumer<KycBusinessDataProvider>( // Use Consumer to rebuild when KYC data changes
+    return Consumer<KycBusinessDataProvider>(
       builder: (context, kycBusinessDataProvider, child) {
         final kycData = kycBusinessDataProvider.kycBusinessData;
         final Uint8List? shopImageBytes = kycData?.shopImageBytes;
-        final String fullName = kycData?.fullName ?? "Smart"; // Fallback to "Smart"
-        final String whatsAppNumber = kycData?.whatsAppNumber ?? "9876543210"; // Fallback number
+        final String fullName = kycData?.fullName ?? "Smart";
+        final String whatsAppNumber = kycData?.whatsAppNumber ?? "9876543210";
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           child: Column(
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically in the center
                 children: [
-                  // Start of the Stack for Profile Image and Edit Button
                   Stack(
+                    alignment: Alignment.bottomRight, // Align edit icon to bottom right of stack
                     children: [
                       DottedBorder(
                         borderType: BorderType.Circle,
-                        color: Colors.red,
+                        color: Colors.red, // Keeping original color from your provided old code
                         strokeWidth: 2,
                         dashPattern: const [6, 3],
                         child: Container(
@@ -311,41 +317,51 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         ),
                       ),
                       // Edit Icon Button
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: () {
-                            // TODO: Implement navigation to profile edit screen
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Edit Profile Clicked!')),
-                            );
-                            // Example: Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfileScreen()));
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xffEB7720), // Orange background for the button
-                              borderRadius: BorderRadius.circular(20), // Make it circular
-                              border: Border.all(color: Colors.white, width: 2), // White border
-                            ),
-                            padding: const EdgeInsets.all(4),
-                            child: const Icon(
-                              Icons.edit,
-                              color: Colors.white,
-                              size: 18,
-                            ),
+                      GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Edit Profile Clicked!')),
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xffEB7720),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          padding: const EdgeInsets.all(4),
+                          child: const Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 18,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  // End of the Stack
-                  const SizedBox(width: 20),
-                  Text(
-                    "$fullName\n$whatsAppNumber", // Use actual name and number
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(width: 15), // Slightly reduced spacing
+                  // Wrap text in Expanded to prevent overflow and align correctly
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fullName,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis, // Handle long names
+                        ),
+                        Text(
+                          whatsAppNumber,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16, // Kept 16 as per your provided code
+                            color: const Color(0xffEB7720),
+                          ),
+                          overflow: TextOverflow.ellipsis, // Handle long numbers
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -369,6 +385,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(5),
                       ),
+                      padding: const EdgeInsets.symmetric(vertical: 12), // Added padding for height consistency
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -390,90 +407,93 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ),
                 ),
               ),
-              const Divider(height: 30, thickness: 1, color: Colors.black),
+              const Divider(height: 30, thickness: 1, color: Colors.black), // Black divider
             ],
           ),
         );
       },
     );
   }
-  Widget _buildMenuItem(IconData icon, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 2),
-        height: 40,
-        decoration: const BoxDecoration(color: Color(0xffffecdc)),
-        child: ListTile(
-          leading: Icon(icon, color: const Color(0xffEB7720)),
-          title: Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          onTap: () {
-            Navigator.pop(context);
 
-            switch (label) {
-              case 'My Account':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MyAccountPage()),
-                );
-                break;
-              case 'My Orders':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MyOrder()),
-                );
-                break;
-              case 'Wishlist':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WishlistPage()),
-                );
-                break;
-              case 'Transaction History':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>  TransactionHistoryPage(),
-                  ),
-                );
-                break;
-              case 'Ask Us!':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AskUsPage()),
-                );
-                break;
-              case 'Rate Us':
-                showComplaintDialog(context);
-                break;
-              case 'Settings':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SettingsPage()),
-                );
-                break;
-              case 'Logout':
-                _showLogoutDialog(context);
-                break;
-              case 'About Us':
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('About Us page coming soon!')),
-                );
-                break;
-              case 'Share Kisangro':
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share functionality coming soon!')),
-                );
-                break;
-            }
-          },
+  // Modified _buildMenuItem to have a transparent container and rely on ListView for dividers
+  Widget _buildMenuItem(IconData icon, String label) {
+    return Container(
+      // Removed margin from here to prevent double spacing with dividers
+      height: 48, // Fixed height for consistency
+      decoration: BoxDecoration(
+        color: const Color(0xffffecdc), // Background color for the tile
+        // No explicit border or rounded corners here, assuming ListTile takes full container space
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0), // Consistent internal padding
+        leading: Icon(icon, color: const Color(0xffEB7720)),
+        title: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        onTap: () {
+          Navigator.pop(context);
+
+          switch (label) {
+            case 'My Account':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyAccountPage()),
+              );
+              break;
+            case 'My Orders':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyOrder()),
+              );
+              break;
+            case 'Wishlist':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WishlistPage()),
+              );
+              break;
+            case 'Transaction History':
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>  TransactionHistoryPage(),
+                ),
+              );
+              break;
+            case 'Ask Us!':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AskUsPage()),
+              );
+              break;
+            case 'Rate Us':
+              showComplaintDialog(context);
+              break;
+            case 'Settings':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsPage()),
+              );
+              break;
+            case 'Logout':
+              _showLogoutDialog(context);
+              break;
+            case 'About Us':
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('About Us page coming soon!')),
+              );
+              break;
+            case 'Share Kisangro':
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Share functionality coming soon!')),
+              );
+              break;
+          }
+        },
       ),
     );
   }
@@ -490,16 +510,27 @@ class _CustomDrawerState extends State<CustomDrawer> {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
+                  // Adding Dividers between each MenuItem for separation
                   _buildMenuItem(Icons.person_outline, "My Account"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.receipt_long, "My Orders"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.favorite_border, "Wishlist"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.history, "Transaction History"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.headset_mic, "Ask Us!"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.info_outline, "About Us"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.star_border, "Rate Us"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.share_outlined, "Share Kisangro"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.settings_outlined, "Settings"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0),
                   _buildMenuItem(Icons.logout, "Logout"),
+                  const Divider(color: Colors.black, height: 1.0, thickness: 1.0), // Last divider
                 ],
               ),
             ),

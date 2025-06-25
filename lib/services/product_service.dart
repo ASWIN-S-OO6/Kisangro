@@ -1,34 +1,26 @@
-import 'package:kisangro/models/product_model.dart'; // Import Product and ProductSize
-import 'package:flutter/foundation.dart'; // Import for debugPrint
-import 'package:http/http.dart' as http; // Import the http package
-import 'dart:convert'; // For json.decode
-import 'dart:async'; // REQUIRED for TimeoutException
+import 'package:kisangro/models/product_model.dart';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
 
-// This service handles fetching and managing product and category data.
-// In a real application, this would interact with a backend API.
 class ProductService {
-  static List<Product> _allProducts = []; // Stores the general product catalog (type:1041) for homepage
-  static List<Map<String, String>> _allCategories = []; // Stores the list of categories (type:1043)
+  static List<Product> _allProducts = [];
+  static List<Map<String, String>> _allCategories = [];
 
-  // API endpoint for products
   static const String _productApiUrl = 'https://sgserp.in/erp/api/m_api/';
-
-  // Static parameters for the POST request body as per your demo code
   static const String _cid = '23262954';
   static const String _ln = '123';
   static const String _lt = '123';
-  static const String _deviceId = '123'; // Using 123 for consistency with new params
+  static const String _deviceId = '123';
 
-  // --- THIS METHOD REMAINS FOR YOUR HOMEPAGE'S GENERAL PRODUCT LOAD (type=1041) ---
-  // Fetches general product data for the homepage (e.g., Trending, New On Kisangro).
-  // This method populates the static _allProducts list.
   static Future<void> loadProductsFromApi() async {
     debugPrint('Attempting to load ALL product data from API via POST (type=1041): $_productApiUrl');
 
     try {
       final requestBody = {
         'cid': _cid,
-        'type': '1041', // Using the static '1041' type for the main load
+        'type': '1041',
         'ln': _ln,
         'lt': _lt,
         'device_id': _deviceId,
@@ -40,48 +32,40 @@ class ProductService {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
         },
-        body: requestBody, // Sending parameters as form-urlencoded body
-      ).timeout(const Duration(seconds: 30)); // Added timeout for robustness
+        body: requestBody,
+      ).timeout(const Duration(seconds: 30));
 
       debugPrint('Response Status Code (type=1041): ${response.statusCode}');
-      // Print limited response body for debugging to avoid console clutter
       debugPrint('Response Body (type=1041, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
-
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
 
         if (responseData['status'] == 'success' && responseData['data'] is List) {
           final List<dynamic> rawApiProductsData = responseData['data'];
-          _allProducts.clear(); // Clear existing products before loading new ones
+          _allProducts.clear();
 
-          // Set to track unique products by pro_name and technical_name
           final seenProductKeys = <String>{};
           final List<Product> productsToProcess = [];
 
           for (var item in rawApiProductsData) {
-            // Your existing logic to determine category
             String category = _determineCategory(item['pro_name'].toString().toLowerCase().trim());
-            // Generate a unique ID (Product model expects an ID)
             String id = 'api_product_1041_${item['pro_name'].toString().replaceAll(' ', '_').replaceAll('%', '').replaceAll('.', '').replaceAll('-', '_')}_${DateTime.now().microsecondsSinceEpoch}';
 
-            // Handle image URL fallback logic
             String imageUrl = item['image'] as String? ?? '';
             if (imageUrl.isEmpty || imageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(imageUrl)?.isAbsolute != true && !imageUrl.startsWith('assets/'))) {
               imageUrl = 'assets/placeholder.png';
             }
 
-            // Create a Product instance. Note: This API call (type=1041) *should* include 'sizes' and 'mrp'.
-            // If it doesn't, Product.fromJson will use defaults (price 0.0).
             final product = Product.fromJson(item as Map<String, dynamic>, id, category);
 
-            final key = '${product.title}_${product.subtitle}'; // Use app's model properties for uniqueness
+            final key = '${product.title}_${product.subtitle}';
             if (!seenProductKeys.contains(key)) {
               seenProductKeys.add(key);
               productsToProcess.add(product);
             }
           }
-          _allProducts = productsToProcess; // Update the static list
+          _allProducts = productsToProcess;
 
           debugPrint('ProductService: Successfully parsed ${_allProducts.length} unique products from API for general load (type=1041).');
         } else {
@@ -99,24 +83,22 @@ class ProductService {
       debugPrint('ProductService: Network error for type 1041: $e');
       throw Exception('Network error. Check your internet connection.');
     } catch (e) {
-      debugPrint('ProductService: Unexpected error fetching products for type 1041: $e');
+      debugPrint('ProductService: Unexpected error Jemal, fetching products for type 1041: $e');
       throw Exception('Unexpected error fetching products.');
     }
   }
 
-  // --- NEW METHOD: Fetch products by category (type=1044) ---
-  // This method fetches products specifically for a given category ID.
   static Future<List<Product>> fetchProductsByCategory(String categoryId) async {
     debugPrint('Attempting to load products for category ID: $categoryId via POST (type=1044): $_productApiUrl');
 
     try {
       final requestBody = {
         'cid': _cid,
-        'type': '1044', // Specific type for category products
+        'type': '1044',
         'ln': _ln,
         'lt': _lt,
         'device_id': _deviceId,
-        'cat_id': categoryId, // Pass the category ID
+        'cat_id': categoryId,
       };
 
       final response = await http.post(
@@ -141,24 +123,19 @@ class ProductService {
 
           for (var item in rawApiProductsData) {
             String category = _determineCategory(item['pro_name'].toString().toLowerCase().trim());
-            // Generate a unique ID, ensuring it's distinct for category-specific products
             String id = 'api_product_1044_${categoryId}_${item['pro_name'].toString().replaceAll(' ', '_').replaceAll('%', '').replaceAll('.', '').replaceAll('-', '_')}_${DateTime.now().microsecondsSinceEpoch}';
 
-            // Handle image URL fallback logic
             String imageUrl = item['image'] as String? ?? '';
             if (imageUrl.isEmpty || imageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(imageUrl)?.isAbsolute != true && !imageUrl.startsWith('assets/'))) {
               imageUrl = 'assets/placeholder.png';
             }
 
-            // --- IMPORTANT: Handle missing 'sizes' and 'mrp' in this API response ---
             List<ProductSize> availableSizes = [];
-            // Check if 'sizes' key exists and is a non-empty list
             if (item.containsKey('sizes') && item['sizes'] is List && (item['sizes'] as List).isNotEmpty) {
               availableSizes = (item['sizes'] as List)
                   .map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>))
                   .toList();
             } else {
-              // Fallback: Create a dummy ProductSize since 'sizes' and 'mrp' are missing
               debugPrint('Warning: No "sizes" or "mrp" found for product "${item['pro_name']}" (cat_id: $categoryId). Using default "Unit" with price 0.0.');
               availableSizes.add(ProductSize(size: 'Unit', price: 0.0));
             }
@@ -187,7 +164,7 @@ class ProductService {
         }
       } else {
         debugPrint('ProductService: Failed to load products for category ID $categoryId (type=1044). Status code: ${response.statusCode}.');
-        return []; // Return empty list on server error
+        return [];
       }
     } on TimeoutException catch (_) {
       debugPrint('ProductService: Request (type=1044, cat_id=$categoryId) timed out.');
@@ -201,16 +178,13 @@ class ProductService {
     }
   }
 
-
-  // Method to fetch categories from your API (type=1043)
-  // This method now also populates the static _allCategories list.
   static Future<void> loadCategoriesFromApi() async {
     debugPrint('Attempting to load CATEGORIES data from API via POST (type=1043): $_productApiUrl');
 
     try {
       final requestBody = {
         'cid': _cid,
-        'type': '1043', // Specific type for categories
+        'type': '1043',
         'ln': _ln,
         'lt': _lt,
         'device_id': _deviceId,
@@ -225,10 +199,11 @@ class ProductService {
         body: requestBody,
       ).timeout(const Duration(seconds: 30));
 
+      debugPrint('Response from server for loadCategoriesFromApi: ${response.body}');
       debugPrint('Response Status Code (type=1043): ${response.statusCode}');
       debugPrint('Response Body (type=1043, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
 
-      _allCategories.clear(); // Clear existing categories
+      _allCategories.clear();
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> apiResponse = json.decode(response.body);
@@ -243,13 +218,12 @@ class ProductService {
             'LIQUID FERTILIZER': 'assets/grid6.png',
             'MICRONUTRIENTS': 'assets/grid7.png',
             'BIO FERTILISER': 'assets/grid8.png',
-            // Add other categories with their asset paths as needed
           };
 
           for (var item in apiResponse['data'] as List) {
             String categoryName = (item['category'] as String).trim();
             _allCategories.add({
-              'cat_id': item['cat_id'].toString(), // Store cat_id
+              'cat_id': item['cat_id'].toString(),
               'icon': categoryIconMap[categoryName] ?? 'assets/placeholder_category.png',
               'label': categoryName,
             });
@@ -275,14 +249,11 @@ class ProductService {
     }
   }
 
-
-  // Helper for category determination (reused for both product fetching types)
   static String _determineCategory(String proNameLower) {
     if (proNameLower.contains('insecticide') || proNameLower.contains('buggone') || proNameLower.contains('pestguard')) {
       return 'INSECTICIDE';
-    } else if (proNameLower.contains('fungicide') || proNameLower.contains('aurastar') || proNameLower.contains('azeem') || proNameLower.contains('valax') || proNameLower.contains('stabinil') || proNameLower.contains('orbiter') || proNameLower.contains('aurastin') || proNameLower.contains('benura') || proNameLower.contains('hello') || proNameLower.contains('capzola') || proNameLower.contains('runner') || proNameLower.contains('panonil') || proNameLower.contains('kurazet') || proNameLower.contains('aurobat') || proNameLower.contains('scara') || proNameLower.contains('hexaura') || proNameLower.contains('auralaxil') || proNameLower.contains('rio gold') || proNameLower.contains('aura m 45') || proNameLower.contains('intac') || proNameLower.contains('whita') || proNameLower.contains('proconzo') || proNameLower.contains('aura sulfa') || proNameLower.contains('cembra') || proNameLower.contains('tridot') || proNameLower.contains('alastor') || proNameLower.contains('tebuconz') || proNameLower.contains('valimin')
-    ) {
-      return 'FUNGICIDE'; // Extensive list for Fungicide based on provided data
+    } else if (proNameLower.contains('fungicide') || proNameLower.contains('aurastar') || proNameLower.contains('azeem') || proNameLower.contains('valax') || proNameLower.contains('stabinil') || proNameLower.contains('orbiter') || proNameLower.contains('aurastin') || proNameLower.contains('benura') || proNameLower.contains('hello') || proNameLower.contains('capzola') || proNameLower.contains('runner') || proNameLower.contains('panonil') || proNameLower.contains('kurazet') || proNameLower.contains('aurobat') || proNameLower.contains('scara') || proNameLower.contains('hexaura') || proNameLower.contains('auralaxil') || proNameLower.contains('rio gold') || proNameLower.contains('aura m 45') || proNameLower.contains('intac') || proNameLower.contains('whita') || proNameLower.contains('proconzo') || proNameLower.contains('aura sulfa') || proNameLower.contains('cembra') || proNameLower.contains('tridot') || proNameLower.contains('alastor') || proNameLower.contains('tebuconz') || proNameLower.contains('valimin')) {
+      return 'FUNGICIDE';
     } else if (proNameLower.contains('herbicide') || proNameLower.contains('weed killer')) {
       return 'HERBICIDE';
     } else if (proNameLower.contains('plant growth regulator') || proNameLower.contains('new super growth') || proNameLower.contains('growth') || proNameLower.contains('promoter') || proNameLower.contains('flourish')) {
@@ -300,8 +271,6 @@ class ProductService {
     }
   }
 
-
-  // Fallback method for dummy products (same as before)
   static void _loadDummyProductsFallback() {
     debugPrint('ProductService: Loading static dummy product data for fallback.');
     _allProducts.clear();
@@ -372,7 +341,6 @@ class ProductService {
     debugPrint('ProductService: Successfully loaded ${_allProducts.length} unique dummy products.');
   }
 
-  // Fallback method for dummy categories
   static void _loadDummyCategoriesFallback() {
     debugPrint('ProductService: Loading static dummy category data for fallback.');
     _allCategories.clear();
@@ -390,15 +358,10 @@ class ProductService {
     debugPrint('ProductService: Successfully loaded ${_allCategories.length} dummy categories.');
   }
 
-
-  // --- Methods to retrieve data from the loaded lists ---
-
   static List<Product> getAllProducts() {
-    return List.from(_allProducts); // Return a copy to prevent external modification
+    return List.from(_allProducts);
   }
 
-  // This method is primarily for internal filtering if you still want it to filter from _allProducts.
-  // For specific category product fetching, use fetchProductsByCategory directly.
   static List<Product> getProductsByCategoryName(String category) {
     return _allProducts.where((product) => product.category == category).toList();
   }
@@ -413,10 +376,9 @@ class ProductService {
   }
 
   static List<Map<String, String>> getAllCategories() {
-    return List.from(_allCategories); // Return a copy of fetched categories
+    return List.from(_allCategories);
   }
 
-  // Helper to get category ID by name (useful if CategoryProductsScreen only gets name)
   static String? getCategoryIdByName(String categoryName) {
     try {
       final category = _allCategories.firstWhere(

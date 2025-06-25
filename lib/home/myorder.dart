@@ -315,8 +315,8 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
             },
             icon: Image.asset(
               'assets/box.png',
-              height: 28, // Increased size to highlight
-              width: 28, // Increased size to highlight
+              height: 26, // Increased size to highlight
+              width: 26, // Increased size to highlight
               color: Colors.white,
             ),
           ),
