@@ -21,7 +21,7 @@ import '../menu/transaction.dart'; // For Transaction History navigation
 import '../models/kyc_image_provider.dart'; // Import your custom KYC image provider
 import 'package:kisangro/categories/category_products_screen.dart'; // Ensure this import is correct
 
-import 'custom_drawer.dart'; // Import the new category products screen
+import 'custom_drawer.dart'; // Import the new custom drawer
 
 class ProductCategoriesScreen extends StatefulWidget {
   const ProductCategoriesScreen({super.key}); // Add const constructor
@@ -57,7 +57,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
       await ProductService.loadCategoriesFromApi(); // Ensure categories are fetched
       if (mounted) {
         setState(() {
-          _categories = ProductService.getAllCategories();
+          _categories = ProductService.getAllCategories(); // Access static method
           _isLoading = false; // Stop loading
           debugPrint('ProductCategoriesScreen: Loaded ${_categories.length} categories.');
         });

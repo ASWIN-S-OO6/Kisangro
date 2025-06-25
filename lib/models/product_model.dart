@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // For ChangeNotifier and debugPrint
 
 // Represents a single available size/unit option for a product.
 class ProductSize {
@@ -16,6 +16,14 @@ class ProductSize {
       size: json['size'] as String,
       price: parsedPrice,
     );
+  }
+
+  // Convert ProductSize to JSON for potential serialization
+  Map<String, dynamic> toJson() {
+    return {
+      'size': size,
+      'mrp': price, // Use 'mrp' to match API expectation if sending back
+    };
   }
 }
 
@@ -37,7 +45,7 @@ class Product extends ChangeNotifier {
     required this.category,
     required this.availableSizes,
     String? selectedUnit, // Optional initial selected unit
-  }) : _selectedUnit = selectedUnit ?? (availableSizes.isNotEmpty ? availableSizes.first.size : ''); // Default to first available size
+  }) : _selectedUnit = selectedUnit ?? (availableSizes.isNotEmpty ? availableSizes.first.size : '');
 
   // Factory constructor to create a Product from API JSON response
   factory Product.fromJson(Map<String, dynamic> json, String id, String category) {
@@ -47,16 +55,26 @@ class Product extends ChangeNotifier {
       sizes = (json['sizes'] as List)
           .map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>))
           .toList();
+    } else if (json.containsKey('mrp')) { // Fallback if 'sizes' array is missing but 'mrp' is direct
+      final double price = (json['mrp'] as num?)?.toDouble() ?? 0.0;
+      sizes.add(ProductSize(size: json['unit'] as String? ?? 'Unit', price: price));
     }
+
 
     // Default to the first size if available, otherwise empty string
     String initialSelectedUnit = sizes.isNotEmpty ? sizes.first.size : '';
+
+    String imageUrl = json['image'] as String? ?? '';
+    // Basic validation for image URL to ensure it's not an empty API path or malformed
+    if (imageUrl.isEmpty || imageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(imageUrl)?.isAbsolute != true && !imageUrl.startsWith('assets/'))) {
+      imageUrl = 'assets/placeholder.png'; // Use a local placeholder
+    }
 
     return Product(
       id: id, // Use the provided ID
       title: json['pro_name'] as String? ?? 'No Title', // Map 'pro_name' to 'title'
       subtitle: json['technical_name'] as String? ?? 'No Description', // Map 'technical_name' to 'subtitle'
-      imageUrl: json['image'] as String? ?? '', // Map 'image' to 'imageUrl'
+      imageUrl: imageUrl, // Use the validated imageUrl
       category: category, // Use the determined category
       availableSizes: sizes,
       selectedUnit: initialSelectedUnit,
@@ -71,6 +89,8 @@ class Product extends ChangeNotifier {
     if (_selectedUnit != newUnit && availableSizes.any((s) => s.size == newUnit)) {
       _selectedUnit = newUnit;
       notifyListeners(); // Notify consumers when selectedUnit changes
+    } else if (!availableSizes.any((s) => s.size == newUnit)) {
+      debugPrint('Warning: Attempted to set selectedUnit to "$newUnit" which is not available for product "$title".');
     }
   }
 
@@ -104,5 +124,19 @@ class Product extends ChangeNotifier {
       availableSizes: availableSizes ?? List.from(this.availableSizes), // Deep copy list
       selectedUnit: selectedUnit ?? this.selectedUnit,
     );
+  }
+
+  // Convert Product to JSON (for debugging or if you need to send product data back)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'subtitle': subtitle,
+      'imageUrl': imageUrl,
+      'category': category,
+      'availableSizes': availableSizes.map((s) => s.toJson()).toList(),
+      'selectedUnit': selectedUnit,
+      'pricePerSelectedUnit': pricePerSelectedUnit, // Add current price for convenience
+    };
   }
 }

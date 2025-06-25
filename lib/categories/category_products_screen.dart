@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
 import 'package:kisangro/models/product_model.dart';
 import 'package:kisangro/services/product_service.dart'; // Ensure this import is correct
+import 'package:kisangro/models/cart_model.dart';
+import 'package:kisangro/menu/wishlist.dart'; // Assuming this is correct
+import 'package:kisangro/models/wishlist_model.dart';
 import 'package:kisangro/home/product.dart'; // ProductDetailPage
-import 'package:kisangro/models/cart_model.dart'; // CartModel
-import 'package:kisangro/models/wishlist_model.dart'; // WishlistModel
 
 class CategoryProductsScreen extends StatefulWidget {
+  final String categoryName; // Renamed from categoryTitle
   final String categoryId;
-  final String categoryName; // This parameter is required
 
   const CategoryProductsScreen({
     Key? key,
+    required this.categoryName, // Now 'categoryName'
     required this.categoryId,
-    required this.categoryName, // Make categoryName required
   }) : super(key: key);
 
   @override
@@ -23,50 +23,124 @@ class CategoryProductsScreen extends StatefulWidget {
 }
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
-  List<Product> _products = [];
-  bool _isLoading = true;
-  String _errorMessage = '';
+  // _allProducts (local to this screen) will store all products fetched so far for THIS category
+  List<Product> _allProducts = [];
+  // _displayedProducts are the ones actually shown in the GridView
+  List<Product> _displayedProducts = [];
+
+  bool _isLoading = true; // Initial loading state for the first batch
+  bool _isLoadingMore = false; // Loading state for subsequent batches
+  String? _errorMessage;
+
+  int _offset = 0; // Current offset for pagination
+  final int _limit = 10; // Number of products to load per batch
+  bool _hasMore = true; // Flag to indicate if there are more products to load
+
+  final ScrollController _scrollController = ScrollController();
+
+  String _getEffectiveImageUrl(String rawImageUrl) {
+    if (rawImageUrl.isEmpty || rawImageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(rawImageUrl)?.isAbsolute != true && !rawImageUrl.startsWith('assets/'))) {
+      return 'assets/placeholder.png';
+    }
+    return rawImageUrl;
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _fetchInitialProducts(); // Initial load
+    _scrollController.addListener(_onScroll); // Listen for scroll events
   }
 
-  Future<void> _loadProducts() async {
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Only load more if not already loading, if there's more data, and if scrolled near the bottom
+    if (!_hasMore || _isLoadingMore || _isLoading) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.9) {
+      _loadMoreProducts();
+    }
+  }
+
+  // Fetches the first batch of products
+  Future<void> _fetchInitialProducts() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = '';
+      _errorMessage = null;
+      _offset = 0; // Reset offset for initial fetch
+      _allProducts.clear(); // Clear previous data
+      _displayedProducts.clear(); // Clear previous data
+      _hasMore = true; // Assume there's more until proved otherwise
     });
+
     try {
-      // Calling the static method directly on the class
-      final products = await ProductService.fetchProductsByCategory(widget.categoryId);
-      if (!mounted) return; // Check if widget is still in the tree after async operation
+      final newProducts = await ProductService.fetchProductsByCategory(
+        widget.categoryId,
+        offset: _offset,
+        limit: _limit,
+      );
 
-      setState(() {
-        _products = products;
-        _isLoading = false;
-        if (products.isEmpty) {
-          _errorMessage = 'No products found for this category.';
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _allProducts.addAll(newProducts); // Add to local _allProducts for this category
+          _displayedProducts = List.from(_allProducts); // Display all fetched so far
+          _isLoading = false;
+          _offset += newProducts.length; // Increment offset by actual number of products fetched
+          _hasMore = newProducts.length == _limit; // If we got less than limit, no more
+        });
+      }
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Failed to load products: ${e.toString()}';
-        _isLoading = false;
-      });
-      debugPrint('Error loading category products: $e');
+      debugPrint('Error fetching initial products for category ${widget.categoryName} (ID: ${widget.categoryId}): $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load products. Please try again. ($e)';
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // Helper function to determine the effective image URL
-  String _getEffectiveImageUrl(String rawImageUrl) {
-    if (rawImageUrl.isEmpty || rawImageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(rawImageUrl)?.isAbsolute != true && !rawImageUrl.startsWith('assets/'))) {
-      return 'assets/placeholder.png'; // Fallback to a local asset placeholder
+  // Loads subsequent batches of products
+  void _loadMoreProducts() async {
+    if (!_hasMore || _isLoadingMore) return; // Prevent multiple simultaneous calls
+
+    setState(() {
+      _isLoadingMore = true; // Set loading state for "load more" indicator
+    });
+
+    try {
+      final nextProducts = await ProductService.fetchProductsByCategory(
+        widget.categoryId,
+        offset: _offset,
+        limit: _limit,
+      );
+
+      if (mounted) {
+        setState(() {
+          _displayedProducts.addAll(nextProducts); // Add new products to displayed list
+          _allProducts.addAll(nextProducts); // Keep _allProducts updated with all fetched for this category
+          _offset += nextProducts.length; // Increment offset by actual number of products fetched
+          _hasMore = nextProducts.length == _limit; // Update hasMore flag
+          _isLoadingMore = false; // Reset loading state
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more products for category ${widget.categoryName} (ID: ${widget.categoryId}): $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load more products. ($e)'; // Display error
+          _isLoadingMore = false; // Reset loading state
+        });
+      }
     }
-    return rawImageUrl;
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -75,8 +149,9 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: orange,
+        elevation: 0,
         title: Text(
-          widget.categoryName, // Display the category name here
+          widget.categoryName, // Display the category name passed to the screen
           style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
         ),
         leading: IconButton(
@@ -95,11 +170,11 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           ),
         ),
         child: RefreshIndicator( // Allows pull-to-refresh
-          onRefresh: _loadProducts,
+          onRefresh: _fetchInitialProducts, // Pull to refresh the first batch
           color: orange,
           child: _isLoading
               ? const Center(child: CircularProgressIndicator(color: Color(0xffEB7720)))
-              : _errorMessage.isNotEmpty
+              : _errorMessage != null && _errorMessage!.isNotEmpty // Check for error message
               ? Center(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -107,13 +182,13 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _errorMessage,
+                    _errorMessage!,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(fontSize: 16, color: Colors.red),
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: _loadProducts,
+                    onPressed: _fetchInitialProducts, // Retry button
                     style: ElevatedButton.styleFrom(
                       backgroundColor: orange,
                       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
@@ -125,24 +200,34 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
               ),
             ),
           )
-              : _products.isEmpty
+              : _displayedProducts.isEmpty && !_isLoading // If no products and not loading
               ? Center(
             child: Text(
-              'No products available in this category.',
+              'No products found for this category.',
               style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
             ),
           )
               : GridView.builder(
-            padding: const EdgeInsets.all(15.0),
+            controller: _scrollController,
+            padding: const EdgeInsets.all(12.0),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 200, // Max width for items
               crossAxisSpacing: 15,
               mainAxisSpacing: 15,
               mainAxisExtent: 320, // Explicitly set height for each tile to avoid overflow
             ),
-            itemCount: _products.length,
+            itemCount: _displayedProducts.length + (_hasMore ? 1 : 0), // Add 1 for loading indicator if hasMore
             itemBuilder: (context, index) {
-              final product = _products[index];
+              if (index == _displayedProducts.length) {
+                // This is the loading indicator at the bottom
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(color: Color(0xffEB7720)),
+                  ),
+                );
+              }
+              final product = _displayedProducts[index];
               return _buildProductTile(context, product);
             },
           ),
@@ -217,14 +302,37 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          if (product.pricePerSelectedUnit != null && product.pricePerSelectedUnit! > 0)
+          // Unit Size and Price display with null check
+          if (product.availableSizes.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unit Size: ${product.selectedUnit}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: const Color(0xffEB7720),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    'Price: ₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
+                    style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            )
+          else
             Padding(
               padding: const EdgeInsets.only(top: 4.0),
               child: Text(
-                '₹${product.pricePerSelectedUnit!.toStringAsFixed(2)}',
-                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                'No Price Available',
+                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
               ),
             ),
           const SizedBox(height: 5),
@@ -232,7 +340,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             height: 36,
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: product.selectedUnit,
+                value: product.selectedUnit.isNotEmpty ? product.selectedUnit : null, // Set to null if empty
                 icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xffEB7720)),
                 isExpanded: true,
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),
@@ -243,10 +351,11 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                   );
                 }).toList(),
                 onChanged: (String? newValue) {
-                  if (!mounted) return;
-                  setState(() {
-                    product.selectedUnit = newValue!;
-                  });
+                  if (newValue != null && mounted) {
+                    setState(() {
+                      product.selectedUnit = newValue;
+                    });
+                  }
                 },
               ),
             ),
@@ -257,14 +366,23 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    Provider.of<CartModel>(context, listen: false)
-                        .addItem(product.copyWith());
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${product.title} added to cart!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    // Check if price is available before adding to cart
+                    if (product.pricePerSelectedUnit != null && product.pricePerSelectedUnit! > 0) {
+                      Provider.of<CartModel>(context, listen: false).addItem(product.copyWith());
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${product.title} added to cart!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Cannot add ${product.title} to cart: Price not available.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xffEB7720),
@@ -294,16 +412,19 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
                       onPressed: () {
-                        if (!mounted) return;
                         if (isFavorite) {
                           wishlist.removeItem(product.id, product.selectedUnit);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${product.title} removed from wishlist!'), backgroundColor: Colors.red),
+                            SnackBar(
+                                content: Text('${product.title} removed from wishlist!'),
+                                backgroundColor: Colors.red),
                           );
                         } else {
                           wishlist.addItem(product.copyWith());
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${product.title} added to wishlist!'), backgroundColor: Colors.blue),
+                            SnackBar(
+                                content: Text('${product.title} added to wishlist!'),
+                                backgroundColor: Colors.blue),
                           );
                         }
                       },
