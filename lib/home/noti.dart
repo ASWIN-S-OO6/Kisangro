@@ -295,8 +295,8 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
             },
             icon: Image.asset(
               'assets/heart.png',
-              height: 24,
-              width: 24,
+              height: 26,
+              width: 26,
               color: Colors.white,
             ),
           ),
@@ -311,8 +311,8 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
               },
               icon: Image.asset(
                 'assets/noti.png',
-                height: 28, // Slightly larger icon size
-                width: 28, // Slightly larger icon size
+                height: 30, // Slightly larger icon size
+                width: 30, // Slightly larger icon size
                 color: Colors.white,
               ),
             ),

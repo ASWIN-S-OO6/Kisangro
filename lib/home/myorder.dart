@@ -327,8 +327,8 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
             },
             icon: Image.asset(
               'assets/heart.png',
-              height: 24,
-              width: 24,
+              height: 26,
+              width: 26,
               color: Colors.white,
             ),
           ),
@@ -339,8 +339,8 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
             },
             icon: Image.asset(
               'assets/noti.png',
-              height: 24,
-              width: 24,
+              height: 28,
+              width: 28,
               color: Colors.white,
             ),
           ),

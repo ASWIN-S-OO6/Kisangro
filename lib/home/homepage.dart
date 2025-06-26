@@ -258,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: Transform.translate(
           offset: const Offset(-20, 0), // Adjust title position
           child: Text(
-            "Hello Smart Global!",
+            "Hello!",
             style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
           ),
         ),
@@ -281,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 },
                 icon: const Icon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 24,),
               ),
-              const SizedBox(width: 5), // Consistent smaller spacing
+              const SizedBox(width: 1), // Consistent smaller spacing
 
               // My Orders icon
               IconButton(
@@ -298,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 5), // Consistent smaller spacing
+              const SizedBox(width: 1), // Consistent smaller spacing
 
               // Wishlist icon
               IconButton(
@@ -310,12 +310,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 },
                 icon: Image.asset(
                   'assets/heart.png',
-                  height: 24,
-                  width: 24,
+                  height: 26,
+                  width: 26,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 5), // Consistent smaller spacing
+              const SizedBox(width: 1), // Consistent smaller spacing
 
               // Notifications icon (removed Padding as SizedBox handles spacing)
               IconButton(
@@ -327,12 +327,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 },
                 icon: Image.asset(
                   'assets/noti.png',
-                  height: 24,
-                  width: 24,
+                  height: 28,
+                  width: 28,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 10), // Small padding at the very end to keep icons from touching edge
+              const SizedBox(width: 1), // Small padding at the very end to keep icons from touching edge
             ],
           ),
         ],

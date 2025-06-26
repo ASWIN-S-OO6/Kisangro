@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/order_model.dart';
 import 'package:kisangro/models/address_model.dart';
+import 'package:kisangro/models/kyc_business_model.dart'; // NEW: Import KycBusinessDataProvider
 import '../home/cart.dart';
 import '../home/myorder.dart';
 import '../menu/wishlist.dart';
@@ -23,6 +24,7 @@ class delivery extends StatelessWidget {
     final cart = Provider.of<CartModel>(context);
     final addressModel = Provider.of<AddressModel>(context);
     final orderModel = Provider.of<OrderModel>(context, listen: false);
+    final kycBusinessDataProvider = Provider.of<KycBusinessDataProvider>(context); // NEW: Get KycBusinessDataProvider
 
     // Determine if we're in "Buy Now" mode (product is provided)
     final bool isBuyNow = product != null;
@@ -30,6 +32,9 @@ class delivery extends StatelessWidget {
     final double itemTotal = isBuyNow
         ? (product!.pricePerSelectedUnit ?? 0.0)
         : cart.totalAmount;
+
+    // Get the full name from KYC data, or fallback to currentName if not available
+    final String displayedName = kycBusinessDataProvider.kycBusinessData?.fullName ?? addressModel.currentName;
 
     return Scaffold(
       appBar: AppBar(
@@ -150,7 +155,7 @@ class delivery extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      addressModel.currentName,
+                      displayedName, // MODIFIED: Use the name from KYC data
                       style: GoogleFonts.poppins(
                           fontSize: 15, fontWeight: FontWeight.bold),
                     ),
