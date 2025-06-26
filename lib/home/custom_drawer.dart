@@ -398,83 +398,88 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
   Widget _buildMenuItem(IconData icon, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 2),
-        height: 40,
-        decoration: const BoxDecoration(color: Color(0xffffecdc)),
-        child: ListTile(
-          leading: Icon(icon, color: const Color(0xffEB7720)),
-          title: Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
+    return Column( // Use Column to include the Divider
+      children: [
+        Container(
+          // No margin here, instead use padding on the ListTile
+          // No fixed height or background color here for merging effect
+          decoration: BoxDecoration(
+            color: const Color(0xffffecdc), // Background color for the item
           ),
-          onTap: () {
-            Navigator.pop(context);
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), // Adjust padding to remove inner spacing
+            leading: Icon(icon, color: const Color(0xffEB7720)),
+            title: Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context);
 
-            switch (label) {
-              case 'My Account':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MyAccountPage()),
-                );
-                break;
-              case 'My Orders':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MyOrder()),
-                );
-                break;
-              case 'Wishlist':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WishlistPage()),
-                );
-                break;
-              case 'Transaction History':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>  TransactionHistoryPage(),
-                  ),
-                );
-                break;
-              case 'Ask Us!':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AskUsPage()),
-                );
-                break;
-              case 'Rate Us':
-                showComplaintDialog(context);
-                break;
-              case 'Settings':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SettingsPage()),
-                );
-                break;
-              case 'Logout':
-                _showLogoutDialog(context);
-                break;
-              case 'About Us':
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('About Us page coming soon!')),
-                );
-                break;
-              case 'Share Kisangro':
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share functionality coming soon!')),
-                );
-                break;
-            }
-          },
+              switch (label) {
+                case 'My Account':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MyAccountPage()),
+                  );
+                  break;
+                case 'My Orders':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MyOrder()),
+                  );
+                  break;
+                case 'Wishlist':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const WishlistPage()),
+                  );
+                  break;
+                case 'Transaction History':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>  TransactionHistoryPage(),
+                    ),
+                  );
+                  break;
+                case 'Ask Us!':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => AskUsPage()),
+                  );
+                  break;
+                case 'Rate Us':
+                  showComplaintDialog(context);
+                  break;
+                case 'Settings':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => SettingsPage()),
+                  );
+                  break;
+                case 'Logout':
+                  _showLogoutDialog(context);
+                  break;
+                case 'About Us':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('About Us page coming soon!')),
+                  );
+                  break;
+                case 'Share Kisangro':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Share functionality coming soon!')),
+                  );
+                  break;
+              }
+            },
+          ),
         ),
-      ),
+        const Divider(height: 1, thickness: 1, color: Colors.grey), // Divider between items
+      ],
     );
   }
 

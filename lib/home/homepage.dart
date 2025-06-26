@@ -19,6 +19,7 @@ import 'package:kisangro/models/cart_model.dart'; // Assuming this model exists
 import 'package:kisangro/models/wishlist_model.dart'; // Assuming this model exists
 import 'package:kisangro/models/kyc_image_provider.dart'; // Your custom KYC image provider (still needed for profile image display outside drawer if any)
 import 'package:kisangro/services/product_service.dart'; // Import ProductService
+import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // NEW: Import Font Awesome
 
 // Your existing page imports (ensure these paths are correct in your project)
 import 'package:kisangro/home/myorder.dart'; // MyOrder
@@ -274,8 +275,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               // WhatsApp icon
-              GestureDetector(
-                child: Image.asset("assets/whats.png", width: 24, height: 24,),
+              IconButton(
+                onPressed: () {
+                  // TODO: Add WhatsApp functionality here
+                },
+                icon: const Icon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 24,),
               ),
               const SizedBox(width: 5), // Consistent smaller spacing
 

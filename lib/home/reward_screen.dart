@@ -1,26 +1,17 @@
-import 'dart:async'; // Still might be useful for general screen logic, or remove if not used elsewhere
-import 'dart:typed_data'; // Needed for Uint8List to display image bytes (for profile image in main body)
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:dotted_border/dotted_border.dart'; // For dotted borders around profile image (in main body)
-import 'package:provider/provider.dart'; // For state management (accessing KycImageProvider in main body)
-// Removed flutter_rating_bar and shared_preferences imports as their usage is now solely within CustomDrawer
-
-// Imports for app navigation (these are for AppBar actions or general screen navigation, NOT drawer specific)
+import 'package:dotted_border/dotted_border.dart';
+import 'package:provider/provider.dart';
 import 'package:kisangro/home/membership.dart';
 import 'package:kisangro/home/myorder.dart';
 import 'package:kisangro/home/noti.dart';
 import 'package:kisangro/menu/wishlist.dart';
-import 'package:kisangro/home/categories.dart'; // Assuming Categories screen is your main home tab
-import 'package:kisangro/home/cart.dart'; // Assuming CartScreen exists
-
-// NEW: Import the CustomDrawer
-import 'package:kisangro/home/custom_drawer.dart'; // This is the shared drawer
-// NEW: Import the KycBusinessDataProvider
+import 'package:kisangro/home/categories.dart';
+import 'package:kisangro/home/cart.dart';
+import 'package:kisangro/home/custom_drawer.dart';
 import 'package:kisangro/models/kyc_business_model.dart';
-
-import '../models/kyc_image_provider.dart';
-
+import 'package:kisangro/models/kyc_image_provider.dart';
 
 class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
@@ -30,14 +21,11 @@ class RewardScreen extends StatefulWidget {
 }
 
 class _RewardScreenState extends State<RewardScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Key for Scaffold to open drawer
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
-    // Removed the problematic line:
-    // Provider.of<KycBusinessDataProvider>(context, listen: false).loadKycData();
-    // The KycBusinessDataProvider's constructor already handles loading data from SharedPreferences.
   }
 
   @override
@@ -51,22 +39,24 @@ class _RewardScreenState extends State<RewardScreen> {
     final kycBusinessProvider = Provider.of<KycBusinessDataProvider>(context);
     final kycData = kycBusinessProvider.kycBusinessData;
 
-    // Use a default name and number if KYC data is not yet available
-    final String displayName = kycData?.fullName?.isNotEmpty == true ? "Hi ${kycData!.fullName!.split(' ').first}!" : "Hi Smart!";
-    final String displayWhatsAppNumber = kycData?.whatsAppNumber?.isNotEmpty == true ? kycData!.whatsAppNumber! : "98765 43210";
-
+    // Use KYC data for name and WhatsApp number, with "N/A" fallback
+    final String displayName = kycData?.fullName?.isNotEmpty == true
+        ? "Hi ${kycData!.fullName!.split(' ').first}!"
+        : "N/A";
+    final String displayWhatsAppNumber = kycData?.whatsAppNumber?.isNotEmpty == true
+        ? kycData!.whatsAppNumber!
+        : "N/A";
 
     return Scaffold(
-      key: _scaffoldKey, // Assign scaffold key to control drawer
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFFFF3E9),
-      // *** LINKING THE CUSTOM DRAWER HERE ***
       drawer: const CustomDrawer(),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF7A00),
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
           onPressed: () {
-            _scaffoldKey.currentState!.openDrawer(); // Open drawer on menu icon tap
+            _scaffoldKey.currentState!.openDrawer();
           },
         ),
         title: Text(
@@ -133,24 +123,19 @@ class _RewardScreenState extends State<RewardScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(30), // Match CircleAvatar radius
-                        child: Consumer<KycImageProvider>(
-                          builder: (context, kycImageProvider, child) {
-                            final Uint8List? kycImageBytes = kycImageProvider.kycImageBytes;
-                            return kycImageBytes != null
-                                ? Image.memory(
-                              kycImageBytes,
-                              width: 60, // Match CircleAvatar radius * 2
-                              height: 60, // Match CircleAvatar radius * 2
-                              fit: BoxFit.cover,
-                            )
-                                : Image.asset(
-                              'assets/profile.png', // Fallback
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                            );
-                          },
+                        borderRadius: BorderRadius.circular(30),
+                        child: kycData?.shopImageBytes != null
+                            ? Image.memory(
+                          kycData!.shopImageBytes!,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        )
+                            : Image.asset(
+                          'assets/profile.png',
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
@@ -160,34 +145,31 @@ class _RewardScreenState extends State<RewardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        displayName, // Display dynamic name from KYC data
+                        displayName,
                         style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        displayWhatsAppNumber, // Display dynamic WhatsApp number from KYC data
+                        displayWhatsAppNumber,
                         style: GoogleFonts.poppins(fontSize: 16, color: const Color(0xffEB7720)),
                       ),
                     ],
                   ),
                   const Spacer(),
                   Image.asset(
-                    'assets/logo.png', // Updated asset path
+                    'assets/logo.png',
                     height: 40,
                     width: 40,
                   ),
                 ],
               ),
             ),
-
             const SizedBox(height: 30),
-
             // Wings GIF
             Image.asset(
               'assets/wings.gif',
               height: 100,
             ),
-
             const SizedBox(height: 10),
             Text(
               "Your Reward Points",
@@ -195,16 +177,14 @@ class _RewardScreenState extends State<RewardScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              "500", // Hardcoded as per reference
+              "500",
               style: GoogleFonts.poppins(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
                 color: const Color(0xffEB7720),
               ),
             ),
-
             const SizedBox(height: 20),
-
             // Conversion Box
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -217,9 +197,7 @@ class _RewardScreenState extends State<RewardScreen> {
                 style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
               ),
             ),
-
             const SizedBox(height: 30),
-
             // Reward Points Text + Verified GIF
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -243,9 +221,7 @@ class _RewardScreenState extends State<RewardScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 30),
-
             Text(
               "Reward Conversion Ratio",
               style: GoogleFonts.poppins(
