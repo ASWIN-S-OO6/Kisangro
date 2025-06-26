@@ -15,10 +15,24 @@ class ProductService {
   static const String _deviceId = '123';
 
   static Future<void> loadProductsFromApi() async {
-    debugPrint('Attempting to load ALL product data from API via POST (type=1041): $_productApiUrl');
+    debugPrint('Attempting to load ALL product data from API (type=1041 and type=1044 for all categories): $_productApiUrl');
 
     try {
-      final requestBody = {
+      // Step 1: Ensure categories are loaded
+      await loadCategoriesFromApi();
+      if (_allCategories.isEmpty) {
+        debugPrint('ProductService: No categories available. Falling back to dummy products.');
+        _loadDummyProductsFallback();
+        return;
+      }
+
+      // Step 2: Clear existing products
+      _allProducts.clear();
+      final seenProductKeys = <String>{}; // Track unique products by title and subtitle
+      final List<Product> productsToProcess = [];
+
+      // Step 3: Fetch general products (type=1041)
+      final requestBody1041 = {
         'cid': _cid,
         'type': '1041',
         'ln': _ln,
@@ -26,66 +40,111 @@ class ProductService {
         'device_id': _deviceId,
       };
 
-      final response = await http.post(
+      final response1041 = await http.post(
         Uri.parse(_productApiUrl),
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
         },
-        body: requestBody,
+        body: requestBody1041,
       ).timeout(const Duration(seconds: 30));
 
-      debugPrint('Response Status Code (type=1041): ${response.statusCode}');
-      debugPrint('Response Body (type=1041, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
+      debugPrint('Response Status Code (type=1041): ${response1041.statusCode}');
+      debugPrint('Response Body (type=1041, first 500 chars): ${response1041.body.substring(0, response1041.body.length > 500 ? 500 : response1041.body.length)}...');
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-
+      if (response1041.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response1041.body);
         if (responseData['status'] == 'success' && responseData['data'] is List) {
           final List<dynamic> rawApiProductsData = responseData['data'];
-          _allProducts.clear();
-
-          final seenProductKeys = <String>{};
-          final List<Product> productsToProcess = [];
-
           for (var item in rawApiProductsData) {
             String category = _determineCategory(item['pro_name'].toString().toLowerCase().trim());
             String id = 'api_product_1041_${item['pro_name'].toString().replaceAll(' ', '_').replaceAll('%', '').replaceAll('.', '').replaceAll('-', '_')}_${DateTime.now().microsecondsSinceEpoch}';
-
             String imageUrl = item['image'] as String? ?? '';
             if (imageUrl.isEmpty || imageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(imageUrl)?.isAbsolute != true && !imageUrl.startsWith('assets/'))) {
               imageUrl = 'assets/placeholder.png';
             }
 
             final product = Product.fromJson(item as Map<String, dynamic>, id, category);
-
             final key = '${product.title}_${product.subtitle}';
             if (!seenProductKeys.contains(key)) {
               seenProductKeys.add(key);
               productsToProcess.add(product);
             }
           }
-          _allProducts = productsToProcess;
-
-          debugPrint('ProductService: Successfully parsed ${_allProducts.length} unique products from API for general load (type=1041).');
         } else {
-          debugPrint('ProductService: API response format invalid or status not success for general load (type=1041). Falling back to dummy products.');
-          _loadDummyProductsFallback();
+          debugPrint('ProductService: API response format invalid or status not success for type=1041.');
         }
       } else {
-        debugPrint('ProductService: Failed to load products from API (type=1041). Status code: ${response.statusCode}. Falling back to dummy products.');
+        debugPrint('ProductService: Failed to load products for type=1041. Status code: ${response1041.statusCode}.');
+      }
+
+      // Step 4: Fetch products for all categories (type=1044)
+      await _fetchAllCategoryProductsForGlobalList(productsToProcess, seenProductKeys);
+
+      // Step 5: Update _allProducts
+      _allProducts = productsToProcess;
+      debugPrint('ProductService: Successfully loaded ${_allProducts.length} unique products from all categories.');
+
+      if (_allProducts.isEmpty) {
+        debugPrint('ProductService: No products loaded from API. Falling back to dummy products.');
         _loadDummyProductsFallback();
       }
     } on TimeoutException catch (_) {
-      debugPrint('ProductService: Request (type=1041) timed out.');
+      debugPrint('ProductService: Request timed out while loading products.');
+      _loadDummyProductsFallback();
       throw Exception('Request timed out. Check your internet connection.');
     } on http.ClientException catch (e) {
-      debugPrint('ProductService: Network error for type 1041: $e');
+      debugPrint('ProductService: Network error: $e');
+      _loadDummyProductsFallback();
       throw Exception('Network error. Check your internet connection.');
     } catch (e) {
-      debugPrint('ProductService: Unexpected error Jemal, fetching products for type 1041: $e');
+      debugPrint('ProductService: Unexpected error fetching products: $e');
+      _loadDummyProductsFallback();
       throw Exception('Unexpected error fetching products.');
     }
+  }
+
+  // New helper method to fetch products for all categories
+  static Future<void> _fetchAllCategoryProductsForGlobalList(List<Product> productsToProcess, Set<String> seenProductKeys) async {
+    debugPrint('Attempting to load ALL products from ALL categories (type=1044) for global search list.');
+    const int maxTotalProducts = 10000; // Safety limit to prevent OOM
+
+    for (var categoryMap in _allCategories) {
+      if (productsToProcess.length >= maxTotalProducts) {
+        debugPrint('ProductService: Reached maximum product limit ($maxTotalProducts). Stopping further fetches.');
+        break;
+      }
+
+      String categoryId = categoryMap['cat_id']!;
+      debugPrint('Fetching products for category ID: $categoryId (type=1044)');
+      final List<Product> categoryProducts = await fetchProductsByCategory(categoryId);
+
+      for (var product in categoryProducts) {
+        final key = '${product.title}_${product.subtitle}';
+        if (!seenProductKeys.contains(key)) {
+          seenProductKeys.add(key);
+          productsToProcess.add(product);
+        }
+      }
+    }
+    debugPrint('ProductService: Finished loading all category products for global list. Total products: ${productsToProcess.length}');
+  }
+
+  static List<Product> searchProductsLocally(String query) {
+    if (query.isEmpty) {
+      return [];
+    }
+
+    final queryLower = query.toLowerCase().trim();
+    return _allProducts.where((product) {
+      final titleLower = product.title.toLowerCase();
+      final subtitleLower = product.subtitle.toLowerCase();
+      final categoryLower = product.category.toLowerCase();
+
+      return titleLower.contains(queryLower) ||
+          subtitleLower.contains(queryLower) ||
+          categoryLower.contains(queryLower);
+    }).toList();
   }
 
   static Future<List<Product>> fetchProductsByCategory(String categoryId) async {
@@ -374,6 +433,9 @@ class ProductService {
       return null;
     }
   }
+
+
+
 
   static List<Map<String, String>> getAllCategories() {
     return List.from(_allCategories);
