@@ -54,7 +54,7 @@ class _thirdscreenState extends State<thirdscreen> {
                           text: 'B2B: ',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        const TextSpan(text: 'Effortless Bulk Ordering With Exclusive '),
+                        const TextSpan(text: 'Effortless Ordering With Exclusive '),
                         const TextSpan(
                           text: 'Membership',
                           style: TextStyle(fontWeight: FontWeight.bold),

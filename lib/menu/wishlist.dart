@@ -96,8 +96,8 @@ class _WishlistPageState extends State<WishlistPage> {
             },
             icon: Image.asset(
               'assets/noti.png',
-              height: 26,
-              width: 26,
+              height: 28,
+              width: 28,
               color: Colors.white,
             ),
           ),

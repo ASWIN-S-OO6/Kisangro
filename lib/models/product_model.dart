@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:json_annotation/json_annotation.dart';
+part 'product_model.g.dart';
 
 // Represents a single available size/unit option for a product.
+@JsonSerializable()
+
 class ProductSize {
   final String size;
   final double price; // This must be 'price'
@@ -18,6 +22,8 @@ class ProductSize {
     );
   }
 }
+
+ @JsonSerializable()
 
 // Represents a single product in the application.
 class Product extends ChangeNotifier {
@@ -41,27 +47,35 @@ class Product extends ChangeNotifier {
 
   // Factory constructor to create a Product from API JSON response
   factory Product.fromJson(Map<String, dynamic> json, String id, String category) {
-    // Parse sizes list
-    List<ProductSize> sizes = [];
-    if (json['sizes'] is List) {
-      sizes = (json['sizes'] as List)
-          .map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>))
-          .toList();
-    }
-
-    // Default to the first size if available, otherwise empty string
-    String initialSelectedUnit = sizes.isNotEmpty ? sizes.first.size : '';
+    final List<ProductSize> sizes = json.containsKey('sizes') && json['sizes'] is List
+        ? (json['sizes'] as List).map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>)).toList()
+        : [ProductSize(size: 'Unit', price: 0.0)];
 
     return Product(
-      id: id, // Use the provided ID
-      title: json['pro_name'] as String? ?? 'No Title', // Map 'pro_name' to 'title'
-      subtitle: json['technical_name'] as String? ?? 'No Description', // Map 'technical_name' to 'subtitle'
-      imageUrl: json['image'] as String? ?? '', // Map 'image' to 'imageUrl'
-      category: category, // Use the determined category
+      id: id,
+      title: json['pro_name'] as String? ?? 'No Title',
+      subtitle: json['technical_name'] as String? ?? 'No Description',
+      imageUrl: json['image'] as String? ?? 'assets/placeholder.png',
+      category: category,
       availableSizes: sizes,
-      selectedUnit: initialSelectedUnit,
+      selectedUnit: sizes.isNotEmpty ? sizes.first.size : 'Unit',
     );
   }
+
+    Map<String, dynamic> toJson() => _$ProductToJson(this);
+  //
+  // Map<String, dynamic> toJson() {
+  //   return {
+  //     'id': id,
+  //     'pro_name': title,
+  //     'technical_name': subtitle,
+  //     'image': imageUrl,
+  //     'category': category,
+  //     'sizes': availableSizes.map((size) => size.toJson()).toList(),
+  //     'selectedUnit': selectedUnit,
+  //     'pricePerSelectedUnit': pricePerSelectedUnit,
+  //   };
+  // }
 
   // Getters
   String get selectedUnit => _selectedUnit;

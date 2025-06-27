@@ -51,7 +51,8 @@ dependencies:
   google_fonts:
   font_awesome_flutter: ^10.8.0
   sqflite:
-
+  json_annotation:
+  connectivity_plus:
 
 dev_dependencies:
   flutter_test:
@@ -75,6 +76,9 @@ dev_dependencies:
   geocoding: ^3.0.0
   flutter_rating_bar: ^4.0.0
   dotted_border: ^2.1.0
+  json_serializable:
+  build_runner: ^2.4.7
+
   # Note: flutter_svg is listed twice, once in dependencies and once here.
   # It's usually sufficient to list it once in dependencies unless you have a specific reason.
   # I've left it as is for now to avoid unexpected changes.

@@ -12,8 +12,10 @@ import 'package:kisangro/models/license_provider.dart'; // Import LicenseProvide
 import 'package:kisangro/login/licence.dart'; // Import licence1 for "Upload New" button
 import 'package:kisangro/common/document_viewer_screen.dart'; // Import DocumentViewerScreen
 import 'package:kisangro/models/kyc_business_model.dart';
+import 'package:kisangro/login/kyc.dart'; // Import kyc for navigating to KYC edit page
 
-import '../login/kyc.dart'; // NEW: Import KycBusinessData and KycBusinessDataProvider
+// NEW: Import the VerificationWarningPopup and Helper
+import 'package:kisangro/common/verification_warning_popup.dart'; // Adjust path if different
 
 class MyAccountPage extends StatelessWidget {
   const MyAccountPage({super.key});
@@ -135,8 +137,22 @@ class MyAccountPage extends StatelessWidget {
                         bottom: 0,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Navigate to KYC edit page
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => kyc()));
+                            // Show the VerificationWarningPopup when the edit button is pressed
+                            VerificationPopupHelper.show(
+                              context,
+                              onProceed: () {
+                                Navigator.of(context).pop(); // Dismiss the popup
+                                // Navigate to KYC edit page (kyc.dart)
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => kyc()));
+                              },
+                              onCancel: () {
+                                Navigator.of(context).pop(); // Dismiss the popup
+                                // Optional: Show a message if cancelled
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('KYC update cancelled.', style: GoogleFonts.poppins())),
+                                );
+                              },
+                            );
                           },
                           icon: const Icon(
                             Icons.edit,
@@ -217,10 +233,24 @@ class MyAccountPage extends StatelessWidget {
                 title: "Pesticide",
                 licenseData: licenseProvider.pesticideLicense, // Pass pesticide data
                 onUploadNew: () {
-                  Navigator.push(
+                  // --- MODIFIED HERE: Show popup before navigating to licence1() ---
+                  VerificationPopupHelper.show(
                     context,
-                    MaterialPageRoute(builder: (context) => licence1()), // Go to licence1 to select type
+                    onProceed: () {
+                      Navigator.of(context).pop(); // Dismiss the popup
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => licence1()), // Go to licence1 to select type
+                      );
+                    },
+                    onCancel: () {
+                      Navigator.of(context).pop(); // Dismiss the popup
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('License update cancelled.', style: GoogleFonts.poppins())),
+                      );
+                    },
                   );
+                  // --- END MODIFICATION ---
                 },
               ),
               const SizedBox(height: 20),
@@ -233,10 +263,24 @@ class MyAccountPage extends StatelessWidget {
                 title: "Fertilizer", // Changed from "Insecticide" to "Fertilizer" as per context
                 licenseData: licenseProvider.fertilizerLicense, // Pass fertilizer data
                 onUploadNew: () {
-                  Navigator.push(
+                  // --- MODIFIED HERE: Show popup before navigating to licence1() ---
+                  VerificationPopupHelper.show(
                     context,
-                    MaterialPageRoute(builder: (context) => licence1()), // Go to licence1 to select type
+                    onProceed: () {
+                      Navigator.of(context).pop(); // Dismiss the popup
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => licence1()), // Go to licence1 to select type
+                      );
+                    },
+                    onCancel: () {
+                      Navigator.of(context).pop(); // Dismiss the popup
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('License update cancelled.', style: GoogleFonts.poppins())),
+                      );
+                    },
                   );
+                  // --- END MODIFICATION ---
                 },
               ),
               const SizedBox(height: 20),

@@ -22,8 +22,6 @@ import '../models/kyc_image_provider.dart'; // Import your custom KYC image prov
 import 'package:kisangro/categories/category_products_screen.dart';
 
 import 'custom_drawer.dart'; // Import the new category products screen
-import 'bottom.dart'; // NEW: Import Bot for navigation
-
 
 class ProductCategoriesScreen extends StatefulWidget {
   const ProductCategoriesScreen({super.key}); // Add const constructor
@@ -313,9 +311,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
         ),
         leading: IconButton(
           onPressed: () {
-            // MODIFIED: Navigate back to the Home screen (index 0) of the Bot navigation
-            Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)));
+            _scaffoldKey.currentState!.openDrawer(); // Open drawer on menu icon tap
           },
           icon: const Icon(
             Icons.menu,
@@ -591,7 +587,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
               case 'Ask Us!':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => AskUsPage()),
+                  MaterialPageRoute(builder: (context) =>  AskUsPage()), // Added const
                 );
                 break;
               case 'Rate Us':
@@ -600,7 +596,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
               case 'Settings':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => SettingsPage()),
+                  MaterialPageRoute(builder: (context) =>  SettingsPage()), // Added const
                 );
                 break;
               case 'Logout':

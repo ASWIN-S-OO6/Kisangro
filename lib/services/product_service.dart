@@ -1,10 +1,13 @@
-import 'package:kisangro/models/product_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:kisangro/models/product_model.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-class ProductService {
+class ProductService extends ChangeNotifier {
   static List<Product> _allProducts = [];
   static List<Map<String, String>> _allCategories = [];
 
@@ -13,7 +16,129 @@ class ProductService {
   static const String _ln = '123';
   static const String _lt = '123';
   static const String _deviceId = '123';
+  static const String _productsCacheKey = 'cached_products';
+  static const String _categoriesCacheKey = 'cached_categories';
+  static const String _cacheTimestampKey = 'cache_timestamp';
+  static const Duration _cacheDuration = Duration(hours: 24);
 
+  // Check network connectivity
+  Future<bool> _hasNetwork() async {
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      return connectivityResult != ConnectivityResult.none;
+    } catch (e) {
+      debugPrint('ProductService: Error checking network: $e');
+      return false;
+    }
+  }
+
+  // Check if cache is valid
+  Future<bool> _isCacheValid(SharedPreferences prefs) async {
+    final timestamp = prefs.getString(_cacheTimestampKey);
+    if (timestamp == null) return false;
+    final cacheTime = DateTime.parse(timestamp);
+    return DateTime.now().difference(cacheTime) < _cacheDuration;
+  }
+
+  // Save to cache
+  Future<void> _saveToCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final productsJson = _allProducts.map((p) => p.toJson()).toList();
+      await prefs.setString(_productsCacheKey, json.encode(productsJson));
+      await prefs.setString(_categoriesCacheKey, json.encode(_allCategories));
+      await prefs.setString(_cacheTimestampKey, DateTime.now().toIso8601String());
+      debugPrint('ProductService: Cached ${_allProducts.length} products and ${_allCategories.length} categories.');
+    } catch (e) {
+      debugPrint('ProductService: Error saving to cache: $e');
+    }
+  }
+
+  // Load from cache
+  Future<bool> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final productsJson = prefs.getString(_productsCacheKey);
+      final categoriesJson = prefs.getString(_categoriesCacheKey);
+
+      if (productsJson == null || categoriesJson == null) {
+        debugPrint('ProductService: No cache found.');
+        return false;
+      }
+
+      if (!await _isCacheValid(prefs)) {
+        debugPrint('ProductService: Cache expired.');
+        return false;
+      }
+
+      final List<dynamic> productsData = json.decode(productsJson);
+      final List<dynamic> categoriesData = json.decode(categoriesJson);
+
+      _allProducts = productsData
+          .map((data) => Product.fromJson(data as Map<String, dynamic>, data['id'] as String, data['category'] as String))
+          .toList();
+      _allCategories = categoriesData.cast<Map<String, String>>();
+
+      debugPrint('ProductService: Loaded ${_allProducts.length} products and ${_allCategories.length} categories from cache.');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('ProductService: Error loading from cache: $e');
+      return false;
+    }
+  }
+
+  // Initialize method to handle API disconnection
+  Future<void> initialize() async {
+    debugPrint('ProductService: Initializing...');
+    if (await _loadFromCache()) {
+      debugPrint('ProductService: Using cached data.');
+      if (await _hasNetwork()) {
+        _fetchAndUpdateCache();
+      }
+      return;
+    }
+
+    if (!await _hasNetwork()) {
+      debugPrint('ProductService: No network. Loading dummy data.');
+      _loadDummyCategoriesFallback();
+      _loadDummyProductsFallback();
+      await _saveToCache();
+      notifyListeners();
+      return;
+    }
+
+    try {
+      await loadCategoriesFromApi();
+      await loadProductsFromApi();
+      await _saveToCache();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ProductService: API failed: $e. Loading dummy data.');
+      _loadDummyCategoriesFallback();
+      _loadDummyProductsFallback();
+      await _saveToCache();
+      notifyListeners();
+    }
+  }
+
+  // Background fetch to update cache
+  Future<void> _fetchAndUpdateCache() async {
+    if (!await _hasNetwork()) {
+      debugPrint('ProductService: No network for background fetch.');
+      return;
+    }
+    try {
+      await loadCategoriesFromApi();
+      await loadProductsFromApi();
+      await _saveToCache();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ProductService: Background fetch failed: $e');
+    }
+  }
+
+  // Existing functions (unchanged except for catch blocks)
   static Future<void> loadProductsFromApi() async {
     debugPrint('Attempting to load ALL product data from API (type=1041 and type=1044 for all categories): $_productApiUrl');
 
@@ -90,21 +215,20 @@ class ProductService {
         _loadDummyProductsFallback();
       }
     } on TimeoutException catch (_) {
-      debugPrint('ProductService: Request timed out while loading products.');
+      debugPrint('ProductService: Request timed out while loading products. Loading dummy data.');
       _loadDummyProductsFallback();
-      throw Exception('Request timed out. Check your internet connection.');
+      return; // Avoid throwing to prevent UI crash
     } on http.ClientException catch (e) {
-      debugPrint('ProductService: Network error: $e');
+      debugPrint('ProductService: Network error: $e. Loading dummy data.');
       _loadDummyProductsFallback();
-      throw Exception('Network error. Check your internet connection.');
+      return; // Avoid throwing
     } catch (e) {
-      debugPrint('ProductService: Unexpected error fetching products: $e');
+      debugPrint('ProductService: Unexpected error fetching products: $e. Loading dummy data.');
       _loadDummyProductsFallback();
-      throw Exception('Unexpected error fetching products.');
+      return; // Avoid throwing
     }
   }
 
-  // New helper method to fetch products for all categories
   static Future<void> _fetchAllCategoryProductsForGlobalList(List<Product> productsToProcess, Set<String> seenProductKeys) async {
     debugPrint('Attempting to load ALL products from ALL categories (type=1044) for global search list.');
     const int maxTotalProducts = 10000; // Safety limit to prevent OOM
@@ -226,14 +350,14 @@ class ProductService {
         return [];
       }
     } on TimeoutException catch (_) {
-      debugPrint('ProductService: Request (type=1044, cat_id=$categoryId) timed out.');
-      throw Exception('Request timed out. Check your internet connection.');
+      debugPrint('ProductService: Request (type=1044, cat_id=$categoryId) timed out. Returning empty list.');
+      return []; // Avoid throwing
     } on http.ClientException catch (e) {
-      debugPrint('ProductService: Network error for type 1044, cat_id=$categoryId: $e');
-      throw Exception('Network error. Check your internet connection.');
+      debugPrint('ProductService: Network error for type 1044, cat_id=$categoryId: $e. Returning empty list.');
+      return []; // Avoid throwing
     } catch (e) {
-      debugPrint('ProductService: Unexpected error fetching products for type 1044, cat_id=$categoryId: $e');
-      throw Exception('Unexpected error fetching products.');
+      debugPrint('ProductService: Unexpected error fetching products for type 1044, cat_id=$categoryId: $e. Returning empty list.');
+      return []; // Avoid throwing
     }
   }
 
@@ -297,14 +421,17 @@ class ProductService {
         _loadDummyCategoriesFallback();
       }
     } on TimeoutException catch (_) {
-      debugPrint('ProductService: Request (type=1043) timed out.');
-      throw Exception('Request timed out. Check your internet connection.');
+      debugPrint('ProductService: Request (type=1043) timed out. Loading dummy categories.');
+      _loadDummyCategoriesFallback();
+      return; // Avoid throwing
     } on http.ClientException catch (e) {
-      debugPrint('ProductService: Network error for type 1043: $e');
-      throw Exception('Network error. Check your internet connection.');
+      debugPrint('ProductService: Network error for type 1043: $e. Loading dummy categories.');
+      _loadDummyCategoriesFallback();
+      return; // Avoid throwing
     } catch (e) {
-      debugPrint('ProductService: Unexpected error fetching categories for type 1043: $e');
-      throw Exception('Unexpected error fetching categories.');
+      debugPrint('ProductService: Unexpected error fetching categories for type 1043: $e. Loading dummy categories.');
+      _loadDummyCategoriesFallback();
+      return; // Avoid throwing
     }
   }
 
@@ -433,9 +560,6 @@ class ProductService {
       return null;
     }
   }
-
-
-
 
   static List<Map<String, String>> getAllCategories() {
     return List.from(_allCategories);

@@ -9,14 +9,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'package:video_player/video_player.dart';
-import 'package:kisangro/models/product_model.dart'; // Import Product
+import 'package:kisangro/models/product_model.dart';
 import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/wishlist_model.dart';
 import 'package:kisangro/home/bottom.dart';
-import 'package:kisangro/models/order_model.dart'; // Import OrderedProduct and OrderModel
+import 'package:kisangro/models/order_model.dart';
 import 'package:kisangro/home/cart.dart';
 import 'package:kisangro/services/product_service.dart';
-
 import '../models/address_model.dart';
 
 class ProductDetailPage extends StatefulWidget {
@@ -37,10 +36,10 @@ class ProductDetailPage extends StatefulWidget {
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
   int activeIndex = 0;
-  late String _currentSelectedUnit; // Use a local state variable for the selected unit
-  late final List<String> imageAssets; // List of image assets for the carousel
-  VideoPlayerController? _videoController; // Make nullable to handle no video
-  Future<void>? _initializeVideoPlayerFuture; // Make nullable
+  late String _currentSelectedUnit;
+  late final List<String> imageAssets;
+  VideoPlayerController? _videoController;
+  Future<void>? _initializeVideoPlayerFuture;
   bool _videoLoadError = false;
 
   List<Product> similarProducts = [];
@@ -51,18 +50,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   final Color redColor = const Color(0xFFDC2F2F);
   final Color backgroundColor = const Color(0xFFFFF8F5);
 
-  // Helper to determine if a URL is valid for network image or fallback to asset
   String _getEffectiveImageUrl(String rawImageUrl) {
     if (rawImageUrl.isEmpty || rawImageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(rawImageUrl)?.isAbsolute != true && !rawImageUrl.startsWith('assets/'))) {
-      return 'assets/placeholder.png'; // Fallback to a local asset placeholder
+      return 'assets/placeholder.png';
     }
-    return rawImageUrl; // Use the provided URL if it's valid
+    return rawImageUrl;
   }
 
-  // Determine if the product is coming from an order (which means it's immutable for unit changes)
   bool get _isOrderedProduct => widget.orderedProduct != null;
 
-  // Get display properties based on whether it's a regular product or ordered product
   String get _displayTitle => _isOrderedProduct ? widget.orderedProduct!.title : widget.product!.title;
   String get _displaySubtitle => _isOrderedProduct ? widget.orderedProduct!.description : widget.product!.subtitle;
   String get _displayImageUrl => _isOrderedProduct ? widget.orderedProduct!.imageUrl : widget.product!.imageUrl;
@@ -71,7 +67,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     if (_isOrderedProduct) {
       return widget.orderedProduct!.price;
     } else {
-      // Get price based on the locally tracked _currentSelectedUnit
       try {
         return widget.product!.availableSizes.firstWhere((size) => size.size == _currentSelectedUnit).price;
       } catch (e) {
@@ -89,8 +84,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     }
   }
 
-  // Creates a Product object suitable for adding to cart/wishlist
-  // Ensures the currently selected unit and price are included.
   Product _currentProductForActions() {
     if (_isOrderedProduct) {
       return Product(
@@ -108,7 +101,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         selectedUnit: widget.orderedProduct!.unit,
       );
     } else {
-      // For a regular product, create a copy with the current selected unit
       return widget.product!.copyWith(selectedUnit: _currentSelectedUnit);
     }
   }
@@ -116,16 +108,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize _currentSelectedUnit from the provided product or orderedProduct
     _currentSelectedUnit = _isOrderedProduct ? widget.orderedProduct!.unit : widget.product!.selectedUnit;
-
-    // Prepare image carousel assets
     String mainDisplayImage = _getEffectiveImageUrl(_displayImageUrl);
-    imageAssets = [mainDisplayImage, mainDisplayImage, mainDisplayImage]; // Assuming 3 identical images for now, or use actual multiple images if available in product model
-
-    // Initialize video if available
-    // You'll need to update ProductModel to include a videoUrl if you intend to use this dynamically.
-    // For now, it uses a local asset as in your original code.
+    imageAssets = [mainDisplayImage, mainDisplayImage, mainDisplayImage];
     _videoController = VideoPlayerController.asset('assets/video.mp4');
     _initializeVideoPlayerFuture = _videoController!.initialize().then((_) {
       debugPrint('Video initialized successfully: assets/video.mp4');
@@ -139,47 +124,37 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       });
     });
     _videoController!.setLooping(true);
-
-    // Load similar and top selling products
     _loadSimilarProducts();
     _loadTopSellingProducts();
   }
 
   @override
   void dispose() {
-    _videoController?.dispose(); // Use null-aware operator for safety
+    _videoController?.dispose();
     debugPrint('Video controller disposed.');
     super.dispose();
   }
 
-  // Load similar products based on the current product's category
   void _loadSimilarProducts() {
     final allProducts = ProductService.getAllProducts();
     setState(() {
       similarProducts = allProducts
-          .where((p) =>
-      p.category == _currentProductForActions().category && p.id != _currentProductForActions().id)
-          .take(6) // Take a limited number of similar products
+          .where((p) => p.category == _currentProductForActions().category && p.id != _currentProductForActions().id)
+          .take(6)
           .toList();
     });
   }
 
-  // Load top selling products (example: just take first 6 products)
   void _loadTopSellingProducts() {
     setState(() {
-      topSellingProducts = ProductService.getAllProducts().reversed.take(6).toList(); // Example: last 6 from all products
+      topSellingProducts = ProductService.getAllProducts().reversed.take(6).toList();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // REMOVED THE PROBLEMATIC LINE: Provider.of<Product>(context, listen: true);
-    // The Product object passed to the widget is already accessible directly.
-    // Changes to its selectedUnit are handled by local state (_currentSelectedUnit)
-    // and setState() will trigger rebuilds of this widget.
-
-    final cart = Provider.of<CartModel>(context, listen: false); // CartModel should be globally available
-    final wishlist = Provider.of<WishlistModel>(context, listen: false); // WishlistModel should be globally available
+    final cart = Provider.of<CartModel>(context, listen: false);
+    final wishlist = Provider.of<WishlistModel>(context, listen: false);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -195,11 +170,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
         leading: IconButton(
           onPressed: () {
-            // Navigate back to the home screen using Bot with initial index 0
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)),
-                  (Route<dynamic> route) => false, // Remove all previous routes
+                  (Route<dynamic> route) => false,
             );
           },
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -251,7 +225,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       final imageUrl = imageAssets[index];
                       return _getEffectiveImageUrl(imageUrl).startsWith('http')
                           ? Image.network(
-                        _getEffectiveImageUrl(imageUrl), // Ensure effective URL is used
+                        _getEffectiveImageUrl(imageUrl),
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => Image.asset(
                           'assets/placeholder.png',
@@ -273,10 +247,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   right: 8 + 48,
                   child: Consumer<WishlistModel>(
                     builder: (context, wishlist, child) {
-                      final Product productForActions = _currentProductForActions(); // Get the product with current unit
+                      final Product productForActions = _currentProductForActions();
                       final bool isFavorite = wishlist.items.any(
-                            (item) => item.id == productForActions.id && item.selectedUnit == productForActions.selectedUnit,
-                      );
+                              (item) => item.id == productForActions.id && item.selectedUnit == productForActions.selectedUnit);
                       return IconButton(
                         onPressed: () {
                           if (isFavorite) {
@@ -288,7 +261,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                               ),
                             );
                           } else {
-                            wishlist.addItem(productForActions); // Add the copy
+                            wishlist.addItem(productForActions);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('${productForActions.title} added to wishlist!', style: GoogleFonts.poppins()),
@@ -346,7 +319,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   return TextButton(
                     onPressed: () {
                       setState(() {
-                        // Update local state variable, not directly widget.product!.selectedUnit
                         _currentSelectedUnit = productSize.size;
                       });
                     },
@@ -398,7 +370,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      cart.addItem(_currentProductForActions()); // Use the method
+                      cart.addItem(_currentProductForActions());
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('${_currentProductForActions().title} (${_currentProductForActions().selectedUnit}) added to cart!'),
@@ -414,11 +386,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      // Navigate directly to delivery screen, passing the product
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => delivery(product: _currentProductForActions()), // Use the method
+                          builder: (context) => delivery(product: _currentProductForActions()),
                         ),
                       );
                     },
@@ -427,7 +398,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ),
                 ),
               ],
-            ),
+            ),            const SizedBox(height: 10),
+
+            const Divider(color: Colors.white, thickness: 3),
             const SizedBox(height: 20),
             Container(
               height: 100,
@@ -437,7 +410,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 color: Colors.white,
               ),
               padding: const EdgeInsets.all(12),
-              child: Consumer<AddressModel>( // Use Consumer to listen to AddressModel changes
+              child: Consumer<AddressModel>(
                 builder: (context, addressModel, child) {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -449,10 +422,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             Text("Delivery To Your Location",
                                 style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            Text("Pincode: ${addressModel.currentPincode}", // Display dynamic pincode
+                            Text("Pincode: ${addressModel.currentPincode}",
                                 style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54)),
                             const SizedBox(height: 4),
-                            Text("Deliverable by 11 Dec, 2024", // This can be made dynamic based on location/service
+                            Text("Deliverable by 11 Dec, 2024",
                                 style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFFF37021), fontWeight: FontWeight.w500)),
                           ],
                         ),
@@ -464,15 +437,42 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               ),
             ),
             const SizedBox(height: 20),
+
+            const Divider(color: Colors.white, thickness: 3),
+            const SizedBox(height: 20),
             _buildHeaderSection('Cancellation Policy'),
             const SizedBox(height: 8),
             _buildDottedText('Upto 5 days returnable'),
             _buildDottedText('Wrong product received'),
             _buildDottedText('Damaged product received'),
             const SizedBox(height: 20),
+            const Divider(color: Colors.white, thickness: 3),
+            const SizedBox(height: 20),
             _buildHeaderSection('About Product'),
             const SizedBox(height: 8),
-            Text(_displaySubtitle, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
+            Text(
+              '$_displaySubtitle\n\nAbamectin 1.9% EC is a broad-spectrum insecticide and acaricide, effective against a wide range of mites and insects, particularly those that are motile or sucking, working through contact and stomach action, and also exhibiting translaminar activity.',
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            _buildHeaderSection('Target Pests'),
+            const SizedBox(height: 8),
+            _buildDottedText('Yellow mites, red mites, spotted mites, leaf miners, sucking insects'),
+            const SizedBox(height: 12),
+            _buildHeaderSection('Target Crops'),
+            const SizedBox(height: 8),
+            _buildDottedText('Grapes, roses, brinjal, chili, tea, cotton, ornamental plants'),
+            const SizedBox(height: 12),
+            _buildHeaderSection('Dosage'),
+            const SizedBox(height: 8),
+            _buildDottedText('1 ml per liter of water (200 ml per acre)'),
+            const SizedBox(height: 12),
+            _buildHeaderSection('Available Pack'),
+            const SizedBox(height: 8),
+            _buildDottedText('50, 100, 250, 500, 1000 ml'),
+            const SizedBox(height: 15),
+
+            const Divider(color: Colors.white, thickness: 3),
             const SizedBox(height: 20),
             _buildHeaderSection('Tutorial Video'),
             const SizedBox(height: 8),
@@ -501,11 +501,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     );
                   } else {
                     return AspectRatio(
-                      aspectRatio: _videoController!.value.aspectRatio, // Use null-aware operator
+                      aspectRatio: _videoController!.value.aspectRatio,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          VideoPlayer(_videoController!), // Use null-aware operator
+                          VideoPlayer(_videoController!),
                           GestureDetector(
                             onTap: () {
                               setState(() {
@@ -528,7 +528,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             left: 0,
                             right: 0,
                             child: VideoProgressIndicator(
-                              _videoController!, // Use null-aware operator
+                              _videoController!,
                               allowScrubbing: true,
                               colors: VideoProgressColors(
                                 playedColor: themeOrange,
@@ -550,11 +550,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 }
               },
             ),
+            SizedBox(height: 20,),
+            const Divider(color: Colors.white, thickness: 3),
             const SizedBox(height: 30),
             _buildHeaderSection("Browse Similar Products"),
             _productSlider(similarProducts),
+            const Divider(color: Colors.white, thickness: 3),
+            const SizedBox(height: 20),
             _buildHeaderSection("Top Selling Products"),
             _productSlider(topSellingProducts),
+            const Divider(color: Colors.white, thickness: 3),
             const SizedBox(height: 20),
           ],
         ),
@@ -562,14 +567,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  // Widget for common header sections
   Widget _buildHeaderSection(String title) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text(title,
-        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+    child: Text(
+      title,
+      style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+    ),
   );
 
-  // Widget for dotted text descriptions
   Widget _buildDottedText(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0, left: 8.0),
@@ -589,17 +594,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  // Widget to build product sliders (Similar Products, Top Selling)
   Widget _productSlider(List<Product> items) {
     return SizedBox(
-      height: 280, // Height for each product tile in the horizontal slider
+      height: 280,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
         itemBuilder: (context, index) {
           final product = items[index];
           return Container(
-            width: 130, // Fixed width for each tile in the slider
+            width: 130,
             margin: const EdgeInsets.only(left: 15),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -612,7 +616,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               children: [
                 GestureDetector(
                   onTap: () {
-                    // Navigate to a new ProductDetailPage for the similar product
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => ProductDetailPage(product: product)),
@@ -628,21 +631,27 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       : Image.asset(product.imageUrl, height: 70, fit: BoxFit.contain),
                 ),
                 const SizedBox(height: 5),
-                Text(product.title,
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text(product.subtitle,
-                    style: GoogleFonts.poppins(fontSize: 10),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  product.title,
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  product.subtitle,
+                  style: GoogleFonts.poppins(fontSize: 10),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 Text(
                   '₹ ${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
                   style: GoogleFonts.poppins(fontSize: 10, color: Colors.green),
                 ),
-                Text('Unit: ${product.selectedUnit}',
-                    style: GoogleFonts.poppins(fontSize: 8, color: themeOrange)),
+                Text(
+                  'Unit: ${product.selectedUnit}',
+                  style: GoogleFonts.poppins(fontSize: 8, color: themeOrange),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   height: 36,
@@ -659,12 +668,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),
                       items: product.availableSizes
                           .map((ProductSize sizeOption) => DropdownMenuItem<String>(
-                          value: sizeOption.size,
-                          child: Text(sizeOption.size)))
+                        value: sizeOption.size,
+                        child: Text(sizeOption.size),
+                      ))
                           .toList(),
                       onChanged: (val) {
                         setState(() {
-                          product.selectedUnit = val!; // This will update the Product object within the list
+                          product.selectedUnit = val!;
                         });
                       },
                     ),
@@ -691,9 +701,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     const SizedBox(width: 10),
                     Consumer<WishlistModel>(
                       builder: (context, wishlist, child) {
-                        final bool isFavorite = wishlist.items.any(
-                              (item) => item.id == product.id && item.selectedUnit == product.selectedUnit,
-                        );
+                        final bool isFavorite =
+                        wishlist.items.any((item) => item.id == product.id && item.selectedUnit == product.selectedUnit);
                         return IconButton(
                           onPressed: () {
                             if (isFavorite) {
