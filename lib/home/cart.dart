@@ -53,6 +53,7 @@ class _cartState extends State<Cart> {
         ),
         leading: IconButton(
           onPressed: () {
+            // MODIFIED: Navigate back to the Home screen (index 0) of the Bot navigation
             Navigator.pushReplacement(
                 context, MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)));
           },

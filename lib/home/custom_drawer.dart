@@ -6,6 +6,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart'; // NEW: Import image_picker
 
 // Import your custom models and services needed by the drawer's logic
 import 'package:kisangro/models/kyc_image_provider.dart'; // Your custom KYC image provider
@@ -268,6 +269,68 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  // NEW: Function to pick an image from camera or gallery
+  Future<void> _pickImage(ImageSource source) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: source);
+
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      // Update the KycBusinessDataProvider with the new image bytes
+      Provider.of<KycBusinessDataProvider>(context, listen: false)
+          .setKycBusinessData(shopImageBytes: bytes);
+      // Also update the KycImageProvider if it's used elsewhere for temporary display
+      Provider.of<KycImageProvider>(context, listen: false)
+          .setKycImage(bytes);
+
+      // You can add a success message if needed
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated!')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image picking cancelled.')),
+        );
+      }
+    }
+  }
+
+  // NEW: Function to show a modal bottom sheet for image source selection
+  void _showImageSourceSelection() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xffEB7720)),
+                title: Text('Take Photo', style: GoogleFonts.poppins(color: Colors.black87)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xffEB7720)),
+                title: Text('Choose from Gallery', style: GoogleFonts.poppins(color: Colors.black87)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
   Widget _buildHeader() {
     return Consumer<KycBusinessDataProvider>( // Use Consumer to rebuild when KYC data changes
       builder: (context, kycBusinessDataProvider, child) {
@@ -315,13 +378,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
-                          onTap: () {
-                            // TODO: Implement navigation to profile edit screen
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Edit Profile Clicked!')),
-                            );
-                            // Example: Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfileScreen()));
-                          },
+                          onTap: _showImageSourceSelection, // MODIFIED: Call image selection method
                           child: Container(
                             decoration: BoxDecoration(
                               color: const Color(0xffEB7720), // Orange background for the button
@@ -403,8 +460,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
         Container(
           // No margin here, instead use padding on the ListTile
           // No fixed height or background color here for merging effect
-          decoration: BoxDecoration(
-            color: const Color(0xffffecdc), // Background color for the item
+          decoration: const BoxDecoration( // Changed to const as color is now fixed
+            color: Color(0xffffecdc), // Background color for the item
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), // Adjust padding to remove inner spacing

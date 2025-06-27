@@ -128,58 +128,63 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           },
         ),
       ),
-      body: Center(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(
+          child: CircularProgressIndicator(color: Color(0xffEB7720)),
+        )
+            : _errorMessage != null
+            ? Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(color: Colors.red, fontSize: 16),
             ),
           ),
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xffEB7720)))
-              : _errorMessage != null
-              ? Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(color: Colors.red, fontSize: 16),
+        )
+            : _displayedProducts.isEmpty
+            ? Center(
+          child: Text(
+            'No products found for this category.',
+            style: GoogleFonts.poppins(fontSize: 16, color: Colors.black54),
+          ),
+        )
+            : Column(
+          children: [
+            Expanded(
+              child: GridView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(12.0),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 200,
+                  crossAxisSpacing: 15,
+                  mainAxisSpacing: 15,
+                  mainAxisExtent: 320,
+                ),
+                itemCount: _displayedProducts.length,
+                itemBuilder: (context, index) {
+                  final product = _displayedProducts[index];
+                  return _buildProductTile(context, product);
+                },
               ),
             ),
-          )
-              : _displayedProducts.isEmpty
-              ? Center(
-            child: Text(
-              'No products found for this category.',
-              style: GoogleFonts.poppins(fontSize: 16, color: Colors.black54),
-            ),
-          )
-              : GridView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(12.0),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 200,
-              crossAxisSpacing: 15,
-              mainAxisSpacing: 15,
-              mainAxisExtent: 320,
-            ),
-            itemCount: _displayedProducts.length + (_isLoadingMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == _displayedProducts.length && _isLoadingMore) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(color: Color(0xffEB7720)),
-                  ),
-                );
-              }
-              final product = _displayedProducts[index];
-              return _buildProductTile(context, product);
-            },
-          ),
+            if (_isLoadingMore)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xffEB7720)),
+                ),
+              ),
+          ],
         ),
       ),
     );

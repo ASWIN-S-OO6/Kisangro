@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:kisangro/models/product_model.dart';
-
+import 'database_helper.dart';
 enum OrderStatus {
   pending,
   booked,
@@ -79,11 +79,27 @@ class Order {
 
 class OrderModel extends ChangeNotifier {
   final List<Order> _orders = [];
+  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   List<Order> get orders => List.unmodifiable(_orders);
 
+  OrderModel() {
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    try {
+      _orders.clear();
+      _orders.addAll(await _dbHelper.getOrders());
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading orders: $e');
+    }
+  }
+
   void addOrder(Order order) {
     _orders.add(order);
+    _dbHelper.insertOrder(order);
     notifyListeners();
   }
 
@@ -91,6 +107,8 @@ class OrderModel extends ChangeNotifier {
     final orderIndex = _orders.indexWhere((order) => order.id == orderId);
     if (orderIndex != -1) {
       _orders[orderIndex].updateStatus(newStatus);
+      _dbHelper.updateOrderStatus(orderId, newStatus);
+      notifyListeners();
     }
   }
 
@@ -98,6 +116,7 @@ class OrderModel extends ChangeNotifier {
     for (var order in _orders) {
       if (order.status == OrderStatus.booked) {
         order.updateStatus(OrderStatus.dispatched);
+        _dbHelper.updateOrderStatus(order.id, OrderStatus.dispatched);
       }
     }
     notifyListeners();
@@ -113,6 +132,7 @@ class OrderModel extends ChangeNotifier {
 
   void clearOrders() {
     _orders.clear();
+    _dbHelper.clearOrders();
     notifyListeners();
   }
 }

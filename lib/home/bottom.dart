@@ -70,71 +70,83 @@ class _BotState extends State<Bot> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              spreadRadius: 1,
-              blurRadius: 6,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xffEB7720),
-          unselectedItemColor: const Color(0xff575757),
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          selectedLabelStyle: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
+    return PopScope( // Use PopScope to handle back button press
+      canPop: _selectedIndex == 0, // Only allow pop if on the Home screen
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        // If not on Home screen, navigate to Home (index 0)
+        if (_selectedIndex != 0) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+        }
+      },
+      child: Scaffold(
+        body: _screens[_selectedIndex],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
-          unselectedLabelStyle: GoogleFonts.poppins(
-            fontWeight: FontWeight.w400,
-            fontSize: 12,
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            selectedItemColor: const Color(0xffEB7720),
+            unselectedItemColor: const Color(0xff575757),
+            onTap: _onItemTapped,
+            type: BottomNavigationBarType.fixed,
+            selectedLabelStyle: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: GoogleFonts.poppins(
+              fontWeight: FontWeight.w400,
+              fontSize: 12,
+            ),
+            items: [
+              BottomNavigationBarItem(
+                icon: Image.asset(
+                  'assets/home.png',
+                  width: 24,
+                  height: 24,
+                  color: _selectedIndex == 0 ? const Color(0xffEB7720) : const Color(0xff575757),
+                ),
+                label: "Home",
+              ),
+              BottomNavigationBarItem(
+                icon: Image.asset(
+                  'assets/cat.png',
+                  width: 24,
+                  height: 24,
+                  color: _selectedIndex == 1 ? const Color(0xffEB7720) : const Color(0xff575757),
+                ),
+                label: "Categories",
+              ),
+              BottomNavigationBarItem(
+                icon: Image.asset(
+                  'assets/reward.png',
+                  width: 24,
+                  height: 24,
+                  color: _selectedIndex == 2 ? const Color(0xffEB7720) : const Color(0xff575757),
+                ),
+                label: "Rewards",
+              ),
+              BottomNavigationBarItem(
+                icon: Image.asset(
+                  'assets/cart.png',
+                  width: 24,
+                  height: 24,
+                  color: _selectedIndex == 3 ? const Color(0xffEB7720) : const Color(0xff575757),
+                ),
+                label: "Cart",
+              ),
+            ],
           ),
-          items: [
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/home.png',
-                width: 24,
-                height: 24,
-                color: _selectedIndex == 0 ? const Color(0xffEB7720) : const Color(0xff575757),
-              ),
-              label: "Home",
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/cat.png',
-                width: 24,
-                height: 24,
-                color: _selectedIndex == 1 ? const Color(0xffEB7720) : const Color(0xff575757),
-              ),
-              label: "Categories",
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/reward.png',
-                width: 24,
-                height: 24,
-                color: _selectedIndex == 2 ? const Color(0xffEB7720) : const Color(0xff575757),
-              ),
-              label: "Rewards",
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                'assets/cart.png',
-                width: 24,
-                height: 24,
-                color: _selectedIndex == 3 ? const Color(0xffEB7720) : const Color(0xff575757),
-              ),
-              label: "Cart",
-            ),
-          ],
         ),
       ),
     );

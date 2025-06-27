@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 // Imports for mutual navigation
 import 'package:kisangro/home/myorder.dart'; // For navigating to My Orders
 import 'package:kisangro/menu/wishlist.dart'; // For navigating to Wishlist
+import 'package:kisangro/home/bottom.dart'; // For navigating back to Home
 
 // NEW: Order Arriving Details screen UI
 class OrderArrivingDetailsPage extends StatelessWidget {
@@ -13,7 +14,7 @@ class OrderArrivingDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color orange = const Color(0xffEB7720); // Your app's theme orange
-    final Color textColor = Colors.black87; // Consistent text color
+    final Color textColor = Colors.black; // Consistent text color to black
 
     return Scaffold(
       appBar: AppBar(
@@ -75,7 +76,7 @@ class OrderArrivingDetailsPage extends StatelessWidget {
                 child: Text(
                   'Friday, 3 November 2024  2:40 pm',
                   style: GoogleFonts.poppins( // Use GoogleFonts
-                    color: Colors.grey[600],
+                    color: Colors.black, // Changed to black
                     fontSize: 16,
                   ),
                 ),
@@ -107,7 +108,7 @@ class OrderArrivingDetailsPage extends StatelessWidget {
                       style: GoogleFonts.poppins( // Use GoogleFonts
                         color: orange, // Use consistent orange
                         fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold, // Made bolder
                       ),
                     ),
                     const SizedBox(height: 20), // Use const
@@ -117,7 +118,7 @@ class OrderArrivingDetailsPage extends StatelessWidget {
                       'AURASTAR',
                       style: GoogleFonts.poppins( // Use GoogleFonts
                         fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.bold, // Already bold, kept
                         color: textColor,
                       ),
                     ),
@@ -148,7 +149,7 @@ class OrderArrivingDetailsPage extends StatelessWidget {
                       'Specification',
                       style: GoogleFonts.poppins( // Use GoogleFonts
                         fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold, // Made bolder
                         color: textColor,
                       ),
                     ),
@@ -271,7 +272,9 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
         ),
         leading: IconButton(
           onPressed: () {
-            Navigator.pop(context); // Go back to the previous screen
+            // Navigate back to the Home screen (index 0) of the Bot navigation
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)));
           },
           icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),
@@ -300,7 +303,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
               color: Colors.white,
             ),
           ),
-          // NEW: AnimatedScale for the notification icon
+          // AnimatedScale for the notification icon
           AnimatedScale(
             scale: _animation.value, // Apply the animation value here
             duration: _animationController.duration!, // Use controller's duration
@@ -451,7 +454,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                         style: GoogleFonts.poppins(
                           color: const Color(0xffEB7720),
                           fontSize: 14,
-                          fontWeight: isNew ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: FontWeight.bold, // Always bold for titles
                         ),
                         overflow: TextOverflow.ellipsis, // Add ellipsis for long titles
                       ),
@@ -461,7 +464,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                       child: Text(
                         timestamp,
                         style: GoogleFonts.poppins(
-                          color: Colors.grey,
+                          color: Colors.grey, // Kept grey for timestamp
                           fontSize: 10,
                         ),
                         textAlign: TextAlign.right, // Align timestamp to the right
@@ -474,7 +477,8 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                   product,
                   style: GoogleFonts.poppins(
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold, // Made bolder
+                    color: Colors.black, // Changed to black
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -482,9 +486,11 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                   description,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.black, // Changed to black
+                    fontWeight: FontWeight.normal, // Normal weight for description
                   ),
+                  maxLines: 2, // Allow text to wrap if necessary
+                  overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
                 ),
               ],
             ),
@@ -540,7 +546,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                         style: GoogleFonts.poppins(
                           color: const Color(0xffEB7720),
                           fontSize: 12, // Slightly increased font size for readability
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.bold, // Made bolder
                         ),
                         overflow: TextOverflow.ellipsis, // Add ellipsis for long titles
                       ),
@@ -550,7 +556,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                       child: Text(
                         timestamp,
                         style: GoogleFonts.poppins(
-                          color: Colors.grey,
+                          color: Colors.grey, // Kept grey for timestamp
                           fontSize: 10,
                         ),
                         textAlign: TextAlign.right, // Align timestamp to the right
@@ -563,8 +569,8 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                   description,
                   style: GoogleFonts.poppins(
                     fontSize: 13, // Adjusted font size to prevent overflow with thicker text
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.black, // Changed to black
+                    fontWeight: FontWeight.normal, // Normal weight for description
                   ),
                   maxLines: 2, // Allow text to wrap if necessary
                   overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
@@ -574,8 +580,8 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin { // Ad
                   additionalText,
                   style: GoogleFonts.poppins(
                     fontSize: 13, // Adjusted font size
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.black, // Changed to black
+                    fontWeight: FontWeight.normal, // Normal weight for description
                   ),
                   maxLines: 2, // Allow text to wrap
                   overflow: TextOverflow.ellipsis, // Add ellipsis for overflow

@@ -12,6 +12,8 @@ import 'package:kisangro/home/cart.dart';
 import 'package:kisangro/home/custom_drawer.dart';
 import 'package:kisangro/models/kyc_business_model.dart';
 import 'package:kisangro/models/kyc_image_provider.dart';
+import 'package:kisangro/home/bottom.dart'; // NEW: Import Bot for navigation
+
 
 class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
@@ -56,7 +58,9 @@ class _RewardScreenState extends State<RewardScreen> {
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
           onPressed: () {
-            _scaffoldKey.currentState!.openDrawer();
+            // MODIFIED: Navigate back to the Home screen (index 0) of the Bot navigation
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)));
           },
         ),
         title: Text(

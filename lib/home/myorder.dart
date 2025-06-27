@@ -1,38 +1,28 @@
 import 'dart:async';
-import 'dart:typed_data'; // Needed for Uint8List to display image bytes
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:dotted_border/dotted_border.dart'; // For dotted borders around profile image
+import 'package:dotted_border/dotted_border.dart';
 import 'package:kisangro/home/bottom.dart';
-import 'package:kisangro/home/product.dart'; // Import ProductDetailPage
-import 'package:provider/provider.dart'; // For state management (accessing KycImageProvider, OrderModel)
-import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // For star rating UI
-import 'package:intl/intl.dart'; // For date formatting
-
-// Existing imports for My Orders functionality
-import 'package:kisangro/home/cancel1.dart'; // Ensure CancellationStep1Page is imported
-import 'package:kisangro/home/noti.dart'; // Assuming this page exists for notifications
-import 'package:kisangro/home/cart.dart'; // Import for CartScreen navigation (for Modify Order)
-import 'package:kisangro/home/multi_product_order_detail_page.dart'; // Import the new MultiProductOrderDetailPage
-
-// Import for the DispatchedOrdersScreen (if you create it)
-import 'dispatched_orders_screen.dart'; // Make sure this path is correct if you have this file
-
-// Imports for Drawer functionality (some of these will remain even if the drawer widget is removed,
-// if _buildHeader or _buildMenuItem methods are kept for other purposes or future use).
-import '../login/login.dart'; // For LoginApp
-import '../menu/account.dart'; // For MyAccountPage
-import '../menu/ask.dart'; // For AskUsPage
-import '../menu/logout.dart'; // For LogoutConfirmationDialog
-import '../menu/setting.dart'; // For SettingsPage
-import '../menu/transaction.dart'; // For TransactionHistoryPage
-import '../menu/wishlist.dart'; // For WishlistPage
-
-// Models
-import 'package:kisangro/models/order_model.dart'; // Order and OrderModel
-import 'package:kisangro/models/cart_model.dart'; // CartModel for modifying order
-import 'package:kisangro/models/kyc_image_provider.dart'; // KycImageProvider
-
+import 'package:kisangro/home/product.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:intl/intl.dart';
+import 'package:kisangro/home/cancel1.dart';
+import 'package:kisangro/home/noti.dart';
+import 'package:kisangro/home/cart.dart';
+import 'package:kisangro/home/multi_product_order_detail_page.dart';
+import 'package:kisangro/login/login.dart';
+import 'package:kisangro/menu/account.dart';
+import 'package:kisangro/menu/ask.dart';
+import 'package:kisangro/menu/logout.dart';
+import 'package:kisangro/menu/setting.dart';
+import 'package:kisangro/menu/transaction.dart';
+import 'package:kisangro/menu/wishlist.dart';
+import 'package:kisangro/models/order_model.dart';
+import 'package:kisangro/models/cart_model.dart';
+import 'package:kisangro/models/kyc_image_provider.dart';
+import 'dispatched_orders_screen.dart';
 
 class MyOrder extends StatefulWidget {
   const MyOrder({super.key});
@@ -43,11 +33,10 @@ class MyOrder extends StatefulWidget {
 
 class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _rating = 4; // Initial rating for the review dialog
+  int _rating = 4;
   final TextEditingController _reviewController = TextEditingController();
   static const int maxChars = 100;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Key for Scaffold to open drawer
-
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -62,19 +51,17 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  /// Shows a confirmation dialog for logging out.
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false, // User must tap a button to dismiss
+      barrierDismissible: false,
       builder: (context) => LogoutConfirmationDialog(
-        onCancel: () => Navigator.of(context).pop(), // Close dialog on cancel
+        onCancel: () => Navigator.of(context).pop(),
         onLogout: () {
-          // Perform logout actions and navigate to LoginApp, clearing navigation stack
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => LoginApp()),
-                (Route<dynamic> route) => false, // Remove all routes below
+                (Route<dynamic> route) => false,
           );
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Logged out successfully!')),
@@ -84,7 +71,6 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
     );
   }
 
-  /// Shows a dialog for giving ratings and writing a review.
   void showComplaintDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -94,21 +80,21 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
             borderRadius: BorderRadius.circular(12),
           ),
           backgroundColor: Colors.white,
-          content: StatefulBuilder( // Use StatefulBuilder to manage dialog's internal state
+          content: StatefulBuilder(
             builder: (context, setState) {
               return SizedBox(
-                width: 328, // Fixed width for dialog content
+                width: 328,
                 child: Column(
-                  mainAxisSize: MainAxisSize.min, // Make column content fit
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Align(
                       alignment: Alignment.topRight,
                       child: GestureDetector(
-                        onTap: () => Navigator.pop(context), // Close dialog
+                        onTap: () => Navigator.pop(context),
                         child: const Icon(
                           Icons.close,
-                          color: Color(0xffEB7720), // Orange close icon
+                          color: Color(0xffEB7720),
                         ),
                       ),
                     ),
@@ -126,7 +112,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                       children: [
                         Text("Rate:", style: GoogleFonts.lato(fontSize: 16)),
                         const SizedBox(width: 12),
-                        RatingBar.builder( // Star rating bar
+                        RatingBar.builder(
                           initialRating: _rating.toDouble(),
                           minRating: 1,
                           direction: Axis.horizontal,
@@ -140,7 +126,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                           ),
                           onRatingUpdate: (rating) {
                             setState(() {
-                              _rating = rating.toInt(); // Update rating state
+                              _rating = rating.toInt();
                             });
                           },
                         ),
@@ -156,19 +142,19 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        counterText: '', // Hide default counter text
+                        counterText: '',
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 12,
                           horizontal: 12,
                         ),
                       ),
-                      onChanged: (_) => setState(() {}), // Rebuild to update character count
+                      onChanged: (_) => setState(() {}),
                     ),
                     const SizedBox(height: 4),
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        '${_reviewController.text.length}/$maxChars', // Character counter
+                        '${_reviewController.text.length}/$maxChars',
                         style: GoogleFonts.lato(
                           fontSize: 12,
                           color: Colors.grey,
@@ -187,9 +173,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                           ),
                         ),
                         onPressed: () {
-                          Navigator.pop(context); // Close review dialog
-
-                          // Show "Thank you" confirmation dialog
+                          Navigator.pop(context);
                           showDialog(
                             context: context,
                             builder: (_) => AlertDialog(
@@ -226,7 +210,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                                   SizedBox(
                                     width: double.infinity,
                                     child: ElevatedButton(
-                                      onPressed: () => Navigator.pop(context), // Close thank you dialog
+                                      onPressed: () => Navigator.pop(context),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                         const Color(0xffEB7720),
@@ -267,18 +251,17 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
       drawer: Drawer(
-        child: SafeArea( // Ensures content is not under status bar
+        child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHeader(), // Custom header for the drawer, now displaying KYC image
-              _buildMenuItem(Icons.person_outline, "My Account"), // Drawer menu items
+              _buildHeader(),
+              _buildMenuItem(Icons.person_outline, "My Account"),
               _buildMenuItem(Icons.history, "Transaction History"),
               _buildMenuItem(Icons.headset_mic, "Ask Us!"),
               _buildMenuItem(Icons.info_outline, "About Us"),
@@ -303,20 +286,17 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
         leading: IconButton(
           onPressed: () {
             Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0))); // Go to Home tab
+                context, MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)));
           },
           icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),
         actions: [
-          // Highlighted My Orders Icon (box.png)
           IconButton(
-            onPressed: () {
-              // No navigation needed, as we are already on the My Orders page
-            },
+            onPressed: () {},
             icon: Image.asset(
               'assets/box.png',
-              height: 28, // Increased size to highlight
-              width: 28, // Increased size to highlight
+              height: 28,
+              width: 28,
               color: Colors.white,
             ),
           ),
@@ -344,7 +324,6 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
               color: Colors.white,
             ),
           ),
-          // REMOVED: The shopping bag icon (assets/bag.png) is removed as requested.
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -361,14 +340,14 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
           ],
         ),
       ),
-      body: Container( // Added Container to apply gradient to the entire body
+      body: Container(
         height: double.infinity,
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)], // Matching wishlist.dart gradient
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
           ),
         ),
         child: Consumer<OrderModel>(
@@ -404,33 +383,34 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
   Widget _buildOrderList(List<Order> orders, OrderModel orderModel) {
     if (orders.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.info_outline,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'No orders in this category yet!',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Once you place orders, they will appear here.',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'No orders in this category yet!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Once you place orders, they will appear here.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey,
+
+                  )
+                  ,
+                ),
+              ])
       );
     }
     return ListView.builder(
@@ -471,6 +451,8 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                         )
                             : Image.asset(
                           'assets/profile.png',
+
+
                           width: 100,
                           height: 100,
                           fit: BoxFit.cover,
@@ -538,6 +520,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
         margin: const EdgeInsets.only(bottom: 2),
         height: 40,
         decoration: const BoxDecoration(color: Color(0xffffecdc)),
+        // ignore: prefer_const_constructors
         child: ListTile(
           leading: Icon(icon, color: const Color(0xffEB7720)),
           title: Text(
@@ -548,23 +531,22 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
             ),
           ),
           onTap: () {
-            Navigator.pop(context); // Close the drawer
-
+            Navigator.pop(context);
             switch (label) {
               case 'My Account':
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const MyAccountPage()));
                 break;
               case 'Transaction History':
-                Navigator.push(context, MaterialPageRoute(builder: (context) =>  TransactionHistoryPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionHistoryPage()));
                 break;
               case 'Ask Us!':
-                Navigator.push(context, MaterialPageRoute(builder: (context) =>  AskUsPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => AskUsPage()));
                 break;
               case 'Rate Us':
                 showComplaintDialog(context);
                 break;
               case 'Settings':
-                Navigator.push(context, MaterialPageRoute(builder: (context) =>  SettingsPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
                 break;
               case 'Logout':
                 _showLogoutDialog(context);
@@ -730,17 +712,17 @@ class OrderCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                product.description, // Line 751: Changed from subtitle
+                                product.description,
                                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                '${product.unit} x ${product.quantity}', // Line 758: Changed from selectedUnit
+                                '${product.unit} x ${product.quantity}',
                                 style: GoogleFonts.poppins(fontSize: 12),
                               ),
                               Text(
-                                '₹${product.price.toStringAsFixed(2)}', // Line 762: Changed from pricePerUnit
+                                '₹${product.price.toStringAsFixed(2)}',
                                 style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.bold, color: const Color(0xffEB7720)),
                               ),
