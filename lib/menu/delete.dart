@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/login/login.dart';
 
-void main() {
-  runApp(const logout());
-}
+
 
 class logout extends StatelessWidget {
   const logout({super.key});

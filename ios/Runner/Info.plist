@@ -50,5 +50,27 @@
     <string>This app needs access to your location when open.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>This app needs access to your location even when in the background.</string>
+
+    <!-- NEW: Microphone Usage Description for audio recording -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs access to your microphone to record voice messages for customer support.</string>
+
+    <!-- ADDED FOR UPI_INDIA PACKAGE -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>paytm</string>
+        <string>phonepe</string>
+        <string>gpay</string>
+        <string>upi</string>
+        <string>tez</string>
+        <string>bhim</string>
+        <string>cred</string>
+        <string>postpe</string>
+        <string>googlepay</string>
+        <string>amazonpay</string>
+        <string>mobikwik</string>
+    </array>
+    <!-- END ADDED FOR UPI_INDIA PACKAGE -->
+
 </dict>
 </plist>

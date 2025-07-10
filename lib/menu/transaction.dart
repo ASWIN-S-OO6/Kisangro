@@ -9,6 +9,14 @@ import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/home/cart.dart';
 import 'package:intl/intl.dart';
 
+// Import CustomAppBar
+
+// Import Bot for navigation (for back button functionality)
+import 'package:kisangro/home/bottom.dart';
+
+import '../common/common_app_bar.dart';
+
+
 class TransactionHistoryPage extends StatefulWidget {
   @override
   State<TransactionHistoryPage> createState() => _TransactionHistoryPageState();
@@ -26,6 +34,8 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final orderModel = Provider.of<OrderModel>(context, listen: false);
       setState(() {
+        // Initialize expanded list to match the number of *all* orders initially
+        // This ensures the index is valid when filtering later.
         expanded = List<bool>.filled(orderModel.orders.length, false);
       });
     });
@@ -44,16 +54,16 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       DateTime startDate;
       switch (history) {
         case '1 week':
-          startDate = now.subtract(Duration(days: 7));
+          startDate = now.subtract(const Duration(days: 7));
           break;
         case '1 month':
-          startDate = now.subtract(Duration(days: 30));
+          startDate = now.subtract(const Duration(days: 30));
           break;
         case '3 months':
-          startDate = now.subtract(Duration(days: 90));
+          startDate = now.subtract(const Duration(days: 90));
           break;
         default:
-          startDate = now.subtract(Duration(days: 365 * 100)); // Arbitrary large range for 'All'
+          startDate = now.subtract(const Duration(days: 365 * 100)); // Arbitrary large range for 'All'
       }
       filtered = filtered
           .where((order) => order.orderDate.isAfter(startDate))
@@ -76,66 +86,20 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        elevation: 0,
-        title: Text(
-          "Transaction History",
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 16,
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => MyOrder()));
-            },
-            icon: Image.asset(
-              'assets/box.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(width: 10),
-          IconButton(
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => WishlistPage()));
-            },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => noti()));
-            },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-        ],
+      appBar: CustomAppBar( // Integrated CustomAppBar
+        title: "Transaction History", // Set the title
+        showBackButton: true, // Show back button
+        showMenuButton: false, // Do NOT show menu button (drawer icon)
+        // scaffoldKey is not needed here as there's no drawer
+        isMyOrderActive: false, // Not active
+        isWishlistActive: false, // Not active
+        isNotiActive: false, // Not active
+        // showWhatsAppIcon is false by default, matching original behavior
       ),
       body: Container(
         height: double.infinity,
         width: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -153,10 +117,10 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 children: [
                   Text('Entries:',
                       style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Container(
                     height: 30,
-                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.orange.shade300),
                       borderRadius: BorderRadius.circular(6),
@@ -164,27 +128,28 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                     ),
                     child: DropdownButton<int>(
                       value: entries == 0 ? null : entries,
-                      underline: SizedBox(),
+                      underline: const SizedBox(),
                       hint: Text('All', style: GoogleFonts.poppins()),
-                      icon: Icon(Icons.keyboard_arrow_down, color: Colors.orange),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.orange),
                       items: [0, 10, 20, 50, 100]
                           .map((e) => DropdownMenuItem(
                           value: e,
                           child: Text(e == 0 ? 'All' : '$e')))
                           .toList(),
                       onChanged: (val) {
-                        if (val != null)
+                        if (val != null) {
                           setState(() => entries = val);
+                        }
                       },
                     ),
                   ),
-                  Spacer(),
+                  const Spacer(),
                   Text('History:',
                       style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Container(
                     height: 30,
-                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.orange.shade300),
                       borderRadius: BorderRadius.circular(6),
@@ -192,20 +157,21 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                     ),
                     child: DropdownButton<String>(
                       value: history,
-                      underline: SizedBox(),
-                      icon: Icon(Icons.keyboard_arrow_down, color: Colors.orange),
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.orange),
                       items: ['All', '1 week', '1 month', '3 months']
                           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                           .toList(),
                       onChanged: (val) {
-                        if (val != null)
+                        if (val != null) {
                           setState(() => history = val);
+                        }
                       },
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Expanded(
                 child: filteredOrders.isEmpty
                     ? Center(
@@ -221,6 +187,11 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   itemCount: filteredOrders.length,
                   itemBuilder: (context, index) {
                     final order = filteredOrders[index];
+                    // Ensure the expanded list has enough elements
+                    if (expanded.length <= index) {
+                      expanded = List.from(expanded)..length = index + 1;
+                      expanded[index] = false; // Default to not expanded
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: _transactionCard(
@@ -250,7 +221,8 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                         reorderCallback: () {
                           final cartModel =
                           Provider.of<CartModel>(context, listen: false);
-                          cartModel.populateCartFromOrder(order.products);
+                          // MODIFIED: Use addProductsToCartFromOrder instead of populateCartFromOrder
+                          cartModel.addProductsToCartFromOrder(order.products);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -262,7 +234,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                           Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => Cart()));
+                                  builder: (context) => const Cart()));
                         },
                         detailsWidget: order.products.length == 1
                             ? _productDetailsWidget(order.products[0])
@@ -320,7 +292,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     }
 
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -344,7 +316,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   ),
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,21 +324,21 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                     Text(title,
                         style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600, fontSize: 16)),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: GoogleFonts.poppins(
-                          color: Color(0xffEB7720),
+                          color: const Color(0xffEB7720),
                           fontWeight: FontWeight.w600),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         Text('Paid using: ',
                             style: GoogleFonts.poppins(
                                 color: Colors.grey.shade700)),
                         Image(image: AssetImage(paymentImage), width: 30),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(paymentMethod,
                             style: GoogleFonts.poppins(
                                 color: Colors.grey.shade700)),
@@ -380,16 +352,16 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
-                    color: Color(0xffEB7720)),
+                    color: const Color(0xffEB7720)),
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Row(
             children: [
               ElevatedButton.icon(
                 onPressed: invoiceCallback,
-                icon: Icon(Icons.download, size: 16, color: Colors.white),
+                icon: const Icon(Icons.download, size: 16, color: Colors.white),
                 label: Text(
                   'Invoice',
                   style: GoogleFonts.poppins(color: Colors.white),
@@ -397,18 +369,18 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6)),
-                  backgroundColor: Color(0xffEB7720),
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  backgroundColor: const Color(0xffEB7720),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   elevation: 0,
                 ),
               ),
-              Spacer(),
+              const Spacer(),
               Text(
                 dateTime,
                 style:
                 GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 12),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               if (detailsWidget != null)
                 GestureDetector(
                   onTap: onToggleExpanded,
@@ -424,90 +396,85 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
             ],
           ),
           if (expanded && detailsWidget != null) ...[
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             detailsWidget,
           ],
+          // Re-order button for single product details
+          if (expanded && detailsWidget is Widget && (detailsWidget as dynamic).runtimeType.toString() == '_ProductDetailsWidget') // Check if it's the single product details widget
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: reorderCallback, // Use the reorderCallback provided
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xffEB7720),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                child: Text(
+                  'Re-order',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _productDetailsWidget(OrderedProduct product) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        Container(
-          width: 150,
-          height: 180,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white),
-            color: Colors.grey.shade100,
-          ),
-          child: product.imageUrl.startsWith('http')
-              ? Image.network(product.imageUrl, fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  Image.asset('assets/placeholder.png', fit: BoxFit.cover))
-              : Image.asset(product.imageUrl, fit: BoxFit.cover),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(product.title,
-                  style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600, fontSize: 14)),
-              SizedBox(height: 4),
-              Text(product.description,
-                  style: GoogleFonts.poppins(
-                      color: Colors.grey.shade700, fontSize: 12)),
-              SizedBox(height: 4),
-              Text('Unit Size: ${product.unit}',
-                  style: GoogleFonts.poppins(
-                      color: Colors.grey.shade600, fontSize: 12)),
-              SizedBox(height: 4),
-              Text('₹ ${product.price.toStringAsFixed(2)}/piece',
-                  style: GoogleFonts.poppins(
-                      color: Color(0xffEB7720), fontWeight: FontWeight.w600)),
-              SizedBox(height: 4),
-              Text('Ordered Units: ${product.quantity}',
-                  style: GoogleFonts.poppins(
-                      color: Colors.grey.shade600, fontSize: 12)),
-              SizedBox(height: 4),
-              Text('Order ID: ${product.orderId}',
-                  style: GoogleFonts.poppins(
-                      color: Colors.grey.shade600, fontSize: 12)),
-              SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () {
-                  final cartModel =
-                  Provider.of<CartModel>(context, listen: false);
-                  cartModel.populateCartFromOrder([product]);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Product added to cart for reordering!',
-                          style: GoogleFonts.poppins()),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (context) => Cart()));
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xffEB7720),
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5)),
-                ),
-                child: Text(
-                  'Re-order',
-                  style: GoogleFonts.poppins(color: Colors.white),
-                ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 100, // Adjusted width for better fit
+              height: 100, // Adjusted height for better fit
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white),
+                color: Colors.grey.shade100,
               ),
-            ],
-          ),
+              child: product.imageUrl.startsWith('http')
+                  ? Image.network(product.imageUrl, fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Image.asset('assets/placeholder.png', fit: BoxFit.cover))
+                  : Image.asset(product.imageUrl, fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(product.title,
+                      style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(product.description,
+                      style: GoogleFonts.poppins(
+                          color: Colors.grey.shade700, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text('Unit Size: ${product.unit}',
+                      style: GoogleFonts.poppins(
+                          color: Colors.grey.shade600, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text('₹ ${product.price.toStringAsFixed(2)}/piece',
+                      style: GoogleFonts.poppins(
+                          color: const Color(0xffEB7720), fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text('Ordered Units: ${product.quantity}',
+                      style: GoogleFonts.poppins(
+                          color: Colors.grey.shade600, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text('Order ID: ${product.orderId}',
+                      style: GoogleFonts.poppins(
+                          color: Colors.grey.shade600, fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 12), // Spacing before the re-order button
       ],
     );
   }
@@ -518,22 +485,23 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       children: [
         Text('${order.products.length} Items',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(order.products.map((p) => p.title).join(', '),
             style: GoogleFonts.poppins(fontSize: 12)),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text('Total Cost: ₹ ${order.totalAmount.toStringAsFixed(2)}',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text('Order ID: ${order.id}',
             style: GoogleFonts.poppins(fontSize: 12)),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerRight,
           child: ElevatedButton(
             onPressed: () {
               final cartModel = Provider.of<CartModel>(context, listen: false);
-              cartModel.populateCartFromOrder(order.products);
+              // MODIFIED: Use addProductsToCartFromOrder instead of populateCartFromOrder
+              cartModel.addProductsToCartFromOrder(order.products);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Order added to cart for reordering!',
@@ -542,11 +510,11 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 ),
               );
               Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => Cart()));
+                  context, MaterialPageRoute(builder: (context) => const Cart()));
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xffEB7720),
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              backgroundColor: const Color(0xffEB7720),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
             ),
             child: Text(

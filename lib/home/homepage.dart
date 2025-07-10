@@ -5,13 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:kisangro/home/categories.dart';
-import 'package:kisangro/home/product.dart';
+import 'package:kisangro/home/categories.dart'; // Ensure this import is correct for ProductCategoriesScreen
+import 'package:kisangro/home/product.dart'; // Your existing ProductDetailPage
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:provider/provider.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kisangro/models/product_model.dart';
 import 'package:kisangro/models/cart_model.dart';
@@ -21,15 +19,21 @@ import 'package:kisangro/services/product_service.dart';
 import 'package:kisangro/home/myorder.dart';
 import 'package:kisangro/home/noti.dart';
 import 'package:kisangro/home/search_bar.dart';
-import 'package:kisangro/home/bottom.dart';
-import '../categories/category_products_screen.dart';
+import 'package:kisangro/home/bottom.dart'; // This is your Bot/Home screen container
+import '../categories/category_products_screen.dart'; // Ensure this import is correct
 import 'package:kisangro/home/cart.dart';
 import 'package:kisangro/home/trending_products_screen.dart';
+import 'package:kisangro/home/new_on_kisangro_products_screen.dart'; // Import the new screen
+
+
+import '../common/common_app_bar.dart';
 import 'custom_drawer.dart';
-import '../menu/wishlist.dart';
+
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onCategoryViewAll;
+
+  const HomeScreen({super.key, this.onCategoryViewAll});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -40,10 +44,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentPage = 0;
   Timer? _carouselTimer;
   Timer? _refreshTimer;
-  String _currentLocation = 'Detecting...';
   List<Product> _trendingItems = [];
   List<Product> _newOnKisangroItems = [];
-  List<Map<String, String>> _categories = [];
+  List<Map<String, String>> _categories = []; // This list will hold categories for the new section
   final List<Map<String, String>> _deals = [
     {'name': 'VALAX', 'price': '₹ 1550/piece', 'original': '₹ 2000', 'image': 'assets/Valaxa.png'},
     {'name': 'OXYFEN', 'price': '₹ 1000/piece', 'original': '₹ 2000', 'image': 'assets/Oxyfen.png'},
@@ -73,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadInitialData();
     _startCarousel();
-    _determinePosition();
     _refreshTimer = Timer.periodic(const Duration(minutes: 5), (Timer timer) {
       debugPrint('Auto-refreshing homepage data...');
       _refreshData();
@@ -99,14 +101,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadInitialData() async {
     try {
       await ProductService.loadProductsFromApi();
-      await ProductService.loadCategoriesFromApi();
+      await ProductService.loadCategoriesFromApi(); // Ensure categories are loaded
       if (mounted) {
         setState(() {
           _trendingItems = ProductService.getAllProducts().take(6).toList();
-          _newOnKisangroItems = ProductService.getAllProducts().take(6).toList();
+          _newOnKisangroItems = ProductService.getAllProducts().skip(0).take(10).toList();
+          if (_newOnKisangroItems.isEmpty) {
+            _newOnKisangroItems = List.generate(
+              10,
+                  (index) => Product(
+                id: 'new_dummy_$index',
+                title: 'New Item $index',
+                subtitle: 'Fresh Arrival',
+                imageUrl: 'assets/placeholder.png',
+                category: 'New',
+                availableSizes: [ProductSize(size: 'kg', price: 100.0 + index * 5)],
+                selectedUnit: 'kg',
+              ),
+            );
+          }
           _categories = ProductService.getAllCategories();
           debugPrint('Trending Items: ${_trendingItems.map((p) => "${p.title}: ${p.availableSizes.map((s) => s.size).toList()}").toList()}');
           debugPrint('New On Kisangro: ${_newOnKisangroItems.map((p) => "${p.title}: ${p.availableSizes.map((s) => s.size).toList()}").toList()}');
+          debugPrint('Categories Loaded for Home: ${_categories.map((c) => c['label']).toList()}');
         });
       }
     } catch (e) {
@@ -139,165 +156,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (!mounted) return;
-      setState(() {
-        _currentLocation = 'Location services disabled.';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location services are disabled. Please enable them.')),
-      );
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (!mounted) return;
-        setState(() {
-          _currentLocation = 'Location permission denied.';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permissions are denied. Cannot fetch current location.')),
-        );
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      if (!mounted) return;
-      setState(() {
-        _currentLocation = 'Location permission permanently denied.';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location permissions are permanently denied. Please enable from app settings.')),
-      );
-      return;
-    }
-
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
-
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-
-      if (mounted) {
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks.first;
-          setState(() {
-            _currentLocation = '${place.subLocality ?? ''}, ${place.locality ?? place.administrativeArea ?? ''}';
-            _currentLocation = _currentLocation.trim().replaceAll(RegExp(r'^,?\s*'), '').replaceAll(RegExp(r',?\s*,+'), ', ').trim();
-            if (_currentLocation.isEmpty) {
-              _currentLocation = 'Lat: ${position.latitude.toStringAsFixed(2)}, Lon: ${position.longitude.toStringAsFixed(2)}';
-            }
-          });
-        } else {
-          setState(() {
-            _currentLocation = 'Location found, but address unknown.';
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error getting location: $e');
-      if (mounted) {
-        setState(() {
-          _currentLocation = 'Could not get location.';
-        });
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error getting current location: ${e.toString()}.')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.shortestSide >= 600;
+
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const CustomDrawer(),
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        centerTitle: false,
-        title: Transform.translate(
-          offset: const Offset(-20, 0),
-          child: Text(
-            "Hello!",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            _scaffoldKey.currentState!.openDrawer();
-          },
-          icon: const Icon(Icons.menu, color: Colors.white),
-        ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                onPressed: () {
-                  // TODO: Add WhatsApp functionality
-                },
-                icon: const Icon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 1),
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MyOrder()),
-                  );
-                },
-                icon: Image.asset(
-                  'assets/box.png',
-                  height: 24,
-                  width: 24,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 1),
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const WishlistPage()),
-                  );
-                },
-                icon: Image.asset(
-                  'assets/heart.png',
-                  height: 26,
-                  width: 26,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 1),
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const noti()),
-                  );
-                },
-                icon: Image.asset(
-                  'assets/noti.png',
-                  height: 28,
-                  width: 28,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 1),
-            ],
-          ),
-        ],
+      drawer: const CustomDrawer(), // Integrate CustomDrawer
+      appBar: CustomAppBar( // Integrate CustomAppBar
+        title: "Hello!", // Title for the home screen
+        showBackButton: false, // Home screen typically doesn't have a back button
+        showMenuButton: true, // Show menu button to open the drawer
+        scaffoldKey: _scaffoldKey, // Pass the scaffold key to open the drawer
+        isMyOrderActive: false, // Not active on home screen
+        isWishlistActive: false, // Not active on home screen
+        isNotiActive: false, // Not active on home screen
+        showWhatsAppIcon: true, // Show WhatsApp icon on home screen
       ),
       backgroundColor: const Color(0xFFFFF7F1),
       body: Container(
@@ -414,6 +289,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       padding: const EdgeInsets.only(right: 12),
                       child: GestureDetector(
                         onTap: () {
+                          // Navigate to your original ProductDetailPage (from product.dart)
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -421,6 +297,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                           );
                         },
+                        // Reverted to fixed tileWidth for Trending Items as requested
                         child: _buildProductTile(context, product, tileWidth: 150),
                       ),
                     );
@@ -450,6 +327,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         itemCount: _deals.length,
                         itemBuilder: (context, index) {
                           final deal = _deals[index];
+                          // Create a Product object for the deal item to pass to ProductDetailPage
                           final Product dealProduct = Product(
                             id: 'Deal_${deal['name']!}_$index',
                             title: deal['name']!,
@@ -457,7 +335,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             imageUrl: deal['image']!,
                             category: 'Deals',
                             availableSizes: [
-                              ProductSize(size: 'piece', price: double.tryParse(deal['price']!.replaceAll('₹ ', '').replaceAll('/piece', '')) ?? 0.0),
+                              ProductSize(
+                                size: 'piece',
+                                price: double.tryParse(deal['price']!.replaceAll('₹ ', '').replaceAll('/piece', '')) ?? 0.0,
+                              ),
                             ],
                             selectedUnit: 'piece',
                           );
@@ -470,74 +351,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               borderRadius: BorderRadius.circular(4),
                               color: Colors.white,
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 80,
-                                  child: Center(
-                                    child: AspectRatio(
-                                      aspectRatio: 1.0,
-                                      child: _getEffectiveImageUrl(deal['image']!).startsWith('http')
-                                          ? Image.network(
+                            child: GestureDetector( // Added GestureDetector for deal tiles
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProductDetailPage(product: dealProduct),
+                                  ),
+                                );
+                              },
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 80,
+                                    child: Center(
+                                      child: AspectRatio(
+                                        aspectRatio: 1.0,
+                                        child: _getEffectiveImageUrl(deal['image']!).startsWith('http')
+                                            ? Image.network(
+                                            _getEffectiveImageUrl(deal['image']!),
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (context, error, stackTrace) => Image.asset(
+                                              'assets/placeholder.png',
+                                              fit: BoxFit.contain,
+                                            ))
+                                            : Image.asset(
                                           _getEffectiveImageUrl(deal['image']!),
                                           fit: BoxFit.contain,
-                                          errorBuilder: (context, error, stackTrace) => Image.asset(
-                                            'assets/placeholder.png',
-                                            fit: BoxFit.contain,
-                                          ))
-                                          : Image.asset(
-                                        _getEffectiveImageUrl(deal['image']!),
-                                        fit: BoxFit.contain,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  deal['name']!,
-                                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  deal['original']!,
-                                  style: GoogleFonts.poppins(decoration: TextDecoration.lineThrough),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  deal['price']!,
-                                  style: GoogleFonts.poppins(color: Colors.green),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 8),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      Provider.of<CartModel>(context, listen: false).addItem(dealProduct.copyWith());
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('${dealProduct.title} added to cart!'),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xffEB7720),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8)),
-                                    child: Text(
-                                      "Add",
-                                      style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
-                                    ),
+                                  const SizedBox(height: 5), // Reduced from 10 to 5
+                                  Text(
+                                    deal['name']!,
+                                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
+                                  Text(
+                                    deal['original']!,
+                                    style: GoogleFonts.poppins(decoration: TextDecoration.lineThrough),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  // Removed Padding, adjusted font size slightly
+                                  Text(
+                                    deal['price']!,
+                                    style: GoogleFonts.poppins(color: Colors.green, fontSize: 12.5), // Slightly reduced font size
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },
@@ -547,16 +415,139 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(height: 8),
+              // Top Categories Section (Vertical Grid)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "New On Kisangro",
+                      "Top Categories",
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        // Use the callback to notify the parent Bot widget to change the tab
+                        widget.onCategoryViewAll?.call();
+                      },
+                      child: Text(
+                        "View All",
+                        style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: GridView.builder(
+                  shrinkWrap: true, // Important for nested scroll views
+                  physics: const NeverScrollableScrollPhysics(), // Important for nested scroll views
+                  itemCount: _categories.take(6).length, // Display only the first 6 categories
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount( // Conditional grid delegate for categories
+                    crossAxisCount: isTablet ? 4 : 3, // 4 columns for tablets, 3 for phones
+                    mainAxisSpacing: 12, // Vertical spacing between tiles
+                    crossAxisSpacing: 12, // Horizontal spacing between tiles
+                    childAspectRatio: isTablet ? 0.9 : 0.85, // Adjust this for desired height/width ratio of tiles
+                  ),
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    return GestureDetector(
+                      onTap: () {
+                        // This navigation is for tapping individual category tiles,
+                        // which should still push a new screen as before.
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CategoryProductsScreen(
+                              categoryTitle: category['label']!, // Use 'label' key
+                              categoryId: category['cat_id']!, // Pass the 'cat_id'
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(5),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (category['icon'] != null && category['icon']!.isNotEmpty)
+                              Image.asset(
+                                category['icon']!, // Use 'icon' key
+                                height: 40,
+                                width: 40,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.category, size: 40, color: Color(0xffEB7720)); // Fallback icon
+                                },
+                              )
+                            else
+                              const Icon(Icons.category, size: 40, color: Color(0xffEB7720)), // Fallback if icon path is null/empty
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: Text(
+                                category['label']!, // Use 'label' key
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 2, // Allow two lines for category titles
+                                overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // END NEW: Top Categories Section
+              const SizedBox(height: 30), // Spacing after Top Categories
+              // Thick white divider
+              const Divider(
+                color: Colors.white,
+                thickness: 8.0, // Make it thick
+                height: 0, // No extra height from the divider itself
+              ),
+              const SizedBox(height: 10), // Add some spacing after the divider
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribute space
+                  children: [
+                    Text(
+                      "New On Kisangro", // Title for this section
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    // "View All" button for New On Kisangro
+                    GestureDetector(
+                      onTap: () {
+                        // Navigate to the new NewOnKisangroProductsScreen
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const NewOnKisangroProductsScreen()));
+                      },
+                      child: Text(
+                        "View All",
+                        style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
                       ),
                     ),
                   ],
@@ -565,28 +556,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.55,
-                  ),
-                  itemCount: _newOnKisangroItems.length,
-                  itemBuilder: (context, index) {
-                    final product = _newOnKisangroItems[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProductDetailPage(product: product),
-                          ),
+                child: LayoutBuilder( // Added LayoutBuilder for "New On Kisangro" GridView
+                  builder: (context, constraints) {
+                    final double screenWidth = constraints.maxWidth;
+                    // Determine crossAxisCount based on screen width
+                    int crossAxisCount;
+                    double childAspectRatio;
+
+                    // Responsive logic for "New On Kisangro" tiles
+                    // Decreased childAspectRatio to make tiles taller and fix 32px overflow
+                    if (screenWidth > 900) { // Large tablets / desktops (e.g., landscape iPad Pro)
+                      crossAxisCount = 5;
+                      childAspectRatio = 0.55; // Decreased from 0.75 to 0.55
+                    } else if (screenWidth > 700) { // Medium tablets (e.g., portrait iPad, landscape smaller tablets)
+                      crossAxisCount = 4;
+                      childAspectRatio = 0.6; // Decreased from 0.8 to 0.6
+                    } else if (screenWidth > 450) { // Smaller tablets / large phones in landscape
+                      crossAxisCount = 3;
+                      childAspectRatio = 0.65; // Decreased from 0.85 to 0.65
+                    } else { // Mobile phones (portrait)
+                      crossAxisCount = 2;
+                      childAspectRatio = 0.55; // Default for mobile (no change)
+                    }
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: childAspectRatio,
+                      ),
+                      itemCount: _newOnKisangroItems.length,
+                      itemBuilder: (context, index) {
+                        final product = _newOnKisangroItems[index];
+                        return GestureDetector(
+                          onTap: () {
+                            // Navigate to your original ProductDetailPage (from product.dart)
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProductDetailPage(product: product),
+                              ),
+                            );
+                          },
+                          // Removed fixed tileWidth here, as GridView handles sizing
+                          child: _buildProductTile(context, product),
                         );
                       },
-                      child: _buildProductTile(context, product),
                     );
                   },
                 ),
@@ -615,45 +633,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchScreen()));
-            },
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: Color(0xffEB7720)),
-                const SizedBox(width: 10),
-                Text(
-                  'Search here...',
-                  style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Container(
-            height: 24,
-            child: const VerticalDivider(color: Colors.grey),
-          ),
-          const SizedBox(width: 10),
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Icon(Icons.location_on, color: Color(0xffEB7720), size: 18),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    _currentLocation,
-                    style: GoogleFonts.poppins(
-                      color: const Color(0xffEB7720),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchScreen()));
+              },
+              child: Row(
+                children: [
+                  const Icon(Icons.search, color: Color(0xffEB7720)),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Search here...',
+                    style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -666,8 +660,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: AnimatedSmoothIndicator(
         activeIndex: _currentPage,
         count: _carouselImages.length,
-        effect: ExpandingDotsEffect(
-          activeDotColor: const Color(0xffEB7720),
+        effect: const ExpandingDotsEffect(
+          activeDotColor: Color(0xffEB7720),
           dotHeight: 5,
           dotWidth: 8,
         ),
@@ -678,7 +672,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildProductTile(BuildContext context, Product product, {double? tileWidth}) {
     final List<ProductSize> availableSizes = product.availableSizes.isNotEmpty
         ? product.availableSizes
-        : [ProductSize(size: 'Default', price: 0.0)];
+        : [ProductSize(size: 'Unit', price: product.pricePerSelectedUnit ?? 0.0)];
+
     final String selectedUnit = availableSizes.any((size) => size.size == product.selectedUnit)
         ? product.selectedUnit
         : availableSizes.first.size;
@@ -694,7 +689,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 100,
+            height: 100, // Fixed height for image area
             width: double.infinity,
             child: Center(
               child: Padding(
@@ -714,117 +709,125 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.title,
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  product.subtitle,
-                  style: GoogleFonts.poppins(fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '₹ ${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
-                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.green, fontWeight: FontWeight.w600),
-                ),
-                Text('Unit: $selectedUnit',
-                    style: GoogleFonts.poppins(fontSize: 10, color: const Color(0xffEB7720))),
-                const SizedBox(height: 8),
-                Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xffEB7720)),
-                    borderRadius: BorderRadius.circular(6),
+          Expanded( // Use Expanded to allow content to take available space
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribute space vertically
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.title,
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        product.subtitle,
+                        style: GoogleFonts.poppins(fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '₹ ${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.green, fontWeight: FontWeight.w600),
+                      ),
+                      Text('Unit: $selectedUnit',
+                          style: GoogleFonts.poppins(fontSize: 10, color: const Color(0xffEB7720))),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xffEB7720)),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedUnit,
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xffEB7720), size: 20),
+                            underline: const SizedBox(),
+                            isExpanded: true,
+                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),
+                            items: availableSizes.map((sizeOption) => DropdownMenuItem<String>(
+                              value: sizeOption.size,
+                              child: Text(sizeOption.size),
+                            )).toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                product.selectedUnit = val!;
+                                debugPrint('Selected unit for ${product.title}: $val, Price: ₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}');
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedUnit,
-                      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xffEB7720), size: 20),
-                      underline: const SizedBox(),
-                      isExpanded: true,
-                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),
-                      items: availableSizes.map((sizeOption) => DropdownMenuItem<String>(
-                        value: sizeOption.size,
-                        child: Text(sizeOption.size),
-                      )).toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          product.selectedUnit = val!;
-                          debugPrint('Selected unit for ${product.title}: $val, Price: ₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}');
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Provider.of<CartModel>(context, listen: false).addItem(product.copyWith());
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${product.title} added to cart!'),
-                              backgroundColor: Colors.green,
+                  const SizedBox(height: 8), // Add some spacing before the buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Provider.of<CartModel>(context, listen: false).addItem(product.copyWith());
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${product.title} added to cart!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xffEB7720),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8)),
+                          child: Text(
+                            "Add",
+                            style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      Consumer<WishlistModel>(
+                        builder: (context, wishlist, child) {
+                          final bool isFavorite = wishlist.items.any(
+                                  (item) => item.id == product.id && item.selectedUnit == product.selectedUnit);
+                          return IconButton(
+                            onPressed: () {
+                              if (isFavorite) {
+                                wishlist.removeItem(product.id, product.selectedUnit);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${product.title} removed from wishlist!'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } else {
+                                wishlist.addItem(product.copyWith());
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${product.title} added to wishlist!'),
+                                    backgroundColor: Colors.blue,
+                                  ),
+                                );
+                              }
+                            },
+                            icon: Icon(
+                              isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: const Color(0xffEB7720),
                             ),
                           );
                         },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xffEB7720),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 8)),
-                        child: Text(
-                          "Add",
-                          style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
-                        ),
-                      ),
-                    ),
-                    Consumer<WishlistModel>(
-                      builder: (context, wishlist, child) {
-                        final bool isFavorite = wishlist.items.any(
-                                (item) => item.id == product.id && item.selectedUnit == product.selectedUnit);
-                        return IconButton(
-                          onPressed: () {
-                            if (isFavorite) {
-                              wishlist.removeItem(product.id, product.selectedUnit);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${product.title} removed from wishlist!'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            } else {
-                              wishlist.addItem(product.copyWith());
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${product.title} added to wishlist!'),
-                                  backgroundColor: Colors.blue,
-                                ),
-                              );
-                            }
-                          },
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: const Color(0xffEB7720),
-                          ),
-                        );
-                      },
-                    )
-                  ],
-                ),
-              ],
+                      )
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],

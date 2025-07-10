@@ -12,6 +12,7 @@ import 'package:kisangro/home/noti.dart'; // Assuming this page exists
 import 'package:kisangro/menu/wishlist.dart'; // Assuming this page exists
 import 'package:kisangro/services/product_service.dart'; // Import ProductService to fetch categories
 
+import '../common/common_app_bar.dart'; // Import CustomAppBar
 import '../login/login.dart'; // For logout navigation
 import '../menu/account.dart'; // For My Account navigation
 import '../menu/ask.dart'; // For Ask Us! navigation
@@ -21,7 +22,8 @@ import '../menu/transaction.dart'; // For Transaction History navigation
 import '../models/kyc_image_provider.dart'; // Import your custom KYC image provider
 import 'package:kisangro/categories/category_products_screen.dart';
 
-import 'custom_drawer.dart'; // Import the new category products screen
+import 'custom_drawer.dart'; // Import the CustomDrawer
+
 
 class ProductCategoriesScreen extends StatefulWidget {
   const ProductCategoriesScreen({super.key}); // Add const constructor
@@ -35,8 +37,6 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey =
   GlobalKey<ScaffoldState>(); // Key for Scaffold to open drawer
 
-  // Removed _currentPage, _pageController, _timer, _currentLocation as they are not used here.
-
   double _rating = 4.0; // Initial rating for the review dialog
   final TextEditingController _reviewController =
   TextEditingController(); // Controller for review text field
@@ -49,6 +49,12 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
   void initState() {
     super.initState();
     _loadCategories(); // Load categories when the screen initializes
+  }
+
+  @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCategories() async {
@@ -89,7 +95,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
           // Perform logout actions and navigate to LoginApp, clearing navigation stack
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => LoginApp()),
+            MaterialPageRoute(builder: (context) => const LoginApp()),
                 (Route<dynamic> route) => false, // Remove all routes below
           );
           ScaffoldMessenger.of(context).showSnackBar(
@@ -288,75 +294,19 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
   }
 
   @override
-  void dispose() {
-    _reviewController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey, // Assign scaffold key to control drawer
-      drawer: CustomDrawer(),
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        centerTitle: false,
-        elevation: 0,
-        title: Transform.translate(
-          offset: const Offset(-20, 0),
-          child: Text(
-            "Product Categories",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            _scaffoldKey.currentState!.openDrawer(); // Open drawer on menu icon tap
-          },
-          icon: const Icon(
-            Icons.menu,
-            color: Colors.white,
-          ),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyOrder())); // Added const
-            },
-            icon: Image.asset(
-              'assets/box.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const WishlistPage())); // Added const
-            },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 10.0),
-            child: IconButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const noti())); // Added const
-              },
-              icon: Image.asset(
-                'assets/noti.png',
-                height: 24,
-                width: 24,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
+      drawer: const CustomDrawer(), // Use const for CustomDrawer
+      appBar: CustomAppBar( // Integrated CustomAppBar
+        title: "Product Categories", // Title for the app bar
+        showBackButton: false, // Do NOT show back button
+        showMenuButton: true, // Show menu button to open the drawer
+        scaffoldKey: _scaffoldKey, // Pass the scaffold key
+        showWhatsAppIcon: false, // Do not show WhatsApp icon
+        isMyOrderActive: false,
+        isWishlistActive: false,
+        isNotiActive: false,
       ),
       body: Container(
         height: double.infinity,
@@ -543,81 +493,89 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
 
   /// Builds a single menu item in the drawer.
   Widget _buildMenuItem(IconData icon, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 2),
-        height: 40,
-        decoration: const BoxDecoration(color: Color(0xffffecdc)), // Light orange background
-        child: ListTile(
-          leading: Icon(icon, color: const Color(0xffEB7720)), // Orange icon
-          title: Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.bold, // Consistent bold font weight
-            ),
+    return Column( // Use Column to include the Divider
+      children: [
+        Container(
+          decoration: const BoxDecoration( // Changed to const as color is now fixed
+            color: Color(0xffffecdc), // Background color for the item
           ),
-          onTap: () {
-            // Close the drawer before navigating
-            Navigator.pop(context);
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), // Adjust padding to remove inner spacing
+            leading: Icon(icon, color: const Color(0xffEB7720)), // Orange icon
+            title: Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.bold, // Consistent bold font weight
+              ),
+            ),
+            onTap: () {
+              // Close the drawer before navigating
+              Navigator.pop(context);
 
-            // Handle navigation based on the tapped menu item label
-            switch (label) {
-              case 'My Account':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MyAccountPage()), // Added const
-                );
-                break;
-              case 'Wishlist': // Added Wishlist navigation
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WishlistPage()), // Added const
-                );
-                break;
-              case 'Transaction History':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>  TransactionHistoryPage(), // Added const
-                  ),
-                );
-                break;
-              case 'Ask Us!':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) =>  AskUsPage()), // Added const
-                );
-                break;
-              case 'Rate Us':
-                showComplaintDialog(context); // Show review dialog
-                break;
-              case 'Settings':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) =>  SettingsPage()), // Added const
-                );
-                break;
-              case 'Logout':
-                _showLogoutDialog(context); // Show logout confirmation dialog
-                break;
-              case 'About Us':
-              // Handle About Us navigation
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('About Us page coming soon!')),
-                );
-                break;
-              case 'Share Kisangro':
-              // Handle Share functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share functionality coming soon!')),
-                );
-                break;
-            }
-          },
+              // Handle navigation based on the tapped menu item label
+              switch (label) {
+                case 'My Account':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MyAccountPage()), // Added const
+                  );
+                  break;
+                case 'My Orders': // Added My Orders navigation
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MyOrder()), // Added const
+                  );
+                  break;
+                case 'Wishlist': // Added Wishlist navigation
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const WishlistPage()), // Added const
+                  );
+                  break;
+                case 'Transaction History':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>  TransactionHistoryPage(),
+                    ),
+                  );
+                  break;
+                case 'Ask Us!':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => AskUsPage()),
+                  );
+                  break;
+                case 'Rate Us':
+                  showComplaintDialog(context); // Show review dialog
+                  break;
+                case 'Settings':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => SettingsPage()),
+                  );
+                  break;
+                case 'Logout':
+                  _showLogoutDialog(context); // Show logout confirmation dialog
+                  break;
+                case 'About Us':
+                // Handle About Us navigation
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('About Us page coming soon!')),
+                  );
+                  break;
+                case 'Share Kisangro':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Share functionality coming soon!')),
+                  );
+                  break;
+              }
+            },
+          ),
         ),
-      ),
+        const Divider(height: 1, thickness: 1, color: Colors.grey), // Divider between items
+      ],
     );
   }
 }

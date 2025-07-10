@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart'; // For post-frame callback
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/home/cart.dart';
-import 'package:kisangro/home/categories.dart';
+import 'package:kisangro/home/categories.dart'; // ProductCategoriesScreen
 import 'package:kisangro/home/homepage.dart';
 import 'package:kisangro/home/reward_screen.dart';
 import 'package:kisangro/home/rewards_popup.dart'; // Import RewardsPopup
@@ -55,8 +55,21 @@ class _BotState extends State<Bot> {
   }
 
   // List of main screens for the bottom navigation
+  // NOTE: ProductCategoriesScreen is at index 1
   final List<Widget> _screens = [
-    const HomeScreen(), // Index 0
+    // We will pass the _onItemTapped callback to HomeScreen
+    // so HomeScreen can request a tab change.
+    // Wrap HomeScreen in a builder to provide the callback.
+    Builder(builder: (context) {
+      return HomeScreen(
+        onCategoryViewAll: () {
+          // When "View All" for categories is tapped in HomeScreen,
+          // we update the selected index of the BottomNavigationBar to 1 (Categories).
+          final _BotState? botState = context.findAncestorStateOfType<_BotState>();
+          botState?._onItemTapped(1); // Set index to 1 for Categories tab
+        },
+      );
+    }),
     const ProductCategoriesScreen(), // Index 1
     const RewardScreen(), // Index 2
     const Cart(), // Index 3

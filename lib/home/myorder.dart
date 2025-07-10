@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:kisangro/home/bottom.dart';
-import 'package:kisangro/home/product.dart';
+import 'package:kisangro/home/product.dart'; // This is your existing ProductDetailPage
 import 'package:provider/provider.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:kisangro/home/cancel1.dart';
 import 'package:kisangro/home/noti.dart';
 import 'package:kisangro/home/cart.dart';
-import 'package:kisangro/home/multi_product_order_detail_page.dart';
+import 'package:kisangro/home/multi_product_order_detail_page.dart'; // Correct import path for MultiProductOrderDetailPage
 import 'package:kisangro/login/login.dart';
 import 'package:kisangro/menu/account.dart';
 import 'package:kisangro/menu/ask.dart';
@@ -22,7 +22,15 @@ import 'package:kisangro/menu/wishlist.dart';
 import 'package:kisangro/models/order_model.dart';
 import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/kyc_image_provider.dart';
+import '../common/common_app_bar.dart';
 import 'dispatched_orders_screen.dart';
+// Keep this import if it's used elsewhere, but not for this specific navigation
+import 'package:kisangro/models/product_model.dart'; // Ensure Product model is imported for conversion
+import 'package:kisangro/home/trending_products_screen.dart'; // Import TrendingProductsScreen
+
+// Import the common_app_bar file
+
+
 
 class MyOrder extends StatefulWidget {
   const MyOrder({super.key});
@@ -33,9 +41,9 @@ class MyOrder extends StatefulWidget {
 
 class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _rating = 4;
-  final TextEditingController _reviewController = TextEditingController();
-  static const int maxChars = 100;
+  int _rating = 4; // Re-added for local management
+  final TextEditingController _reviewController = TextEditingController(); // Re-added for local management
+  static const int maxChars = 100; // Re-added for local management
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -47,10 +55,11 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
-    _reviewController.dispose();
+    _reviewController.dispose(); // Re-added dispose
     super.dispose();
   }
 
+  // Re-added _showLogoutDialog
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -71,6 +80,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
     );
   }
 
+  // Re-added showComplaintDialog
   void showComplaintDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -255,7 +265,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: Drawer(
+      drawer: Drawer( // Original Drawer implementation
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -273,72 +283,15 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
           ),
         ),
       ),
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        centerTitle: false,
-        title: Transform.translate(
-          offset: const Offset(-20, 0),
-          child: Text(
-            "My Orders",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (context) => const Bot(initialIndex: 0)));
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: Image.asset(
-              'assets/box.png',
-              height: 28,
-              width: 28,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const WishlistPage()));
-            },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 26,
-              width: 26,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const noti()));
-            },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 28,
-              width: 28,
-              color: Colors.white,
-            ),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.7),
-          labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-          unselectedLabelStyle: GoogleFonts.poppins(),
-          tabs: const [
-            Tab(text: 'Booked'),
-            Tab(text: 'Dispatched'),
-            Tab(text: 'Delivered'),
-            Tab(text: 'Cancelled'),
-          ],
-        ),
+      appBar: CustomAppBar( // Use the CustomAppBar widget
+        title: "My Orders",
+        showBackButton: true, // Show back button as per original AppBar
+        showMenuButton: false, // Do not show menu button
+        scaffoldKey: _scaffoldKey, // Pass the scaffold key
+        isMyOrderActive: true, // Highlight My Orders icon
+        isWishlistActive: false,
+        isNotiActive: false,
+        // showWhatsAppIcon is false by default in CustomAppBar, matching original
       ),
       body: Container(
         height: double.infinity,
@@ -365,13 +318,36 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
                 .where((order) => order.status == OrderStatus.cancelled)
                 .toList();
 
-            return TabBarView(
-              controller: _tabController,
+            return Column( // Wrap TabBar and TabBarView in a Column
               children: [
-                _buildOrderList(bookedOrders, orderModel),
-                _buildOrderList(dispatchedOrders, orderModel),
-                _buildOrderList(deliveredOrders, orderModel),
-                _buildOrderList(cancelledOrders, orderModel),
+                Material( // Wrap TabBar in Material to give it a background color
+                  color: const Color(0xffEB7720), // Background color for TabBar
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorColor: Colors.white,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white.withOpacity(0.7),
+                    labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                    unselectedLabelStyle: GoogleFonts.poppins(),
+                    tabs: const [
+                      Tab(text: 'Booked'),
+                      Tab(text: 'Dispatched'),
+                      Tab(text: 'Delivered'),
+                      Tab(text: 'Cancelled'),
+                    ],
+                  ),
+                ),
+                Expanded( // TabBarView should take the remaining space
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOrderList(bookedOrders, orderModel),
+                      _buildOrderList(dispatchedOrders, orderModel),
+                      _buildOrderList(deliveredOrders, orderModel),
+                      _buildOrderList(cancelledOrders, orderModel),
+                    ],
+                  ),
+                ),
               ],
             );
           },
@@ -423,6 +399,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
     );
   }
 
+  // Re-added _buildHeader
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -513,6 +490,7 @@ class _MyOrderState extends State<MyOrder> with SingleTickerProviderStateMixin {
     );
   }
 
+  // Re-added _buildMenuItem
   Widget _buildMenuItem(IconData icon, String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -603,17 +581,24 @@ class OrderCard extends StatelessWidget {
       case OrderStatus.cancelled:
         statusColor = Colors.red;
         break;
+      default: // Added default case to ensure statusColor is always initialized
+        statusColor = Colors.grey;
+        break;
     }
 
+    // Determine button visibility based on order status
     bool showCancelButton = (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed);
-    bool showTrackOrderButton = (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed || order.status == OrderStatus.dispatched);
-    bool showBrowseMoreButton = order.status == OrderStatus.delivered || order.status == OrderStatus.cancelled;
-    bool showRateProductButton = order.status == OrderStatus.delivered;
     bool showModifyOrderButton = (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed);
+    bool showTrackOrderButton = (order.status == OrderStatus.dispatched); // Only for dispatched
+    bool showRateProductButton = order.status == OrderStatus.delivered;
+    bool showInvoiceButton = (order.status == OrderStatus.delivered); // Only for delivered orders
+    bool showBrowseMoreButton = order.status == OrderStatus.delivered || order.status == OrderStatus.cancelled;
+
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      color: Colors.orange.shade50.withOpacity(0.3),
+      // MODIFIED: Darker background tile color
+      color: Colors.orange.shade100.withOpacity(0.5), // Changed from shade50.withOpacity(0.3)
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 3,
       child: Padding(
@@ -628,49 +613,59 @@ class OrderCard extends StatelessWidget {
                   'Order ID: ${order.id}',
                   style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(5),
+                // Conditionally display the status box based on order status
+                // This is a single widget (Container) so it can be directly in the Row's children list.
+                if (!(order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed || order.status == OrderStatus.cancelled))
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      order.status.name.toUpperCase(),
+                      style: GoogleFonts.poppins(color: statusColor, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  child: Text(
-                    order.status.name.toUpperCase(),
-                    style: GoogleFonts.poppins(color: statusColor, fontWeight: FontWeight.bold),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Order Date: ${DateFormat('dd MMM yyyy, hh:mm a').format(order.orderDate)}',
+              'Order Date: ${DateFormat('dd MMMyyyy, hh:mm a').format(order.orderDate)}',
               style: GoogleFonts.poppins(color: Colors.grey[600]),
             ),
+            // This is a single widget (Padding) so it can be directly in the Column's children list.
             if (order.status == OrderStatus.delivered && order.deliveredDate != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
-                  'Delivered On: ${DateFormat('dd MMM yyyy').format(order.deliveredDate!)}',
+                  'Delivered On: ${DateFormat('dd MMMyyyy').format(order.deliveredDate!)}',
                   style: GoogleFonts.poppins(color: Colors.green, fontWeight: FontWeight.w500),
                 ),
               ),
             const Divider(height: 20, thickness: 1),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: order.products.length,
-              itemBuilder: (context, idx) {
-                final product = order.products[idx];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MultiProductOrderDetailPage(order: order),
-                      ),
-                    );
-                  },
-                  child: Padding(
+            // The entire ListView.builder for products is now wrapped in a GestureDetector
+            // to navigate to MultiProductOrderDetailPage for the whole order.
+            // This is a single widget (GestureDetector) so it can be directly in the Column's children list.
+            GestureDetector(
+              onTap: () {
+                // Navigate to MultiProductOrderDetailPage with the entire order object
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MultiProductOrderDetailPage(order: order),
+                  ),
+                );
+              },
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: order.products.length,
+                itemBuilder: (context, idx) {
+                  final orderedProduct = order.products[idx];
+                  // No need to convert to Product here as we are navigating to MultiProductOrderDetailPage
+                  // which expects the Order object.
+                  return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,22 +676,22 @@ class OrderCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
                             color: Colors.grey[200],
-                            image: _isValidUrl(product.imageUrl)
+                            image: _isValidUrl(orderedProduct.imageUrl)
                                 ? DecorationImage(
-                              image: NetworkImage(product.imageUrl),
+                              image: NetworkImage(orderedProduct.imageUrl),
                               fit: BoxFit.cover,
                               onError: (exception, stacktrace) {
-                                debugPrint("Error loading image: ${product.imageUrl}");
+                                debugPrint("Error loading image: ${orderedProduct.imageUrl}");
                               },
                             )
                                 : DecorationImage(
-                              image: AssetImage(product.imageUrl),
+                              image: AssetImage(orderedProduct.imageUrl),
                               fit: BoxFit.cover,
                             ),
                           ),
-                          child: _isValidUrl(product.imageUrl)
+                          child: _isValidUrl(orderedProduct.imageUrl)
                               ? null
-                              : (product.imageUrl.isEmpty
+                              : (orderedProduct.imageUrl.isEmpty
                               ? Center(child: Icon(Icons.broken_image, color: Colors.grey[400]))
                               : null),
                         ),
@@ -706,23 +701,23 @@ class OrderCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                product.title,
+                                orderedProduct.title,
                                 style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                product.description,
+                                orderedProduct.description,
                                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                '${product.unit} x ${product.quantity}',
+                                '${orderedProduct.unit} x ${orderedProduct.quantity}',
                                 style: GoogleFonts.poppins(fontSize: 12),
                               ),
                               Text(
-                                '₹${product.price.toStringAsFixed(2)}',
+                                '₹${orderedProduct.price.toStringAsFixed(2)}',
                                 style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.bold, color: const Color(0xffEB7720)),
                               ),
@@ -731,9 +726,9 @@ class OrderCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
             const Divider(height: 20, thickness: 1),
             Row(
@@ -751,173 +746,208 @@ class OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                if (showTrackOrderButton)
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          if (order.status == OrderStatus.booked || order.status == OrderStatus.pending || order.status == OrderStatus.confirmed) {
-                            orderModel.updateOrderStatus(order.id, OrderStatus.dispatched);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Order ${order.id} dispatched!', style: GoogleFonts.poppins())),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Tracking order ${order.id}!', style: GoogleFonts.poppins())),
-                            );
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => DispatchedOrdersScreen()),
-                            );
-                          }
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xffEB7720)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                        ),
-                        icon: const Icon(Icons.delivery_dining, color: Color(0xffEB7720), size: 16),
-                        label: Text(
-                          order.status == OrderStatus.dispatched
-                              ? 'Track Order'
-                              : (order.status == OrderStatus.delivered ? 'View Details' : 'Dispatch Now (Demo)'),
-                          style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (showTrackOrderButton && showCancelButton)
-                  const SizedBox(width: 12),
-                if (showCancelButton)
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => CancellationStep1Page(orderId: order.id)),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                        ),
-                        icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 16),
-                        label: Text(
-                          'Cancel Order',
-                          style: GoogleFonts.poppins(color: Colors.red),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            if (showRateProductButton || showBrowseMoreButton || showModifyOrderButton)
-              const SizedBox(height: 12),
-            Row(
-              children: [
-                if (showModifyOrderButton)
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Provider.of<CartModel>(context, listen: false).populateCartFromOrder(order.products);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const Cart()),
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Order ${order.id} loaded to cart for modification!', style: GoogleFonts.poppins())),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xffEB7720)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                        ),
-                        icon: const Icon(Icons.edit, color: Color(0xffEB7720), size: 16),
-                        label: Text(
-                          'Modify Order',
-                          style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (showModifyOrderButton && (showRateProductButton || showBrowseMoreButton))
-                  const SizedBox(width: 12),
-                if (showRateProductButton)
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Rating product for order ${order.id}!', style: GoogleFonts.poppins())),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xffEB7720),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                        ),
-                        icon: const Icon(Icons.star, color: Colors.white, size: 16),
-                        label: Text(
-                          'Rate Product',
-                          style: GoogleFonts.poppins(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            if (showBrowseMoreButton && showRateProductButton)
-              const SizedBox(width: 12),
-            if (showBrowseMoreButton)
+            // Row for Cancel and Modify (only for booked/pending/confirmed)
+            // This entire block is conditionally rendered by the outer 'if'
+            // The Column widget ensures that both the Row and the SizedBox are treated as a single child
+            // within the parent Column's children list.
+            if (showCancelButton || showModifyOrderButton)
               Column(
                 children: [
-                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      SizedBox(
-                        height: 40,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Generating invoice for order ${order.id}!', style: GoogleFonts.poppins())),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xffEB7720)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                          ),
-                          icon: const Icon(Icons.file_download_sharp, color: Color(0xffEB7720), size: 16),
-                          label: Text(
-                            'Invoice',
-                            style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
+                      if (showCancelButton)
+                        Expanded(
+                          child: SizedBox(
+                            height: 40,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => CancellationStep1Page(orderId: order.id)),
+                                );
+                              },
+                              style: OutlinedButton.styleFrom(
+                                // MODIFIED: Darker red color for outline
+                                side: const BorderSide(color: Color(0xFFC62828)), // Darker red
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                              ),
+                              icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 16),
+                              label: Text(
+                                'Cancel Order',
+                                style: GoogleFonts.poppins(color: Colors.red),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                      // Conditional spacing between buttons
+                      if (showCancelButton && showModifyOrderButton)
+                        const SizedBox(width: 12),
+                      if (showModifyOrderButton)
+                        Expanded(
+                          child: SizedBox(
+                            height: 40,
+                            // MODIFIED: Changed to ElevatedButton for filled highlight
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                // MODIFIED: Call the new method to ADD products to cart
+                                Provider.of<CartModel>(context, listen: false).addProductsToCartFromOrder(order.products);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const Cart()),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Order ${order.id} loaded to cart for modification!', style: GoogleFonts.poppins())),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                // MODIFIED: Darker orange color for fill
+                                backgroundColor: const Color(0xFFE65100), // Darker orange
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                              ),
+                              icon: const Icon(Icons.edit, color: Colors.white, size: 16), // Icon color to white for better contrast
+                              label: Text(
+                                'Modify Order',
+                                style: GoogleFonts.poppins(color: Colors.white), // Text color to white for better contrast
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  // Conditional spacing after this row of buttons, if other button rows follow
+                  if (showTrackOrderButton || showRateProductButton || showBrowseMoreButton)
+                    const SizedBox(height: 12),
+                ],
+              ),
+
+            // Row for Track Order (only for dispatched)
+            // This entire block is conditionally rendered by the outer 'if'
+            // The Column widget ensures that both the Row and the SizedBox are treated as a single child
+            // within the parent Column's children list.
+            if (showTrackOrderButton)
+              Column(
+                children: [
+                  Row(
+                    children: [
                       Expanded(
                         child: SizedBox(
                           height: 40,
-                          child: ElevatedButton(
+                          child: OutlinedButton.icon(
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Browsing more products!', style: GoogleFonts.poppins())),
+                                SnackBar(content: Text('Tracking order ${order.id}!', style: GoogleFonts.poppins())),
+                              );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => DispatchedOrdersScreen()),
                               );
                             },
-                            style: ElevatedButton.styleFrom(
+                            style: OutlinedButton.styleFrom(
+                              // MODIFIED: Darker orange color for outline
+                              side: const BorderSide(color: Color(0xFFE65100)), // Darker orange
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                              backgroundColor: const Color(0xffEB7720),
-                              padding: const EdgeInsets.symmetric(vertical: 5),
                             ),
-                            child: Text('Browse More', style: GoogleFonts.poppins(color: Colors.white)),
+                            icon: const Icon(Icons.delivery_dining, color: Color(0xffEB7720), size: 16),
+                            label: Text(
+                              'Track Order',
+                              style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
+                            ),
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                  // Conditional spacing after this row of buttons, if other button rows follow
+                  if (showRateProductButton || showBrowseMoreButton)
+                    const SizedBox(height: 12),
+                ],
+              ),
+
+
+            // Row for Rate Product and Browse More / Invoice (for delivered and cancelled)
+            // This entire block is conditionally rendered by the outer 'if'
+            // The Column widget ensures that the Row is treated as a single child
+            // within the parent Column's children list.
+            if (showRateProductButton || showBrowseMoreButton)
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      if (showInvoiceButton) // Only show Invoice button for delivered orders
+                        SizedBox(
+                          height: 40,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Generating invoice for order ${order.id}!', style: GoogleFonts.poppins())),
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              // MODIFIED: Darker orange color for outline
+                              side: const BorderSide(color: Color(0xFFE65100)), // Darker orange
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                            ),
+                            icon: const Icon(Icons.file_download_sharp, color: Color(0xffEB7720), size: 16),
+                            label: Text(
+                              'Invoice',
+                              style: GoogleFonts.poppins(color: const Color(0xffEB7720)),
+                            ),
+                          ),
+                        ),
+                      // Conditional spacing between buttons
+                      if (showInvoiceButton && showBrowseMoreButton)
+                        const SizedBox(width: 12),
+                      if (showRateProductButton)
+                        Expanded(
+                          child: SizedBox(
+                            height: 40,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Rating product for order ${order.id}!', style: GoogleFonts.poppins())),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                // MODIFIED: Darker orange color for fill
+                                backgroundColor: const Color(0xFFE65100), // Darker orange
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                              ),
+                              icon: const Icon(Icons.star, color: Colors.white, size: 16),
+                              label: Text(
+                                'Rate Product',
+                                style: GoogleFonts.poppins(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Conditional spacing between buttons
+                      if (showRateProductButton && showBrowseMoreButton && order.status != OrderStatus.cancelled)
+                        const SizedBox(width: 12),
+                      if (showBrowseMoreButton) // Only show "Browse More" if needed for delivered or cancelled
+                        Expanded(
+                          child: SizedBox(
+                            height: 40,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                // Navigate to TrendingProductsScreen on homepage.dart
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const TrendingProductsScreen()),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Browsing more products!', style: GoogleFonts.poppins())),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                // MODIFIED: Darker orange color for fill
+                                backgroundColor: const Color(0xFFE65100), // Darker orange
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                                padding: const EdgeInsets.symmetric(vertical: 5),
+                              ),
+                              child: Text('Browse More', style: GoogleFonts.poppins(color: Colors.white)),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ],

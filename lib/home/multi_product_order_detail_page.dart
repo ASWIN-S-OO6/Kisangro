@@ -3,12 +3,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:kisangro/models/order_model.dart';
-import 'package:kisangro/models/product_model.dart';
+import 'package:kisangro/models/product_model.dart'; // Ensure Product model is imported
+
+
+import 'orders_product_detail_page.dart'; // Import the new OrdersProductDetailPage
 
 class MultiProductOrderDetailPage extends StatelessWidget {
   final Order order;
 
   const MultiProductOrderDetailPage({Key? key, required this.order}) : super(key: key);
+
+  // Helper to check if the image URL is valid (not an asset path or empty)
+  bool _isValidUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    return Uri.tryParse(url)?.isAbsolute == true && !url.endsWith('erp/api/');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,59 +74,105 @@ class MultiProductOrderDetailPage extends StatelessWidget {
             ),
             Text('Products in this Order', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 10),
-            ...order.products.map((product) {
-              return Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.asset(
-                          product.imageUrl,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
+            ...order.products.map((orderedProduct) {
+              // Convert OrderedProduct to Product for OrdersProductDetailPage
+              final productForDetailPage = Product(
+                id: orderedProduct.id,
+                title: orderedProduct.title,
+                subtitle: orderedProduct.description,
+                imageUrl: orderedProduct.imageUrl,
+                category: orderedProduct.category,
+                // For availableSizes, create a list with just the ordered unit/price
+                availableSizes: [
+                  ProductSize(
+                    size: orderedProduct.unit,
+                    price: orderedProduct.price,
+                  ),
+                ],
+                selectedUnit: orderedProduct.unit, // Set the selected unit to the ordered unit
+              );
+
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OrdersProductDetailPage(product: productForDetailPage),
+                    ),
+                  );
+                },
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.grey[200],
+                              image: _isValidUrl(orderedProduct.imageUrl)
+                                  ? DecorationImage(
+                                image: NetworkImage(orderedProduct.imageUrl),
+                                fit: BoxFit.cover,
+                                onError: (exception, stacktrace) {
+                                  debugPrint("Error loading image: ${orderedProduct.imageUrl}");
+                                },
+                              )
+                                  : DecorationImage(
+                                image: AssetImage(orderedProduct.imageUrl),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            child: _isValidUrl(orderedProduct.imageUrl)
+                                ? null
+                                : (orderedProduct.imageUrl.isEmpty
+                                ? Center(child: Icon(Icons.broken_image, color: Colors.grey[400]))
+                                : null),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              product.title,
-                              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              product.description, // Line 101: Changed from subtitle
-                              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Unit: ${product.unit}', // Line 108: Changed from selectedUnit
-                              style: GoogleFonts.poppins(fontSize: 13),
-                            ),
-                            Text(
-                              'Price: ₹${product.price.toStringAsFixed(2)}', // Line 112: Changed from pricePerUnit
-                              style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xffEB7720)),
-                            ),
-                            Text(
-                              'Quantity: ${product.quantity}',
-                              style: GoogleFonts.poppins(fontSize: 13),
-                            ),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                orderedProduct.title,
+                                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                orderedProduct.description,
+                                style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Unit: ${orderedProduct.unit}',
+                                style: GoogleFonts.poppins(fontSize: 13),
+                              ),
+                              Text(
+                                'Price: ₹${orderedProduct.price.toStringAsFixed(2)}',
+                                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xffEB7720)),
+                              ),
+                              Text(
+                                'Quantity: ${orderedProduct.quantity}',
+                                style: GoogleFonts.poppins(fontSize: 13),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

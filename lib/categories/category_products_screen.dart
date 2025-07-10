@@ -24,7 +24,7 @@ class CategoryProductsScreen extends StatefulWidget {
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   List<Product> _allProducts = []; // Store all products fetched from API
-  List<Product> _displayedProducts = []; // Products currently displayed
+  List<Product> _displayedProducts = []; // Products currently displayed (filtered by search or category)
   bool _isLoading = true;
   bool _isLoadingMore = false;
   String? _errorMessage;
@@ -32,6 +32,8 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   final int _limit = 10; // Load 10 products at a time
   bool _hasMore = true; // Flag to check if more products are available
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController(); // Search controller
+  String _searchQuery = ''; // Stores the current search query
 
   String _getEffectiveImageUrl(String rawImageUrl) {
     if (rawImageUrl.isEmpty ||
@@ -47,11 +49,13 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     super.initState();
     _fetchCategoryProducts();
     _scrollController.addListener(_onScroll);
+    _searchController.addListener(_onSearchChanged); // Add listener for search input changes
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose(); // Dispose search controller
     super.dispose();
   }
 
@@ -61,6 +65,35 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         _scrollController.position.maxScrollExtent * 0.9) {
       _loadMoreProducts();
     }
+  }
+
+  // Method to handle search query changes
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+      _filterProducts(); // Filter products based on new search query
+    });
+  }
+
+  // Method to filter products based on the search query
+  void _filterProducts() {
+    if (_searchQuery.isEmpty) {
+      // If search query is empty, show products from the current category, paginated
+      _displayedProducts = _allProducts.take(_limit).toList();
+      _offset = _limit;
+      _hasMore = _allProducts.length > _limit;
+    } else {
+      // If there's a search query, filter all products in the category
+      _displayedProducts = _allProducts
+          .where((product) =>
+      product.title.toLowerCase().contains(_searchQuery) ||
+          product.subtitle.toLowerCase().contains(_searchQuery) ||
+          product.category.toLowerCase().contains(_searchQuery))
+          .toList();
+      _offset = _displayedProducts.length; // When searching, display all matching items, no load more
+      _hasMore = false; // No more items to load when a search is active
+    }
+    _isLoadingMore = false; // Reset loading more flag
   }
 
   Future<void> _fetchCategoryProducts() async {
@@ -74,10 +107,8 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       if (mounted) {
         setState(() {
           _allProducts = products;
-          _displayedProducts = products.take(_limit).toList();
+          _filterProducts(); // Filter immediately after fetching to populate _displayedProducts
           _isLoading = false;
-          _hasMore = products.length > _limit;
-          _offset = _limit;
         });
       }
     } catch (e) {
@@ -92,7 +123,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   }
 
   void _loadMoreProducts() {
-    if (!_hasMore || _isLoadingMore) return;
+    if (!_hasMore || _isLoadingMore || _searchQuery.isNotEmpty) return; // Don't load more if searching
     setState(() {
       _isLoadingMore = true;
     });
@@ -109,6 +140,41 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         });
       }
     });
+  }
+
+  // Method to build the search bar
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search products in ${widget.categoryTitle}...',
+          hintStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+          prefixIcon: const Icon(Icons.search, color: Color(0xffEB7720)),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+            icon: const Icon(Icons.clear, color: Colors.grey),
+            onPressed: () {
+              _searchController.clear();
+              _filterProducts(); // Clear search and show initial category products
+            },
+          )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none, // No border for a cleaner look
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+        ),
+        style: GoogleFonts.poppins(fontSize: 14),
+        onSubmitted: (value) {
+          _filterProducts(); // Trigger search on submit as well
+        },
+      ),
+    );
   }
 
   @override
@@ -151,37 +217,55 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             ),
           ),
         )
-            : _displayedProducts.isEmpty
+            : _displayedProducts.isEmpty && _searchQuery.isNotEmpty
             ? Center(
           child: Text(
-            'No products found for this category.',
+            'No products found matching "${_searchController.text}" in this category.',
             style: GoogleFonts.poppins(fontSize: 16, color: Colors.black54),
           ),
         )
-            : Column(
-          children: [
-            Expanded(
-              child: GridView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(12.0),
+            : CustomScrollView( // NEW: Use CustomScrollView for scrollable search bar
+          controller: _scrollController,
+          slivers: [
+            SliverToBoxAdapter( // NEW: Search bar as a sliver
+              child: _buildSearchBar(),
+            ),
+            // ADDED: Padding around the SliverGrid for alignment
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0), // Adjust padding here
+              sliver: SliverGrid( // NEW: Products grid as a sliver grid
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    final product = _displayedProducts[index];
+                    return _buildProductTile(context, product);
+                  },
+                  childCount: _displayedProducts.length,
+                ),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 200,
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
                   mainAxisExtent: 320,
                 ),
-                itemCount: _displayedProducts.length,
-                itemBuilder: (context, index) {
-                  final product = _displayedProducts[index];
-                  return _buildProductTile(context, product);
-                },
               ),
             ),
-            if (_isLoadingMore)
-              const Padding(
-                padding: EdgeInsets.all(16.0),
+            if (_isLoadingMore && _searchQuery.isEmpty)
+              SliverToBoxAdapter( // NEW: Loading indicator as a sliver
+                child: const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xffEB7720)),
+                  ),
+                ),
+              ),
+            if (_displayedProducts.isEmpty && _searchQuery.isEmpty) // Show 'No products' only if no search and genuinely empty
+              SliverFillRemaining(
+                hasScrollBody: false,
                 child: Center(
-                  child: CircularProgressIndicator(color: Color(0xffEB7720)),
+                  child: Text(
+                    'No products found for this category.',
+                    style: GoogleFonts.poppins(fontSize: 16, color: Colors.black54),
+                  ),
                 ),
               ),
           ],
@@ -191,6 +275,14 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   }
 
   Widget _buildProductTile(BuildContext context, Product product) {
+    final List<ProductSize> availableSizes = product.availableSizes.isNotEmpty
+        ? product.availableSizes
+        : [ProductSize(size: 'Default', price: 0.0)];
+    final String selectedUnit = availableSizes.any((size) => size.size == product.selectedUnit)
+        ? product.selectedUnit
+        : (availableSizes.isNotEmpty ? availableSizes.first.size : 'Default');
+
+
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -270,7 +362,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 4.0),
             child: Text(
-              'Price: ₹${product.pricePerSelectedUnit!.toStringAsFixed(2)}',
+              'Price: ₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}', // Safely access price
               style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

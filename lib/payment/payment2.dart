@@ -4,6 +4,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart'; // REQUIRED: Import Provider
 import 'package:kisangro/models/cart_model.dart'; // REQUIRED: Import CartModel
 import 'package:kisangro/models/address_model.dart'; // NEW: Import AddressModel
+import 'package:geolocator/geolocator.dart'; // NEW: Import geolocator
+import 'package:geocoding/geocoding.dart'; // NEW: Import geocoding
+
+// Import CustomAppBar
+
+// Import Bot for navigation (for back button functionality)
+import 'package:kisangro/home/bottom.dart';
+
+import '../common/common_app_bar.dart';
+
 
 class delivery2 extends StatelessWidget {
   const delivery2({super.key}); // Added const constructor
@@ -29,11 +39,136 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
   int wordCount = 0;
   final int wordLimit = 100;
 
+  // NEW: Local state for auto-detected location, to update text fields
+  String _autoDetectedAddress = '';
+  String _autoDetectedPincode = '';
+  bool _isDetectingLocation = false;
+
   void _onAddressChanged(String value) {
     final words = value.trim().split(RegExp(r'\s+'));
     setState(() {
       wordCount = words.length;
     });
+  }
+
+  // NEW: Determine current position and update AddressModel and text fields
+  Future<void> _determinePosition() async {
+    setState(() {
+      _isDetectingLocation = true;
+      _autoDetectedAddress = 'Detecting...';
+      _autoDetectedPincode = 'Loading...';
+    });
+
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      setState(() {
+        _autoDetectedAddress = 'Location services disabled.';
+        _autoDetectedPincode = 'N/A';
+        _isDetectingLocation = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location services are disabled. Please enable them.')),
+      );
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        setState(() {
+          _autoDetectedAddress = 'Location permission denied.';
+          _autoDetectedPincode = 'N/A';
+          _isDetectingLocation = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permissions are denied. Cannot fetch current location.')),
+        );
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      setState(() {
+        _autoDetectedAddress = 'Location permission permanently denied.';
+        _autoDetectedPincode = 'N/A';
+        _isDetectingLocation = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location permissions are permanently denied. Please enable from app settings.')),
+      );
+      return;
+    }
+
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+
+      if (mounted) {
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks.first;
+          String address = [
+            place.street,
+            place.subLocality,
+            place.locality,
+            place.administrativeArea,
+            place.country
+          ].where((element) => element != null && element.isNotEmpty).join(', ');
+
+          String pincode = place.postalCode ?? ''; // Use empty string if null
+
+          setState(() {
+            addressController.text = address;
+            pinController.text = pincode;
+            _onAddressChanged(address); // Update word count for the new address
+            _autoDetectedAddress = address; // Update local state for display
+            _autoDetectedPincode = pincode; // Update local state for display
+          });
+
+          // No need to update AddressModel here, it will be updated when "Save" is pressed.
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Location auto-detected: $address, $pincode')),
+          );
+
+        } else {
+          setState(() {
+            _autoDetectedAddress = 'Location found, but address unknown.';
+            _autoDetectedPincode = 'N/A';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location found, but could not get readable address.')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting location in payment2: $e');
+      if (mounted) {
+        setState(() {
+          _autoDetectedAddress = 'Could not get location.';
+          _autoDetectedPincode = 'N/A';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error getting current location: ${e.toString()}.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDetectingLocation = false;
+        });
+      }
+    }
   }
 
   @override
@@ -59,47 +194,15 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        centerTitle: false,
-        title: Transform.translate(
-          offset: const Offset(-20, 0),
-          child: Text(
-            "Add New Address",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context); // Go back to the previous screen (payment1.dart)
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Handle notification icon tap
-            },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              // Handle wishlist icon tap
-            },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          // Removed the cart icon button (bag.png)
-        ],
+      appBar: CustomAppBar( // Integrated CustomAppBar
+        title: "Add New Address", // Set the title
+        showBackButton: true, // Show back button
+        showMenuButton: false, // Do NOT show menu button (drawer icon)
+        // scaffoldKey is not needed here as there's no drawer
+        isMyOrderActive: false, // Not active
+        isWishlistActive: false, // Not active
+        isNotiActive: false, // Not active
+        // showWhatsAppIcon is false by default, matching original behavior
       ),
       body: Container(
         height: double.infinity,
@@ -184,6 +287,35 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                 ),
               ),
               const SizedBox(height: 30),
+              // NEW: Auto-detect Location Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isDetectingLocation ? null : _determinePosition,
+                  icon: _isDetectingLocation
+                      ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                      : const Icon(Icons.my_location, color: Colors.white),
+                  label: Text(
+                    _isDetectingLocation ? 'Detecting...' : 'Auto-detect Location',
+                    style: GoogleFonts.poppins(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xffEB7720),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20), // Spacing after auto-detect button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

@@ -2,6 +2,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/menu/chat.dart';
+import 'package:kisangro/home/cart.dart'; // Import Cart for box.png
+import 'package:kisangro/menu/wishlist.dart'; // Import WishlistPage for heart.png
+import 'package:kisangro/home/noti.dart'; // Import noti for noti.png
+
+// Import CustomAppBar
+
+// Import Bot for navigation (for back button functionality)
+import 'package:kisangro/home/bottom.dart';
+
+import '../common/common_app_bar.dart';
+
 
 class AskUsPage extends StatefulWidget {
   @override
@@ -19,37 +30,29 @@ class _AskUsPageState extends State<AskUsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFDF3E7),
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        elevation: 0,
-        title: Transform.translate(offset: Offset(-20, 0),
-          child: Text("Ask Us!",style: GoogleFonts.poppins(color: Colors.white,fontSize: 18),),),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back,color: Colors.white,),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          const Icon(CupertinoIcons.cube_box,color: Colors.white,),
-          const SizedBox(width: 12),
-          const Icon(Icons.favorite_border,color: Colors.white,),
-          const SizedBox(width: 12),
-          const Icon(CupertinoIcons.bell,color: Colors.white,),
-          const SizedBox(width: 12),
-        ],
+      appBar: CustomAppBar( // Integrated CustomAppBar
+        title: "Ask Us!", // Set the title
+        showBackButton: true, // Show back button
+        showMenuButton: false, // Do NOT show menu button (drawer icon)
+        // scaffoldKey is not needed here as there's no drawer
+        isMyOrderActive: false, // Not active
+        isWishlistActive: false, // Not active
+        isNotiActive: false, // Not active
+        // showWhatsAppIcon is false by default, matching original behavior
       ),
       body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xffFFD9BD),
-                Color(0xffFFFFFF),
-              ],
-            ),
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xffFFD9BD),
+              Color(0xffFFFFFF),
+            ],
           ),
+        ),
         child: Stack(
           children: [
             SingleChildScrollView(
@@ -81,7 +84,7 @@ class _AskUsPageState extends State<AskUsPage> {
                                   height: 1.3,
                                 ),
                                 children: [
-                                   TextSpan(text: "‘Stuck?\nLet Us Untangle It\n",style: GoogleFonts.poppins(fontSize: 14)),
+                                  TextSpan(text: "‘Stuck?\nLet Us Untangle It\n",style: GoogleFonts.poppins(fontSize: 14)),
                                   TextSpan(
                                     text: "For You!’",
                                     style: GoogleFonts.lato(
@@ -116,7 +119,7 @@ class _AskUsPageState extends State<AskUsPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Divider(),
+                  const Divider(),
 
                   _buildSectionTitle('Common Queries'),
                   const SizedBox(height: 12,),
@@ -178,9 +181,9 @@ class _AskUsPageState extends State<AskUsPage> {
                       style: GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.w600,color: Colors.white),
                     ),
                     const SizedBox(width: 8),
-                    Row(
+                    const Row(
                       children: [
-                         Icon(Icons.arrow_forward,color: Colors.white,),
+                        Icon(Icons.arrow_forward,color: Colors.white,),
 
                       ],
                     ),
@@ -234,7 +237,7 @@ class _AskUsPageState extends State<AskUsPage> {
           title,
           style: GoogleFonts.lato(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87),
         ),
-        trailing: Icon(
+        trailing: const Icon(
           Icons.keyboard_arrow_down,
           color: Colors.black54,
         ),
@@ -253,7 +256,7 @@ class _AskUsPageState extends State<AskUsPage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
             blurRadius: 2,
-            offset: Offset(0, 1),
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -264,7 +267,7 @@ class _AskUsPageState extends State<AskUsPage> {
               title,
               style: GoogleFonts.lato(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87),
             ),
-            trailing: Icon(
+            trailing: const Icon(
               Icons.keyboard_arrow_up,
               color: Colors.black54,
             ),

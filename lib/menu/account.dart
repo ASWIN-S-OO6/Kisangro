@@ -16,6 +16,13 @@ import 'package:kisangro/login/kyc.dart'; // Import kyc for navigating to KYC ed
 
 // NEW: Import the VerificationWarningPopup and Helper
 import 'package:kisangro/common/verification_warning_popup.dart'; // Adjust path if different
+// Import CustomAppBar
+
+// Import Bot for navigation (for back button functionality)
+import 'package:kisangro/home/bottom.dart';
+
+import '../common/common_app_bar.dart';
+
 
 class MyAccountPage extends StatelessWidget {
   const MyAccountPage({super.key});
@@ -28,62 +35,15 @@ class MyAccountPage extends StatelessWidget {
     final kycData = kycBusinessDataProvider.kycBusinessData; // Get the KYC data
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: orange,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 0,
-        title: Transform.translate(
-          offset: const Offset(-15, 0),
-          child: Text(
-            "My Account",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context); // Go back to the previous screen
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const MyOrder()));
-            },
-            icon: Image.asset(
-              'assets/box.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const WishlistPage()));
-            },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const noti()));
-            },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-        ],
+      appBar: CustomAppBar( // Integrated CustomAppBar
+        title: "My Account", // Set the title
+        showBackButton: true, // Show back button
+        showMenuButton: false, // Do NOT show menu button (drawer icon)
+        // scaffoldKey is not needed here as there's no drawer
+        isMyOrderActive: false, // Not active
+        isWishlistActive: false, // Not active
+        isNotiActive: false, // Not active
+        // showWhatsAppIcon is false by default, matching original behavior
       ),
       body: Container( // Added Container for the gradient background
         height: double.infinity,
@@ -207,9 +167,9 @@ class MyAccountPage extends StatelessWidget {
                     _buildBusinessDetail("PAN Number", kycData?.panNumber ?? "N/A"),
                     _buildBusinessDetail("Nature Of Core Business", kycData?.natureOfBusiness ?? "N/A"),
                     _buildBusinessDetail("Business Contact Number", kycData?.businessContactNumber ?? "N/A"),
-                    // Conditionally display Business Address
-                    if (kycData?.isGstinVerified == true && (kycData?.businessAddress?.isNotEmpty ?? false))
-                      _buildBusinessDetail("Business Address", kycData?.businessAddress ?? "N/A"),
+                    // NEW: Conditionally display Business Address
+                    if (kycData?.businessAddress != null && kycData!.businessAddress!.isNotEmpty)
+                      _buildBusinessDetail("Business Address", kycData.businessAddress!),
                   ],
                 ),
               ),
@@ -355,6 +315,7 @@ class MyAccountPage extends StatelessWidget {
         required VoidCallback onUploadNew}) {
     const orange = Color(0xFFEB7720);
     bool isUploaded = licenseData?.imageBytes != null;
+    // MODIFIED: Directly use licenseData?.licenseNumber and licenseData?.displayDate
     String licenseNumber = licenseData?.licenseNumber ?? 'N/A';
     String expiryDisplay = licenseData?.displayDate ?? 'N/A';
 

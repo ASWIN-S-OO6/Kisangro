@@ -80,7 +80,8 @@ class ProductService extends ChangeNotifier {
       _allCategories = categoriesData.cast<Map<String, String>>();
 
       debugPrint('ProductService: Loaded ${_allProducts.length} products and ${_allCategories.length} categories from cache.');
-      notifyListeners();
+      // Notify listeners only if this is the primary load path and data is actually loaded
+      // notifyListeners(); // Removed here, as initialize() or loadProductsFromApi() will call it.
       return true;
     } catch (e) {
       debugPrint('ProductService: Error loading from cache: $e');
@@ -88,75 +89,78 @@ class ProductService extends ChangeNotifier {
     }
   }
 
-  // Initialize method to handle API disconnection
+  // Initialize method to handle API disconnection and initial data loading
   Future<void> initialize() async {
     debugPrint('ProductService: Initializing...');
     if (await _loadFromCache()) {
       debugPrint('ProductService: Using cached data.');
+      // Attempt to refresh cache in background if network is available
       if (await _hasNetwork()) {
         _fetchAndUpdateCache();
       }
       return;
     }
 
+    // If no valid cache, try to fetch from network
     if (!await _hasNetwork()) {
       debugPrint('ProductService: No network. Loading dummy data.');
       _loadDummyCategoriesFallback();
       _loadDummyProductsFallback();
-      await _saveToCache();
+      await _saveToCache(); // Save dummy data to cache
       notifyListeners();
       return;
     }
 
+    // Attempt to load from API
     try {
-      await loadCategoriesFromApi();
-      await loadProductsFromApi();
-      await _saveToCache();
+      await loadCategoriesFromApi(); // Load categories first
+      await loadProductsFromApi(); // Then load products
+      await _saveToCache(); // Cache the fetched data
       notifyListeners();
     } catch (e) {
-      debugPrint('ProductService: API failed: $e. Loading dummy data.');
+      debugPrint('ProductService: API failed during initialization: $e. Loading dummy data.');
       _loadDummyCategoriesFallback();
       _loadDummyProductsFallback();
-      await _saveToCache();
+      await _saveToCache(); // Save dummy data to cache
       notifyListeners();
     }
   }
 
-  // Background fetch to update cache
+  // Background fetch to update cache (called after initial load if network is present)
   Future<void> _fetchAndUpdateCache() async {
     if (!await _hasNetwork()) {
-      debugPrint('ProductService: No network for background fetch.');
+      debugPrint('ProductService: No network for background fetch. Skipping cache update.');
       return;
     }
     try {
-      await loadCategoriesFromApi();
-      await loadProductsFromApi();
-      await _saveToCache();
-      notifyListeners();
+      debugPrint('ProductService: Performing background cache update...');
+      await loadCategoriesFromApi(); // Refresh categories
+      await loadProductsFromApi(); // Refresh products
+      await _saveToCache(); // Save refreshed data
+      notifyListeners(); // Notify UI of refreshed data
+      debugPrint('ProductService: Background cache update completed.');
     } catch (e) {
       debugPrint('ProductService: Background fetch failed: $e');
     }
   }
 
-  // Existing functions (unchanged except for catch blocks)
+  // Static method to load all products from API (type 1041 and 1044)
   static Future<void> loadProductsFromApi() async {
-    debugPrint('Attempting to load ALL product data from API (type=1041 and type=1044 for all categories): $_productApiUrl');
+    debugPrint('ProductService: Starting loadProductsFromApi...');
 
+    final List<Product> combinedProducts = [];
+    final Set<String> seenProductKeys = {}; // To track unique products
+
+    // Ensure categories are loaded first, as _fetchAllCategoryProductsForGlobalList depends on it
+    await loadCategoriesFromApi();
+    if (_allCategories.isEmpty) {
+      debugPrint('ProductService: No categories available. Cannot fetch category-specific products. Falling back to dummy products if no 1041 data.');
+      // We will still try to get 1041 products. If that also fails, dummy will be loaded.
+    }
+
+    // --- Fetch general products (type=1041) ---
+    debugPrint('ProductService: Fetching products of type 1041...');
     try {
-      // Step 1: Ensure categories are loaded
-      await loadCategoriesFromApi();
-      if (_allCategories.isEmpty) {
-        debugPrint('ProductService: No categories available. Falling back to dummy products.');
-        _loadDummyProductsFallback();
-        return;
-      }
-
-      // Step 2: Clear existing products
-      _allProducts.clear();
-      final seenProductKeys = <String>{}; // Track unique products by title and subtitle
-      final List<Product> productsToProcess = [];
-
-      // Step 3: Fetch general products (type=1041)
       final requestBody1041 = {
         'cid': _cid,
         'type': '1041',
@@ -174,8 +178,8 @@ class ProductService extends ChangeNotifier {
         body: requestBody1041,
       ).timeout(const Duration(seconds: 30));
 
-      debugPrint('Response Status Code (type=1041): ${response1041.statusCode}');
-      debugPrint('Response Body (type=1041, first 500 chars): ${response1041.body.substring(0, response1041.body.length > 500 ? 500 : response1041.body.length)}...');
+      debugPrint('ProductService: Response Status Code (type=1041): ${response1041.statusCode}');
+      // debugPrint('ProductService: Response Body (type=1041, first 500 chars): ${response1041.body.substring(0, response1041.body.length > 500 ? 500 : response1041.body.length)}...');
 
       if (response1041.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response1041.body);
@@ -193,65 +197,77 @@ class ProductService extends ChangeNotifier {
             final key = '${product.title}_${product.subtitle}';
             if (!seenProductKeys.contains(key)) {
               seenProductKeys.add(key);
-              productsToProcess.add(product);
+              combinedProducts.add(product);
             }
           }
+          debugPrint('ProductService: Added ${rawApiProductsData.length} products from type 1041. Current unique count: ${combinedProducts.length}');
         } else {
           debugPrint('ProductService: API response format invalid or status not success for type=1041.');
         }
       } else {
         debugPrint('ProductService: Failed to load products for type=1041. Status code: ${response1041.statusCode}.');
       }
-
-      // Step 4: Fetch products for all categories (type=1044)
-      await _fetchAllCategoryProductsForGlobalList(productsToProcess, seenProductKeys);
-
-      // Step 5: Update _allProducts
-      _allProducts = productsToProcess;
-      debugPrint('ProductService: Successfully loaded ${_allProducts.length} unique products from all categories.');
-
-      if (_allProducts.isEmpty) {
-        debugPrint('ProductService: No products loaded from API. Falling back to dummy products.');
-        _loadDummyProductsFallback();
-      }
-    } on TimeoutException catch (_) {
-      debugPrint('ProductService: Request timed out while loading products. Loading dummy data.');
-      _loadDummyProductsFallback();
-      return; // Avoid throwing to prevent UI crash
+    } on TimeoutException catch (e) {
+      debugPrint('ProductService: Request for type 1041 timed out: $e');
     } on http.ClientException catch (e) {
-      debugPrint('ProductService: Network error: $e. Loading dummy data.');
-      _loadDummyProductsFallback();
-      return; // Avoid throwing
+      debugPrint('ProductService: Network error for type 1041: $e');
     } catch (e) {
-      debugPrint('ProductService: Unexpected error fetching products: $e. Loading dummy data.');
-      _loadDummyProductsFallback();
-      return; // Avoid throwing
+      debugPrint('ProductService: Unexpected error fetching type 1041 products: $e');
     }
+
+    // --- Fetch products for all categories (type=1044) ---
+    debugPrint('ProductService: Fetching products for all categories (type 1044)...');
+    final List<Product> categorySpecificProducts = await _fetchAllCategoryProductsForGlobalList();
+
+    // Merge category-specific products, de-duplicating against already seen products
+    for (var product in categorySpecificProducts) {
+      final key = '${product.title}_${product.subtitle}';
+      if (!seenProductKeys.contains(key)) {
+        seenProductKeys.add(key);
+        combinedProducts.add(product);
+      }
+    }
+    debugPrint('ProductService: Merged ${categorySpecificProducts.length} category-specific products. Final unique product count: ${combinedProducts.length}');
+
+
+    // Final update of _allProducts
+    _allProducts = combinedProducts;
+
+    if (_allProducts.isEmpty) {
+      debugPrint('ProductService: No products loaded from API after all attempts. Falling back to dummy products.');
+      _loadDummyProductsFallback();
+    }
+    debugPrint('ProductService: Finished loadProductsFromApi. Total products: ${_allProducts.length}');
   }
 
-  static Future<void> _fetchAllCategoryProductsForGlobalList(List<Product> productsToProcess, Set<String> seenProductKeys) async {
-    debugPrint('Attempting to load ALL products from ALL categories (type=1044) for global search list.');
+  // This method now collects all category-specific products and returns them
+  static Future<List<Product>> _fetchAllCategoryProductsForGlobalList() async {
+    debugPrint('ProductService: Starting _fetchAllCategoryProductsForGlobalList...');
+    final List<Product> allCategoryProducts = [];
+    final Set<String> categorySeenProductKeys = {}; // Local de-duplication for this fetch
+
     const int maxTotalProducts = 10000; // Safety limit to prevent OOM
 
     for (var categoryMap in _allCategories) {
-      if (productsToProcess.length >= maxTotalProducts) {
-        debugPrint('ProductService: Reached maximum product limit ($maxTotalProducts). Stopping further fetches.');
+      if (allCategoryProducts.length >= maxTotalProducts) {
+        debugPrint('ProductService: Reached maximum product limit ($maxTotalProducts) during category fetch. Stopping further fetches.');
         break;
       }
 
       String categoryId = categoryMap['cat_id']!;
-      debugPrint('Fetching products for category ID: $categoryId (type=1044)');
-      final List<Product> categoryProducts = await fetchProductsByCategory(categoryId);
+      debugPrint('ProductService: Fetching products for category ID: $categoryId (type=1044)');
+      final List<Product> productsForCurrentCategory = await fetchProductsByCategory(categoryId);
 
-      for (var product in categoryProducts) {
+      for (var product in productsForCurrentCategory) {
         final key = '${product.title}_${product.subtitle}';
-        if (!seenProductKeys.contains(key)) {
-          seenProductKeys.add(key);
-          productsToProcess.add(product);
+        if (!categorySeenProductKeys.contains(key)) {
+          categorySeenProductKeys.add(key);
+          allCategoryProducts.add(product);
         }
       }
     }
-    debugPrint('ProductService: Finished loading all category products for global list. Total products: ${productsToProcess.length}');
+    debugPrint('ProductService: Finished _fetchAllCategoryProductsForGlobalList. Total products from categories: ${allCategoryProducts.length}');
+    return allCategoryProducts;
   }
 
   static List<Product> searchProductsLocally(String query) {
@@ -271,8 +287,11 @@ class ProductService extends ChangeNotifier {
     }).toList();
   }
 
+  // This method fetches products for a single category and returns them.
+  // It does NOT modify _allProducts directly.
   static Future<List<Product>> fetchProductsByCategory(String categoryId) async {
-    debugPrint('Attempting to load products for category ID: $categoryId via POST (type=1044): $_productApiUrl');
+    debugPrint('ProductService: Attempting to load products for category ID: $categoryId via POST (type=1044): $_productApiUrl');
+    List<Product> products = [];
 
     try {
       final requestBody = {
@@ -293,16 +312,15 @@ class ProductService extends ChangeNotifier {
         body: requestBody,
       ).timeout(const Duration(seconds: 30));
 
-      debugPrint('Response Status Code (type=1044, cat_id=$categoryId): ${response.statusCode}');
-      debugPrint('Response Body (type=1044, cat_id=$categoryId, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
+      debugPrint('ProductService: Response Status Code (type=1044, cat_id=$categoryId): ${response.statusCode}');
+      // debugPrint('ProductService: Response Body (type=1044, cat_id=$categoryId, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
 
         if (responseData['status'] == 'success' && responseData['data'] is List) {
           final List<dynamic> rawApiProductsData = responseData['data'];
-          final List<Product> categoryProducts = [];
-          final seenProductKeys = <String>{};
+          final Set<String> localSeenProductKeys = {}; // Local de-duplication for this category's response
 
           for (var item in rawApiProductsData) {
             String category = _determineCategory(item['pro_name'].toString().toLowerCase().trim());
@@ -319,7 +337,7 @@ class ProductService extends ChangeNotifier {
                   .map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>))
                   .toList();
             } else {
-              debugPrint('Warning: No "sizes" or "mrp" found for product "${item['pro_name']}" (cat_id: $categoryId). Using default "Unit" with price 0.0.');
+              debugPrint('ProductService: Warning: No "sizes" or "mrp" found for product "${item['pro_name']}" (cat_id: $categoryId). Using default "Unit" with price 0.0.');
               availableSizes.add(ProductSize(size: 'Unit', price: 0.0));
             }
 
@@ -334,35 +352,31 @@ class ProductService extends ChangeNotifier {
             );
 
             final key = '${product.title}_${product.subtitle}';
-            if (!seenProductKeys.contains(key)) {
-              seenProductKeys.add(key);
-              categoryProducts.add(product);
+            if (!localSeenProductKeys.contains(key)) {
+              localSeenProductKeys.add(key);
+              products.add(product);
             }
           }
-          debugPrint('ProductService: Successfully parsed ${categoryProducts.length} unique products for category ID $categoryId (type=1044).');
-          return categoryProducts;
+          debugPrint('ProductService: Successfully parsed ${products.length} unique products for category ID $categoryId (type=1044).');
         } else {
           debugPrint('ProductService: API response format invalid or status not success for category ID $categoryId (type=1044). Returning empty list.');
-          return [];
         }
       } else {
-        debugPrint('ProductService: Failed to load products for category ID $categoryId (type=1044). Status code: ${response.statusCode}.');
-        return [];
+        debugPrint('ProductService: Failed to load products for category ID $categoryId (type=1044). Status code: ${response.statusCode}. Returning empty list.');
       }
     } on TimeoutException catch (_) {
       debugPrint('ProductService: Request (type=1044, cat_id=$categoryId) timed out. Returning empty list.');
-      return []; // Avoid throwing
     } on http.ClientException catch (e) {
       debugPrint('ProductService: Network error for type 1044, cat_id=$categoryId: $e. Returning empty list.');
-      return []; // Avoid throwing
     } catch (e) {
       debugPrint('ProductService: Unexpected error fetching products for type 1044, cat_id=$categoryId: $e. Returning empty list.');
-      return []; // Avoid throwing
     }
+    return products;
   }
 
+
   static Future<void> loadCategoriesFromApi() async {
-    debugPrint('Attempting to load CATEGORIES data from API via POST (type=1043): $_productApiUrl');
+    debugPrint('ProductService: Attempting to load CATEGORIES data from API via POST (type=1043): $_productApiUrl');
 
     try {
       final requestBody = {
@@ -382,11 +396,11 @@ class ProductService extends ChangeNotifier {
         body: requestBody,
       ).timeout(const Duration(seconds: 30));
 
-      debugPrint('Response from server for loadCategoriesFromApi: ${response.body}');
-      debugPrint('Response Status Code (type=1043): ${response.statusCode}');
-      debugPrint('Response Body (type=1043, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
+      debugPrint('ProductService: Response from server for loadCategoriesFromApi: ${response.body}');
+      debugPrint('ProductService: Response Status Code (type=1043): ${response.statusCode}');
+      // debugPrint('ProductService: Response Body (type=1043, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
 
-      _allCategories.clear();
+      _allCategories.clear(); // Clear existing categories before populating
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> apiResponse = json.decode(response.body);
@@ -398,16 +412,17 @@ class ProductService extends ChangeNotifier {
             'HERBICIDE': 'assets/grid3.png',
             'PLANT GROWTH REGULATOR': 'assets/grid4.png',
             'ORGANIC BIOSTIMULANT': 'assets/grid5.png',
-            'LIQUID FERTILIZER': 'assets/grid6.png',
-            'MICRONUTRIENTS': 'assets/grid7.png',
-            'BIO FERTILISER': 'assets/grid8.png',
+            'LIQUID FERTILIZER': 'assets/grid7.png',
+            'MICRONUTRIENTS': 'assets/micro.png',
+            'BIO FERTILISER': 'assets/grid10.png',
+            // Add more mappings if you have other categories and their icons
           };
 
           for (var item in apiResponse['data'] as List) {
             String categoryName = (item['category'] as String).trim();
             _allCategories.add({
               'cat_id': item['cat_id'].toString(),
-              'icon': categoryIconMap[categoryName] ?? 'assets/placeholder_category.png',
+              'icon': categoryIconMap[categoryName] ?? 'assets/placeholder_category.png', // Use placeholder if no specific icon
               'label': categoryName,
             });
           }
@@ -423,18 +438,14 @@ class ProductService extends ChangeNotifier {
     } on TimeoutException catch (_) {
       debugPrint('ProductService: Request (type=1043) timed out. Loading dummy categories.');
       _loadDummyCategoriesFallback();
-      return; // Avoid throwing
     } on http.ClientException catch (e) {
       debugPrint('ProductService: Network error for type 1043: $e. Loading dummy categories.');
-      _loadDummyCategoriesFallback();
-      return; // Avoid throwing
     } catch (e) {
       debugPrint('ProductService: Unexpected error fetching categories for type 1043: $e. Loading dummy categories.');
-      _loadDummyCategoriesFallback();
-      return; // Avoid throwing
     }
   }
 
+  // Helper to determine category from product name (for 1041 products)
   static String _determineCategory(String proNameLower) {
     if (proNameLower.contains('insecticide') || proNameLower.contains('buggone') || proNameLower.contains('pestguard')) {
       return 'INSECTICIDE';
@@ -457,6 +468,7 @@ class ProductService extends ChangeNotifier {
     }
   }
 
+  // Fallback for dummy product data if API fails
   static void _loadDummyProductsFallback() {
     debugPrint('ProductService: Loading static dummy product data for fallback.');
     _allProducts.clear();
@@ -527,6 +539,7 @@ class ProductService extends ChangeNotifier {
     debugPrint('ProductService: Successfully loaded ${_allProducts.length} unique dummy products.');
   }
 
+  // Fallback for dummy category data if API fails
   static void _loadDummyCategoriesFallback() {
     debugPrint('ProductService: Loading static dummy category data for fallback.');
     _allCategories.clear();
@@ -544,6 +557,7 @@ class ProductService extends ChangeNotifier {
     debugPrint('ProductService: Successfully loaded ${_allCategories.length} dummy categories.');
   }
 
+  // Existing public methods (unchanged signatures)
   static List<Product> getAllProducts() {
     return List.from(_allProducts);
   }

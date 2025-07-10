@@ -41,18 +41,13 @@ class _licence4State extends State<licence4> {
 
   final TextRecognizer _textRecognizer = TextRecognizer();
 
-  final RegExp _insecticideLicenseRegExp = RegExp(
-    r'.*(?:License Number|Licence Number)\s*(TKK\s*/\s*PP\s*/\s*\d+\s*/\s*\d{4}\s*-\s*\d{2,4})',
-    caseSensitive: false,
-  );
-
-  final RegExp _fertilizerLicenseRegExp = RegExp(
-    r'CR\s*No\.?\s*(\d+\s*/\s*NR\s*/\s*CPT\s*/\s*TKK\s*/\s*\d{4}\s*-\s*\d{4})',
+  final RegExp _licenseNumberRegExp = RegExp(
+    r'(?:License Number|Licence Number)\s*[:\s]*([A-Z0-9\s\/\-\.]*[A-Z0-9])',
     caseSensitive: false,
   );
 
   final List<RegExp> _datePatterns = [
-    RegExp(r'(?:Valid\s+upto|Valid\s+up\s+to)\s*:?\s*(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{4})', caseSensitive: false),
+    RegExp(r'(?:Valid\s+upto|Valid\s+up\s+to|Expiry\s*Date)\s*:?\s*(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{4})', caseSensitive: false),
     RegExp(r'\b(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{4})\b'),
     RegExp(r'\b(\d{4}[\.\-\/]\d{1,2}[\.\-\/]\d{1,2})\b'),
   ];
@@ -70,8 +65,8 @@ class _licence4State extends State<licence4> {
     _currentLicenseTypeToDisplay = widget.licenseTypeToDisplay;
     _insecticideLicenseController.addListener(_checkFormValidity);
     _fertilizerLicenseController.addListener(_checkFormValidity);
-    _checkFormValidity();
-    _loadExistingLicenseData();
+    _loadExistingLicenseData(); // Load data first
+    _checkFormValidity(); // Then check validity based on loaded data
   }
 
   Future<void> _loadExistingLicenseData() async {
@@ -98,53 +93,36 @@ class _licence4State extends State<licence4> {
         _fertilizerIsImage = fertilizerData.isImage;
       });
     }
-    _checkFormValidity();
   }
 
-  bool get _isInsecticideSectionValid {
-    bool showPesticide = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'pesticide' || widget.licenseTypeToDisplay == 'all';
-    if (!showPesticide) return true;
+  bool get _shouldShowPesticideSection => widget.licenseTypeToDisplay == 'pesticide' || widget.licenseTypeToDisplay == 'all';
+  bool get _shouldShowFertilizerSection => widget.licenseTypeToDisplay == 'fertilizer' || widget.licenseTypeToDisplay == 'all';
 
+  bool get _isInsecticideSectionValid {
     return _insecticideLicenseController.text.isNotEmpty &&
         (_insecticideNoExpiry || _insecticideExpirationDate != null) &&
         _insecticideImageBytes != null;
   }
 
   bool get _isFertilizerSectionValid {
-    bool showFertilizer = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'fertilizer' || widget.licenseTypeToDisplay == 'all';
-    if (!showFertilizer) return true;
-
     return _fertilizerLicenseController.text.isNotEmpty &&
         (_fertilizerNoExpiry || _fertilizerExpirationDate != null) &&
         _fertilizerImageBytes != null;
   }
 
   bool get isFormValid {
-    bool showPesticideSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'pesticide' || _currentLicenseTypeToDisplay == 'all';
-    bool showFertilizerSection = _currentLicenseTypeToDisplay == null || _currentLicenseTypeToDisplay == 'fertilizer' || _currentLicenseTypeToDisplay == 'all';
-
-    bool pesticideValid = _isInsecticideSectionValid;
-    bool fertilizerValid = _isFertilizerSectionValid;
-
-    if (_currentLicenseTypeToDisplay == 'pesticide') {
-      return pesticideValid;
-    } else if (_currentLicenseTypeToDisplay == 'fertilizer') {
-      return fertilizerValid;
-    } else {
-      if (showPesticideSection && showFertilizerSection) {
-        return pesticideValid && fertilizerValid;
-      } else if (showPesticideSection) {
-        return pesticideValid;
-      } else if (showFertilizerSection) {
-        return fertilizerValid;
-      } else {
-        return false;
-      }
+    if (_shouldShowPesticideSection && _shouldShowFertilizerSection) {
+      return _isInsecticideSectionValid && _isFertilizerSectionValid;
+    } else if (_shouldShowPesticideSection) {
+      return _isInsecticideSectionValid;
+    } else if (_shouldShowFertilizerSection) {
+      return _isFertilizerSectionValid;
     }
+    return false;
   }
 
   void _checkFormValidity() {
-    setState(() {});
+    setState(() {}); // Rebuilds the UI to update button state
   }
 
   Future<void> _pickDate(BuildContext context, bool isInsecticide) async {
@@ -260,7 +238,7 @@ class _licence4State extends State<licence4> {
       final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
       final extractedText = recognizedText.text;
 
-      Navigator.pop(context);
+      Navigator.pop(context); // Dismiss processing dialog
 
       if (extractedText.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -281,7 +259,7 @@ class _licence4State extends State<licence4> {
 
       await _extractLicenseData(extractedText, isInsecticide, bytes, true);
     } catch (e) {
-      Navigator.pop(context);
+      Navigator.pop(context); // Dismiss processing dialog
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error processing image: $e. Please enter details manually.')),
       );
@@ -333,7 +311,9 @@ class _licence4State extends State<licence4> {
       final extractedText = textBuffer.toString();
       document.dispose();
 
-      Navigator.pop(context);
+      Navigator.pop(context); // Dismiss processing dialog
+
+      debugPrint('PDF Extracted Text (Raw): "$extractedText"');
 
       if (extractedText.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -354,7 +334,7 @@ class _licence4State extends State<licence4> {
 
       await _extractLicenseData(extractedText, isInsecticide, bytes, false);
     } catch (e) {
-      Navigator.pop(context);
+      Navigator.pop(context); // Dismiss processing dialog
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error processing PDF: $e. Please enter details manually.')),
       );
@@ -410,111 +390,96 @@ class _licence4State extends State<licence4> {
     String? expiryDateStr;
     bool isPermanent = false;
 
-    final cleanText = extractedText.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
-    print('Extracted text (cleaned): $cleanText');
+    final cleanText = extractedText.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    debugPrint('Extracted text (cleaned): "$cleanText"');
 
-    if (isInsecticide) {
-      final licenseMatch = _insecticideLicenseRegExp.firstMatch(cleanText);
-      if (licenseMatch != null && licenseMatch.group(1) != null) {
-        licenseNumber = licenseMatch.group(1)?.replaceAll(RegExp(r'\s+'), '');
-      }
+    final licenseMatch = _licenseNumberRegExp.firstMatch(cleanText);
+    if (licenseMatch != null && licenseMatch.group(1) != null) {
+      licenseNumber = licenseMatch.group(1)?.trim();
+      debugPrint('License Number extracted: "$licenseNumber"');
     } else {
-      final licenseMatch = _fertilizerLicenseRegExp.firstMatch(cleanText);
-      if (licenseMatch != null && licenseMatch.group(1) != null) {
-        licenseNumber = licenseMatch.group(1)?.replaceAll(RegExp(r'\s+'), '');
+      debugPrint('No License Number found using generic regex.');
+      final fallbackMatch = RegExp(r'\b[A-Z0-9]{3,}[A-Z0-9\s\/\-\.]*\b', caseSensitive: false).firstMatch(cleanText);
+      if (fallbackMatch != null) {
+        licenseNumber = fallbackMatch.group(0)?.trim();
+        debugPrint('Fallback License Number extracted: "$licenseNumber"');
       }
     }
 
     if (_permanentPattern.hasMatch(cleanText)) {
       isPermanent = true;
       expiryDateStr = 'Permanent';
+      debugPrint('Permanent validity detected.');
     } else {
       for (RegExp pattern in _datePatterns) {
         final match = pattern.firstMatch(cleanText);
         if (match != null) {
           String matchedDate = match.group(1) ?? match.group(0)!;
-          if (!cleanText.contains('date of grant of licence') || !cleanText.contains(matchedDate)) {
+          if (!(cleanText.contains('date of grant of licence') && cleanText.contains(matchedDate))) {
             expiryDateStr = matchedDate;
+            debugPrint('Expiry Date extracted: "$expiryDateStr" using pattern: "${pattern.pattern}"');
             break;
           }
         }
       }
+      if (expiryDateStr == null) {
+        debugPrint('No expiry date found.');
+      }
     }
 
-    final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
-    if (isInsecticide) {
-      await licenseProvider.setPesticideLicense(
-        imageBytes: bytes,
-        isImage: isImage,
-        licenseNumber: licenseNumber,
-        expirationDate: isPermanent ? null : _parseDate(expiryDateStr ?? ''),
-        noExpiry: isPermanent,
-        displayDate: isPermanent ? 'Permanent' : (expiryDateStr != null && _parseDate(expiryDateStr) != null ? DateFormat('dd/MM/yyyy').format(_parseDate(expiryDateStr)!) : null),
-      );
-    } else {
-      await licenseProvider.setFertilizerLicense(
-        imageBytes: bytes,
-        isImage: isImage,
-        licenseNumber: licenseNumber,
-        expirationDate: isPermanent ? null : _parseDate(expiryDateStr ?? ''),
-        noExpiry: isPermanent,
-        displayDate: isPermanent ? 'Permanent' : (expiryDateStr != null && _parseDate(expiryDateStr) != null ? DateFormat('dd/MM/yyyy').format(_parseDate(expiryDateStr)!) : null),
-      );
-    }
-
+    // Update local state first
     setState(() {
       if (isInsecticide) {
         _insecticideImageBytes = bytes;
         _insecticideIsImage = isImage;
-        if (licenseNumber != null) {
-          _insecticideLicenseController.text = licenseNumber.toUpperCase();
-        } else {
-          _insecticideLicenseController.clear();
-        }
-        if (isPermanent) {
-          _insecticideNoExpiry = true;
-          _insecticideExpirationDate = null;
-        } else if (expiryDateStr != null && expiryDateStr != 'Permanent') {
-          _insecticideNoExpiry = false;
-          _insecticideExpirationDate = _parseDate(expiryDateStr);
-        } else {
-          _insecticideNoExpiry = false;
-          _insecticideExpirationDate = null;
-        }
+        _insecticideLicenseController.text = licenseNumber ?? '';
+        _insecticideNoExpiry = isPermanent;
+        _insecticideExpirationDate = isPermanent ? null : _parseDate(expiryDateStr ?? '');
       } else {
         _fertilizerImageBytes = bytes;
         _fertilizerIsImage = isImage;
-        if (licenseNumber != null) {
-          _fertilizerLicenseController.text = licenseNumber.toUpperCase();
-        } else {
-          _fertilizerLicenseController.clear();
-        }
-        if (isPermanent) {
-          _fertilizerNoExpiry = true;
-          _fertilizerExpirationDate = null;
-        } else if (expiryDateStr != null && expiryDateStr != 'Permanent') {
-          _fertilizerNoExpiry = false;
-          _fertilizerExpirationDate = _parseDate(expiryDateStr);
-        } else {
-          _fertilizerNoExpiry = false;
-          _fertilizerExpirationDate = null;
-        }
+        _fertilizerLicenseController.text = licenseNumber ?? '';
+        _fertilizerNoExpiry = isPermanent;
+        _fertilizerExpirationDate = isPermanent ? null : _parseDate(expiryDateStr ?? '');
       }
     });
 
-    _checkFormValidity();
+    // Now save to provider with the current state (which includes OCR-extracted data)
+    final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+    if (isInsecticide) {
+      await licenseProvider.setPesticideLicense(
+        imageBytes: _insecticideImageBytes,
+        isImage: _insecticideIsImage,
+        licenseNumber: _insecticideLicenseController.text, // Use controller's current text
+        expirationDate: _insecticideExpirationDate,
+        noExpiry: _insecticideNoExpiry,
+        displayDate: _insecticideNoExpiry ? 'Permanent' : (_insecticideExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_insecticideExpirationDate!) : null),
+      );
+    } else {
+      await licenseProvider.setFertilizerLicense(
+        imageBytes: _fertilizerImageBytes,
+        isImage: _fertilizerIsImage,
+        licenseNumber: _fertilizerLicenseController.text, // Use controller's current text
+        expirationDate: _fertilizerExpirationDate,
+        noExpiry: _fertilizerNoExpiry,
+        displayDate: _fertilizerNoExpiry ? 'Permanent' : (_fertilizerExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_fertilizerExpirationDate!) : null),
+      );
+    }
+
+    _checkFormValidity(); // Re-check validity after state update
 
     String message = 'Document uploaded successfully!\n';
-    if (licenseNumber != null) {
-      message += 'License: ${licenseNumber.toUpperCase()}\n';
+    if (licenseNumber != null && licenseNumber.isNotEmpty) {
+      message += 'License: ${licenseNumber}\n';
+    } else {
+      message += 'License number could not be extracted.\n';
     }
     if (isPermanent) {
       message += 'Validity: Permanent';
-    } else if (expiryDateStr != null) {
-      message += 'Expiry: $expiryDateStr';
-    }
-    if (licenseNumber == null && expiryDateStr == null) {
-      message = 'Document uploaded but could not extract license details. Please verify or enter manually.';
+    } else if (expiryDateStr != null && _parseDate(expiryDateStr) != null) {
+      message += 'Expiry: ${DateFormat('dd/MM/yyyy').format(_parseDate(expiryDateStr)!)}';
+    } else {
+      message += 'Expiry date could not be extracted.';
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -536,7 +501,7 @@ class _licence4State extends State<licence4> {
         continue;
       }
     }
-    print('Failed to parse date: $cleanDate');
+    debugPrint('Failed to parse date: "$cleanDate"');
     return null;
   }
 
@@ -552,8 +517,8 @@ class _licence4State extends State<licence4> {
 
   @override
   Widget build(BuildContext context) {
-    bool showPesticideSection = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'pesticide' || widget.licenseTypeToDisplay == 'all';
-    bool showFertilizerSection = widget.licenseTypeToDisplay == null || widget.licenseTypeToDisplay == 'fertilizer' || widget.licenseTypeToDisplay == 'all';
+    final bool showPesticideSection = _shouldShowPesticideSection;
+    final bool showFertilizerSection = _shouldShowFertilizerSection;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -588,40 +553,68 @@ class _licence4State extends State<licence4> {
                 Text('Step 2/2', style: GoogleFonts.poppins(fontSize: 18, color: const Color(0xffEB7720), fontWeight: FontWeight.w600)),
                 const SizedBox(height: 20),
 
-                if (showPesticideSection) // Conditionally render Pesticide Section
+                if (showPesticideSection)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('1. Pesticide License', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
+                      // Moved _buildImageUpload to the top
+                      _buildImageUpload("Upload Pesticide License Document", _insecticideImageBytes, _insecticideIsImage, () => _pickFile(true)),
+                      const SizedBox(height: 20), // Spacing after image upload
+                      Text('Pesticide License', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
                       const SizedBox(height: 10),
                       TextField(
                         controller: _insecticideLicenseController,
                         style: GoogleFonts.poppins(),
                         decoration: _inputDecoration("Enter Pesticide License Number"),
+                        onChanged: (value) {
+                          final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+                          licenseProvider.setPesticideLicense(
+                            imageBytes: _insecticideImageBytes,
+                            isImage: _insecticideIsImage,
+                            licenseNumber: value,
+                            expirationDate: _insecticideExpirationDate,
+                            noExpiry: _insecticideNoExpiry,
+                            displayDate: _insecticideNoExpiry ? 'Permanent' : (_insecticideExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_insecticideExpirationDate!) : null),
+                          );
+                          _checkFormValidity();
+                        },
                       ),
                       const SizedBox(height: 20),
                       _buildDatePickerRow(context, true),
                       _buildCheckbox(true),
-                      _buildImageUpload("Upload Document", _insecticideImageBytes, _insecticideIsImage, () => _pickFile(true)),
-                      if (showFertilizerSection) const SizedBox(height: 20), // Add spacing if both sections are shown
+                      if (showFertilizerSection) const SizedBox(height: 20),
                     ],
                   ),
 
-                if (showFertilizerSection) // Conditionally render Fertilizer Section
+                if (showFertilizerSection)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('2. Fertilizer License', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
+                      // Moved _buildImageUpload to the top
+                      _buildImageUpload("Upload Fertilizer License Document", _fertilizerImageBytes, _fertilizerIsImage, () => _pickFile(false)),
+                      const SizedBox(height: 20), // Spacing after image upload
+                      Text('Fertilizer License', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xffEB7720))),
                       const SizedBox(height: 10),
                       TextField(
                         controller: _fertilizerLicenseController,
                         style: GoogleFonts.poppins(),
                         decoration: _inputDecoration("Enter Fertilizer License Number"),
+                        onChanged: (value) {
+                          final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+                          licenseProvider.setFertilizerLicense(
+                            imageBytes: _fertilizerImageBytes,
+                            isImage: _fertilizerIsImage,
+                            licenseNumber: value,
+                            expirationDate: _fertilizerExpirationDate,
+                            noExpiry: _fertilizerNoExpiry,
+                            displayDate: _fertilizerNoExpiry ? 'Permanent' : (_fertilizerExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_fertilizerExpirationDate!) : null),
+                          );
+                          _checkFormValidity();
+                        },
                       ),
                       const SizedBox(height: 20),
                       _buildDatePickerRow(context, false),
                       _buildCheckbox(false),
-                      _buildImageUpload("Upload Document", _fertilizerImageBytes, _fertilizerIsImage, () => _pickFile(false)),
                     ],
                   ),
 
@@ -630,12 +623,33 @@ class _licence4State extends State<licence4> {
                   onPressed: isFormValid
                       ? () async {
                     final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('hasUploadedLicenses', true); // Set the new flag to true
+                    await prefs.setBool('hasUploadedLicenses', true);
 
-                    // Navigate to KycSplashScreen from onprocess.dart
+                    final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+                    if (_shouldShowPesticideSection) {
+                      await licenseProvider.setPesticideLicense(
+                        imageBytes: _insecticideImageBytes,
+                        isImage: _insecticideIsImage,
+                        licenseNumber: _insecticideLicenseController.text,
+                        expirationDate: _insecticideExpirationDate,
+                        noExpiry: _insecticideNoExpiry,
+                        displayDate: _insecticideNoExpiry ? 'Permanent' : (_insecticideExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_insecticideExpirationDate!) : null),
+                      );
+                    }
+                    if (_shouldShowFertilizerSection) {
+                      await licenseProvider.setFertilizerLicense(
+                        imageBytes: _fertilizerImageBytes,
+                        isImage: _fertilizerIsImage,
+                        licenseNumber: _fertilizerLicenseController.text,
+                        expirationDate: _fertilizerExpirationDate,
+                        noExpiry: _fertilizerNoExpiry,
+                        displayDate: _fertilizerNoExpiry ? 'Permanent' : (_fertilizerExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_fertilizerExpirationDate!) : null),
+                      );
+                    }
+
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => KycSplashScreen()), // Navigate to the KYC process screen
+                      MaterialPageRoute(builder: (context) => KycSplashScreen()),
                     );
                   }
                       : null,
@@ -672,7 +686,29 @@ class _licence4State extends State<licence4> {
       children: [
         Expanded(
           child: GestureDetector(
-            onTap: noExpiry ? null : () => _pickDate(context, isInsecticide),
+            onTap: noExpiry ? null : () async {
+              await _pickDate(context, isInsecticide);
+              final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+              if (isInsecticide) {
+                await licenseProvider.setPesticideLicense(
+                  imageBytes: _insecticideImageBytes,
+                  isImage: _insecticideIsImage,
+                  licenseNumber: _insecticideLicenseController.text,
+                  expirationDate: _insecticideExpirationDate,
+                  noExpiry: _insecticideNoExpiry,
+                  displayDate: _insecticideNoExpiry ? 'Permanent' : (_insecticideExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_insecticideExpirationDate!) : null),
+                );
+              } else {
+                await licenseProvider.setFertilizerLicense(
+                  imageBytes: _fertilizerImageBytes,
+                  isImage: _fertilizerIsImage,
+                  licenseNumber: _fertilizerLicenseController.text,
+                  expirationDate: _fertilizerExpirationDate,
+                  noExpiry: _fertilizerNoExpiry,
+                  displayDate: _fertilizerNoExpiry ? 'Permanent' : (_fertilizerExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_fertilizerExpirationDate!) : null),
+                );
+              }
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               decoration: BoxDecoration(color: const Color(0xfff8bc8c), borderRadius: BorderRadius.circular(8)),
@@ -689,7 +725,29 @@ class _licence4State extends State<licence4> {
         const SizedBox(width: 10),
         IconButton(
           icon: const Icon(Icons.calendar_month, color: Color(0xffEB7720), size: 40),
-          onPressed: noExpiry ? null : () => _pickDate(context, isInsecticide),
+          onPressed: noExpiry ? null : () async {
+            await _pickDate(context, isInsecticide);
+            final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+            if (isInsecticide) {
+              await licenseProvider.setPesticideLicense(
+                imageBytes: _insecticideImageBytes,
+                isImage: _insecticideIsImage,
+                licenseNumber: _insecticideLicenseController.text,
+                expirationDate: _insecticideExpirationDate,
+                noExpiry: _insecticideNoExpiry,
+                displayDate: _insecticideNoExpiry ? 'Permanent' : (_insecticideExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_insecticideExpirationDate!) : null),
+              );
+            } else {
+              await licenseProvider.setFertilizerLicense(
+                imageBytes: _fertilizerImageBytes,
+                isImage: _fertilizerIsImage,
+                licenseNumber: _fertilizerLicenseController.text,
+                expirationDate: _fertilizerExpirationDate,
+                noExpiry: _fertilizerNoExpiry,
+                displayDate: _fertilizerNoExpiry ? 'Permanent' : (_fertilizerExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_fertilizerExpirationDate!) : null),
+              );
+            }
+          },
         ),
       ],
     );
@@ -702,7 +760,7 @@ class _licence4State extends State<licence4> {
       activeColor: const Color(0xffEB7720),
       title: Text('This License Doesn\'t Expire', style: GoogleFonts.poppins()),
       value: isInsecticide ? _insecticideNoExpiry : _fertilizerNoExpiry,
-      onChanged: (value) {
+      onChanged: (value) async {
         setState(() {
           if (isInsecticide) {
             _insecticideNoExpiry = value!;
@@ -713,6 +771,27 @@ class _licence4State extends State<licence4> {
           }
         });
         _checkFormValidity();
+
+        final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
+        if (isInsecticide) {
+          await licenseProvider.setPesticideLicense(
+            imageBytes: _insecticideImageBytes,
+            isImage: _insecticideIsImage,
+            licenseNumber: _insecticideLicenseController.text,
+            expirationDate: _insecticideExpirationDate,
+            noExpiry: _insecticideNoExpiry,
+            displayDate: _insecticideNoExpiry ? 'Permanent' : (_insecticideExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_insecticideExpirationDate!) : null),
+          );
+        } else {
+          await licenseProvider.setFertilizerLicense(
+            imageBytes: _fertilizerImageBytes,
+            isImage: _fertilizerIsImage,
+            licenseNumber: _fertilizerLicenseController.text,
+            expirationDate: _fertilizerExpirationDate,
+            noExpiry: _fertilizerNoExpiry,
+            displayDate: _fertilizerNoExpiry ? 'Permanent' : (_fertilizerExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_fertilizerExpirationDate!) : null),
+          );
+        }
       },
       controlAffinity: ListTileControlAffinity.leading,
     );

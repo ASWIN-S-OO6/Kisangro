@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/home/reward_screen.dart';
+import 'package:kisangro/home/bottom.dart'; // Import the Bot class
 
 class RewardsPopup extends StatelessWidget {
   final int coinsEarned;
@@ -80,7 +81,7 @@ class RewardsPopup extends StatelessWidget {
                       ),
 
                       // Main coin icon
-                      Image.asset('assets/wings.gif',scale: 1,),
+                      Image.asset('assets/wings.gif', scale: 1),
                     ],
                   ),
 
@@ -132,7 +133,16 @@ class RewardsPopup extends StatelessWidget {
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => RewardScreen()));
+                  // Close the current dialog
+                  Navigator.pop(context);
+                  // Navigate to the Bot (BottomNavigationBar) and select the Rewards tab (index 2)
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const Bot(initialIndex: 2), // Set initialIndex to 2 for Rewards tab
+                    ),
+                        (Route<dynamic> route) => false, // Remove all previous routes
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[600],

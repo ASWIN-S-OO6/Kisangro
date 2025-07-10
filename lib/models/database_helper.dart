@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:kisangro/models/order_model.dart';
+import 'package:kisangro/models/cart_model.dart'; // NEW: Import CartModel for CartItem
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -10,7 +11,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('orders.db');
+    _database = await _initDB('kisangro_app.db'); // Changed database name to be more general
     return _database!;
   }
 
@@ -21,6 +22,7 @@ class DatabaseHelper {
   }
 
   Future _createDB(Database db, int version) async {
+    // Create orders table
     await db.execute('''
       CREATE TABLE orders (
         id TEXT PRIMARY KEY,
@@ -32,6 +34,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // Create ordered_products table
     await db.execute('''
       CREATE TABLE ordered_products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +48,21 @@ class DatabaseHelper {
         price REAL NOT NULL,
         quantity INTEGER NOT NULL,
         FOREIGN KEY (orderId) REFERENCES orders(id) ON DELETE CASCADE
+      )
+    ''');
+
+    // NEW: Create cart_items table for persistence
+    await db.execute('''
+      CREATE TABLE cart_items (
+        id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        subtitle TEXT NOT NULL,
+        imageUrl TEXT NOT NULL,
+        category TEXT NOT NULL,
+        selectedUnit TEXT NOT NULL,
+        pricePerUnit REAL NOT NULL,
+        quantity INTEGER NOT NULL,
+        PRIMARY KEY (id, selectedUnit) -- Composite primary key to ensure uniqueness for product-unit combination
       )
     ''');
   }
@@ -106,8 +124,10 @@ class DatabaseHelper {
         orderId: p['orderId'] as String,
       )).toList();
 
+      // CORRECTED: Pass the 'products' list to the Order constructor
       orders.add(Order(
         id: orderMap['id'] as String,
+        products: products, // This was the missing argument
         orderDate: DateTime.fromMillisecondsSinceEpoch(orderMap['orderDate'] as int),
         deliveredDate: orderMap['deliveredDate'] != null
             ? DateTime.fromMillisecondsSinceEpoch(orderMap['deliveredDate'] as int)
@@ -115,7 +135,6 @@ class DatabaseHelper {
         status: OrderStatus.values.firstWhere((e) => e.name == orderMap['status']),
         totalAmount: orderMap['totalAmount'] as double,
         paymentMethod: orderMap['paymentMethod'] as String,
-        products: products,
       ));
     }
     return orders;
@@ -140,9 +159,71 @@ class DatabaseHelper {
     await db.delete('ordered_products');
   }
 
+  // Cart Item Database Operations
+
+  Future<void> insertCartItem(CartItem item) async {
+    final db = await database;
+    await db.insert(
+      'cart_items',
+      {
+        'id': item.id,
+        'title': item.title,
+        'subtitle': item.subtitle,
+        'imageUrl': item.imageUrl,
+        'category': item.category,
+        'selectedUnit': item.selectedUnit,
+        'pricePerUnit': item.pricePerUnit,
+        'quantity': item.quantity,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace, // Replace if item with same ID and unit exists
+    );
+  }
+
+  Future<void> updateCartItemQuantity(String id, String selectedUnit, int newQuantity) async {
+    final db = await database;
+    await db.update(
+      'cart_items',
+      {'quantity': newQuantity},
+      where: 'id = ? AND selectedUnit = ?',
+      whereArgs: [id, selectedUnit],
+    );
+  }
+
+  Future<void> removeCartItem(String id, String selectedUnit) async {
+    final db = await database;
+    await db.delete(
+      'cart_items',
+      where: 'id = ? AND selectedUnit = ?',
+      whereArgs: [id, selectedUnit],
+    );
+  }
+
+  Future<List<CartItem>> getCartItems() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('cart_items');
+
+    return List.generate(maps.length, (i) {
+      return CartItem(
+        id: maps[i]['id'] as String,
+        title: maps[i]['title'] as String,
+        subtitle: maps[i]['subtitle'] as String,
+        imageUrl: maps[i]['imageUrl'] as String,
+        category: maps[i]['category'] as String,
+        selectedUnit: maps[i]['selectedUnit'] as String,
+        pricePerUnit: maps[i]['pricePerUnit'] as double,
+        quantity: maps[i]['quantity'] as int,
+      );
+    });
+  }
+
+  Future<void> clearCartItems() async {
+    final db = await database;
+    await db.delete('cart_items');
+  }
+
   Future<void> close() async {
     final db = await database;
-    _database = null;
+    _database = null; // Reset _database to null for proper re-initialization if needed
     await db.close();
   }
 }

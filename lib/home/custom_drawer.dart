@@ -269,7 +269,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
-  // NEW: Function to pick an image from camera or gallery
+  // NEW: Function to pick an image from camera or gallery (kept for reference, but not used in drawer profile pic)
   Future<void> _pickImage(ImageSource source) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: source);
@@ -298,7 +298,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
   }
 
-  // NEW: Function to show a modal bottom sheet for image source selection
+  // NEW: Function to show a modal bottom sheet for image source selection (kept for reference)
   void _showImageSourceSelection() {
     showModalBottomSheet(
       context: context,
@@ -345,58 +345,33 @@ class _CustomDrawerState extends State<CustomDrawer> {
             children: [
               Row(
                 children: [
-                  // Start of the Stack for Profile Image and Edit Button
-                  Stack(
-                    children: [
-                      DottedBorder(
-                        borderType: BorderType.Circle,
-                        color: Colors.red,
-                        strokeWidth: 2,
-                        dashPattern: const [6, 3],
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(50),
-                            child: shopImageBytes != null
-                                ? Image.memory(
-                              shopImageBytes,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            )
-                                : Image.asset(
-                              'assets/profile.png',
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                  // Profile Image (without the edit button/gesture detector)
+                  DottedBorder(
+                    borderType: BorderType.Circle,
+                    color: Colors.red,
+                    strokeWidth: 2,
+                    dashPattern: const [6, 3],
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(50),
+                        child: shopImageBytes != null
+                            ? Image.memory(
+                          shopImageBytes,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        )
+                            : Image.asset(
+                          'assets/profile.png',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
                         ),
                       ),
-                      // Edit Icon Button
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: _showImageSourceSelection, // MODIFIED: Call image selection method
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xffEB7720), // Orange background for the button
-                              borderRadius: BorderRadius.circular(20), // Make it circular
-                              border: Border.all(color: Colors.white, width: 2), // White border
-                            ),
-                            padding: const EdgeInsets.all(4),
-                            child: const Icon(
-                              Icons.edit,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  // End of the Stack
+                  // Removed Positioned(Edit Icon Button) from here
                   const SizedBox(width: 20),
                   Text(
                     "$fullName\n$whatsAppNumber", // Use actual name and number

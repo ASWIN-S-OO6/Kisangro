@@ -4,9 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart'; // Import Provider to access OrderModel
 import 'package:kisangro/models/order_model.dart'; // Import your OrderModel (which now contains OrderStatus and OrderModel)
 
-// IMPORTANT: Removed void main() and MyApp as this screen is part of a larger app.
-// It should be navigated to from MyOrder, which passes the orderId.
-
 class CancellationStep1Page extends StatefulWidget {
   final String orderId; // New: Accept orderId
 
@@ -38,106 +35,108 @@ class _CancellationStep1PageState extends State<CancellationStep1Page> {
 
   @override
   Widget build(BuildContext context) {
-    // 'widget' is correctly available here within the build method.
-    // The orderId is accessed via widget.orderId.
+    // Get keyboard height
+    final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final bool isKeyboardVisible = keyboardHeight > 0;
+
     return Scaffold(
-      body: SafeArea(
-        child: Container(
-          height: double.infinity,
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
-            ),
+      appBar: AppBar( // Using AppBar for consistent top bar and back button
+        backgroundColor: const Color(0xffEB7720),
+        elevation: 0,
+        title: Text(
+          "Order Cancellation",
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+        ),
+      ),
+      body: Container(
+        height: double.infinity,
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
+          ),
+        ),
+        child: SingleChildScrollView( // Wrap content in SingleChildScrollView
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            // Adjust bottom padding based on keyboard visibility
+            bottom: isKeyboardVisible ? keyboardHeight + 10 : 20,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                  Text(
-                    "Order Cancellation",
-                    style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold),
-                  )
-                ],
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.only(left: 270),
+              Align( // Use Align to position "step 1/2"
+                alignment: Alignment.centerRight,
                 child: Text(
                   "step 1/2",
                   style: GoogleFonts.poppins(color: Colors.grey, fontSize: 18),
                 ),
               ),
               const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.only(left: 20),
-                child: Text(
-                  'Cancellation Reason',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+              Text(
+                'Cancellation Reason',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20), // Adjusted to symmetric
-                child: Container(
-                  width: double.infinity, // Made responsive
-                  decoration: BoxDecoration(
-                    border: Border.all(),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ...reasons.map((reason) {
-                        return RadioListTile<String>(
-                          title: Text(
-                            reason,
-                            style: GoogleFonts.poppins(fontSize: 16),
-                          ),
-                          value: reason,
-                          groupValue: selectedReason,
-                          onChanged: (value) {
-                            setState(() {
-                              selectedReason = value!;
-                            });
-                          },
-                          contentPadding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                          activeColor: const Color(0xffEB7720), // Added active color for radio button
-                        );
-                      }).toList(),
-                      if (selectedReason == "Other Reasons")
-                        Padding(
-                          padding: const EdgeInsets.only(left: 50, right: 30, bottom: 30),
-                          child: TextField(
-                            controller: otherController,
-                            decoration: const InputDecoration(
-                              hintText: "Type Here...",
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(),
-                            ),
-                            maxLines: 3,
-                          ),
+              Container(
+                width: double.infinity, // Made responsive
+                decoration: BoxDecoration(
+                  border: Border.all(),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...reasons.map((reason) {
+                      return RadioListTile<String>(
+                        title: Text(
+                          reason,
+                          style: GoogleFonts.poppins(fontSize: 16),
                         ),
-                    ],
-                  ),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedReason = value!;
+                          });
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        activeColor: const Color(0xffEB7720), // Added active color for radio button
+                      );
+                    }).toList(),
+                    if (selectedReason == "Other Reasons")
+                      Padding(
+                        padding: const EdgeInsets.only(left: 50, right: 30, bottom: 30),
+                        child: TextField(
+                          controller: otherController,
+                          decoration: const InputDecoration(
+                            hintText: "Type Here...",
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 3,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(left: 50, bottom: 50),
+              // Removed Spacer here, as SingleChildScrollView handles scrolling
+              const SizedBox(height: 30), // Add some space before the button
+              Center( // Center the button
                 child: SizedBox(
-                  width: 250,
+                  width: MediaQuery.of(context).size.width * 0.7, // Responsive width
                   height: 50,
                   child: ElevatedButton(
                     onPressed: () {
@@ -157,7 +156,7 @@ class _CancellationStep1PageState extends State<CancellationStep1Page> {
                     child: Text('Proceed', style: GoogleFonts.poppins(color: Colors.white)),
                   ),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -193,7 +192,25 @@ class _CancellationStep2PageState extends State<CancellationStep2Page> { // Stat
 
   @override
   Widget build(BuildContext context) {
+    // Get keyboard height
+    final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final bool isKeyboardVisible = keyboardHeight > 0;
+
     return Scaffold(
+      appBar: AppBar( // Using AppBar for consistent top bar and back button
+        backgroundColor: const Color(0xffEB7720),
+        elevation: 0,
+        title: Text(
+          "Order Cancellation",
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+        ),
+      ),
       body: Container(
         height: double.infinity,
         width: double.infinity,
@@ -204,158 +221,146 @@ class _CancellationStep2PageState extends State<CancellationStep2Page> { // Stat
             colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.arrow_back),
+        child: SingleChildScrollView( // Wrap content in SingleChildScrollView
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            // Adjust bottom padding based on keyboard visibility
+            bottom: isKeyboardVisible ? keyboardHeight + 10 : 20,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align( // Use Align to position "step 2/2"
+                alignment: Alignment.centerRight,
+                child: Text(
+                  "step 2/2", // Corrected step number
+                  style: GoogleFonts.poppins(color: Colors.grey, fontSize: 18),
                 ),
-                Text(
-                  "Order Cancellation",
-                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold),
-                )
-              ],
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.only(left: 270),
-              child: Text(
-                "step 2/2", // Corrected step number
-                style: GoogleFonts.poppins(color: Colors.grey, fontSize: 18),
               ),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Text(
+              const SizedBox(height: 20),
+              Text(
                 'Enter Bank Details',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-            ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Text(
+              const SizedBox(height: 4),
+              Text(
                 '(Note: The cancellation amount will be refunded to your bank account shortly. So enter bank details carefully)',
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
               ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: bankNameController,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  hintText: 'Bank name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
-                ),
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: accountNumberController,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  hintText: 'Bank Account number',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
-                ),
-                keyboardType: TextInputType.number,
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: ifscController,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  hintText: 'IFSC code',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
-                ),
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: holderNameController,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  hintText: 'Account holder name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
-                ),
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(left: 50, bottom: 50),
-              child: SizedBox(
-                width: 250,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Basic validation
-                    if (bankNameController.text.isEmpty ||
-                        accountNumberController.text.isEmpty ||
-                        ifscController.text.isEmpty ||
-                        holderNameController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please fill all bank details.', style: GoogleFonts.poppins())),
-                      );
-                      return;
-                    }
-
-                    // Get OrderModel and update the status
-                    final orderModel = Provider.of<OrderModel>(context, listen: false);
-                    print('DEBUG: CancellationStep2Page: Calling updateOrderStatus for orderId: ${widget.orderId} with status: cancelled');
-                    orderModel.updateOrderStatus(widget.orderId, OrderStatus.cancelled); // Use widget.orderId passed to this widget
-
-                    // Show success message
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Order ${widget.orderId} cancelled successfully!', style: GoogleFonts.poppins())),
-                    );
-
-                    // Navigate back to MyOrder and clear the cancellation pages from stack
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MyOrder()),
-                      (Route<dynamic> route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                    backgroundColor: const Color(0xffEB7720),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 0), // Removed padding to let SingleChildScrollView handle it
+                child: TextField(
+                  controller: bankNameController,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Bank name',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: Text('Verify & Submit', style: GoogleFonts.poppins(color: Colors.white)),
+                  style: GoogleFonts.poppins(),
                 ),
               ),
-            )
-          ],
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 0), // Removed padding
+                child: TextField(
+                  controller: accountNumberController,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Bank Account number',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
+                  ),
+                  keyboardType: TextInputType.number,
+                  style: GoogleFonts.poppins(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 0), // Removed padding
+                child: TextField(
+                  controller: ifscController,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'IFSC code',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
+                  ),
+                  style: GoogleFonts.poppins(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 0), // Removed padding
+                child: TextField(
+                  controller: holderNameController,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Account holder name',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xffEB7720)), borderRadius: BorderRadius.circular(8)),
+                  ),
+                  style: GoogleFonts.poppins(),
+                ),
+              ),
+              // Removed Spacer here
+              const SizedBox(height: 30), // Add some space before the button
+              Center( // Center the button
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.7, // Responsive width
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Basic validation
+                      if (bankNameController.text.isEmpty ||
+                          accountNumberController.text.isEmpty ||
+                          ifscController.text.isEmpty ||
+                          holderNameController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Please fill all bank details.', style: GoogleFonts.poppins())),
+                        );
+                        return;
+                      }
+
+                      // Get OrderModel and update the status
+                      final orderModel = Provider.of<OrderModel>(context, listen: false);
+                      print('DEBUG: CancellationStep2Page: Calling updateOrderStatus for orderId: ${widget.orderId} with status: cancelled');
+                      orderModel.updateOrderStatus(widget.orderId, OrderStatus.cancelled); // Use widget.orderId passed to this widget
+
+                      // Show success message
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Order ${widget.orderId} cancelled successfully!', style: GoogleFonts.poppins())),
+                      );
+
+                      // Navigate back to MyOrder and clear the cancellation pages from stack
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MyOrder()),
+                            (Route<dynamic> route) => false,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                      backgroundColor: const Color(0xffEB7720),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text('Verify & Submit', style: GoogleFonts.poppins(color: Colors.white)),
+                  ),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );

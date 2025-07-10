@@ -8,86 +8,58 @@ import 'package:provider/provider.dart';
 import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/order_model.dart';
 import 'package:kisangro/models/address_model.dart';
-import 'package:kisangro/models/kyc_business_model.dart'; // NEW: Import KycBusinessDataProvider
+import 'package:kisangro/models/kyc_business_model.dart';
+// Removed geolocator and geocoding imports as they are no longer used here
+// import 'package:geolocator/geolocator.dart';
+// import 'package:geocoding/geocoding.dart';
+import '../common/common_app_bar.dart';
 import '../home/cart.dart';
 import '../home/myorder.dart';
 import '../menu/wishlist.dart';
 import '../home/noti.dart';
+// Import CustomAppBar
 
-class delivery extends StatelessWidget {
+
+
+class delivery extends StatefulWidget {
   final Product? product; // Optional product for "Buy Now" flow
 
   const delivery({super.key, this.product});
 
   @override
+  State<delivery> createState() => _deliveryState();
+}
+
+class _deliveryState extends State<delivery> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartModel>(context);
-    final addressModel = Provider.of<AddressModel>(context);
+    final addressModel = Provider.of<AddressModel>(context); // Listen to AddressModel
     final orderModel = Provider.of<OrderModel>(context, listen: false);
-    final kycBusinessDataProvider = Provider.of<KycBusinessDataProvider>(context); // NEW: Get KycBusinessDataProvider
+    final kycBusinessDataProvider = Provider.of<KycBusinessDataProvider>(context);
 
-    // Determine if we're in "Buy Now" mode (product is provided)
-    final bool isBuyNow = product != null;
-    // Calculate total amount based on mode
+    final bool isBuyNow = widget.product != null;
     final double itemTotal = isBuyNow
-        ? (product!.pricePerSelectedUnit ?? 0.0)
+        ? (widget.product!.pricePerSelectedUnit ?? 0.0)
         : cart.totalAmount;
 
-    // Get the full name from KYC data, or fallback to currentName if not available
     final String displayedName = kycBusinessDataProvider.kycBusinessData?.fullName ?? addressModel.currentName;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        centerTitle: false,
-        title: Transform.translate(
-          offset: const Offset(-20, 0),
-          child: Text(
-            "Address Details",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyOrder()));
-            },
-            icon: Image.asset(
-              'assets/box.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistPage()));
-            },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const noti()));
-            },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-        ],
+      appBar: CustomAppBar( // Integrated CustomAppBar
+        title: "Address Details", // Set the title
+        showBackButton: true, // Show back button
+        showMenuButton: false, // Do NOT show menu button (drawer icon)
+        // scaffoldKey is not needed here as there's no drawer
+        isMyOrderActive: false, // Not active
+        isWishlistActive: false, // Not active
+        isNotiActive: false, // Not active
+        // showWhatsAppIcon is false by default, matching original behavior
       ),
       body: Container(
         height: double.infinity,
@@ -155,10 +127,11 @@ class delivery extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      displayedName, // MODIFIED: Use the name from KYC data
+                      displayedName,
                       style: GoogleFonts.poppins(
                           fontSize: 15, fontWeight: FontWeight.bold),
                     ),
+                    // Display address from AddressModel
                     Text(
                       addressModel.currentAddress,
                       style: GoogleFonts.poppins(fontSize: 14),
@@ -189,7 +162,7 @@ class delivery extends StatelessWidget {
                         style: GoogleFonts.poppins(
                             fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    if (isBuyNow && product != null)
+                    if (isBuyNow && widget.product != null)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Row(
@@ -197,7 +170,7 @@ class delivery extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                '${product!.title} (${product!.selectedUnit}) x 1',
+                                '${widget.product!.title} (${widget.product!.selectedUnit}) x 1',
                                 style: GoogleFonts.poppins(fontSize: 14),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -273,7 +246,6 @@ class delivery extends StatelessWidget {
               elevation: 0,
             ),
             onPressed: () {
-              // Allow proceeding if either a product is provided (Buy Now) or cart has items
               if (!isBuyNow && cart.items.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -283,7 +255,7 @@ class delivery extends StatelessWidget {
                 );
                 return;
               }
-              if (isBuyNow && product == null) {
+              if (isBuyNow && widget.product == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('No product selected! Please try again.'),
@@ -293,37 +265,19 @@ class delivery extends StatelessWidget {
                 return;
               }
 
-              // Check if address details are set
-              if (addressModel.currentAddress ==
-                  "D/no: 123, abc street, rrr nagar, near ppp, Coimbatore." ||
-                  addressModel.currentPincode == "641612") {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        'Please update your delivery address before proceeding.',
-                        style: GoogleFonts.poppins()),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
+              final String newOrderId = DateTime.now().millisecondsSinceEpoch.toString();
 
-              // Generate a unique order ID
-              final String newOrderId =
-              DateTime.now().millisecondsSinceEpoch.toString();
-
-              // Create ordered products based on mode
               final List<OrderedProduct> orderedProducts = isBuyNow
                   ? [
                 OrderedProduct(
-                  id: product!.id,
-                  title: product!.title,
-                  description: product!.subtitle,
-                  imageUrl: product!.imageUrl,
-                  category: product!.category,
-                  unit: product!.selectedUnit,
-                  price: product!.pricePerSelectedUnit ?? 0.0,
-                  quantity: 1, // Default quantity for Buy Now
+                  id: widget.product!.id,
+                  title: widget.product!.title,
+                  description: widget.product!.subtitle,
+                  imageUrl: widget.product!.imageUrl,
+                  category: widget.product!.category,
+                  unit: widget.product!.selectedUnit,
+                  price: widget.product!.pricePerSelectedUnit ?? 0.0,
+                  quantity: 1,
                   orderId: newOrderId,
                 )
               ]
@@ -334,15 +288,22 @@ class delivery extends StatelessWidget {
               final newOrder = Order(
                 id: newOrderId,
                 products: orderedProducts,
-                totalAmount: itemTotal + 90.0, // Include delivery fee
+                totalAmount: itemTotal + 90.0,
                 orderDate: DateTime.now(),
-                status: OrderStatus.pending,
-                paymentMethod: '',
+                status: OrderStatus.pending, // Initial status
+                paymentMethod: '', // Will be updated in PaymentPage
               );
 
-              orderModel.addOrder(newOrder);
+              Provider.of<OrderModel>(context, listen: false).addOrder(newOrder);
 
-              // Navigate to PaymentPage
+              // MODIFIED LOGIC: Clear cart if it's a regular cart purchase
+              // This ensures the cart is cleared ONLY for multi-item checkouts,
+              // not for "Buy Now" single product purchases.
+              if (!isBuyNow) {
+                cart.clearCart(); // Clear the cart after creating the order
+                debugPrint('Cart cleared after order creation for order ID: $newOrderId');
+              }
+
               Navigator.push(
                   context,
                   MaterialPageRoute(

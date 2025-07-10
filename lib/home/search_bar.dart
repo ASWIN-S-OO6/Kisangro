@@ -7,8 +7,6 @@ import 'package:provider/provider.dart'; // Import Provider for CartModel and Wi
 import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/wishlist_model.dart';
 import 'dart:async'; // For Timer for debouncing
-import 'package:geolocator/geolocator.dart'; // Import geolocator
-import 'package:geocoding/geocoding.dart'; // Import geocoding
 
 
 class SearchScreen extends StatefulWidget {
@@ -21,23 +19,23 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  // Changed to store Products instead of just strings
   List<Product> _recentSearches = [];
   List<Product> _trendingSearches = [];
-
   List<Product> _searchResults = [];
   bool _isSearching = false;
   String? _searchError;
-  Timer? _debounce; // For debouncing search input
+  Timer? _debounce;
 
-  String _currentLocation = 'Detecting...';
+  // Filter and Sort States
+  String? _selectedCategory;
+  String? _selectedSortBy; // 'weight_asc', 'weight_desc', 'price_asc', 'price_desc'
+  List<Map<String, String>> _categories = []; // To hold fetched categories
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    _determinePosition();
-    _loadInitialSearchSuggestions(); // Load products for recent/trending
+    _loadInitialData(); // Load products and categories
   }
 
   @override
@@ -55,21 +53,19 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  // New: Load initial products for Recent and Trending searches
-  void _loadInitialSearchSuggestions() {
-    final allProducts = ProductService.getAllProducts();
-    if (allProducts.isNotEmpty) {
-      // For recent searches, take some recent products (e.g., last 5 added)
-      // This is a dummy implementation; in a real app, this would come from user search history.
-      _recentSearches = allProducts.reversed.take(5).toList();
-
-      // For trending searches, take some popular products (e.g., first 5)
-      // This is a dummy implementation; in a real app, this would come from analytics.
-      _trendingSearches = allProducts.take(5).toList();
+  Future<void> _loadInitialData() async {
+    await ProductService.loadCategoriesFromApi(); // Ensure categories are loaded
+    if (mounted) {
+      setState(() {
+        _categories = ProductService.getAllCategories();
+        final allProducts = ProductService.getAllProducts();
+        if (allProducts.isNotEmpty) {
+          _recentSearches = allProducts.reversed.take(5).toList();
+          _trendingSearches = allProducts.take(5).toList();
+        }
+      });
     }
-    setState(() {}); // Refresh UI
   }
-
 
   String _getEffectiveImageUrl(String rawImageUrl) {
     if (rawImageUrl.isEmpty || rawImageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(rawImageUrl)?.isAbsolute != true && !rawImageUrl.startsWith('assets/'))) {
@@ -86,7 +82,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _searchError = null;
     });
 
-    if (query.isEmpty) {
+    if (query.isEmpty && _selectedCategory == null) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -95,7 +91,40 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     try {
-      final results = ProductService.searchProductsLocally(query); // This should now work
+      List<Product> results = ProductService.searchProductsLocally(query);
+
+      // Apply category filter
+      if (_selectedCategory != null && _selectedCategory != 'All') {
+        results = results.where((product) => product.category == _selectedCategory).toList();
+      }
+
+      // Apply sorting
+      if (_selectedSortBy != null) {
+        switch (_selectedSortBy) {
+          case 'weight_asc':
+            results.sort((a, b) {
+              // Assuming 'kg' is a common unit for weight and its price represents weight value
+              final double weightA = a.availableSizes.firstWhere((s) => s.size.toLowerCase().contains('kg'), orElse: () => ProductSize(size: 'kg', price: 0.0)).price;
+              final double weightB = b.availableSizes.firstWhere((s) => s.size.toLowerCase().contains('kg'), orElse: () => ProductSize(size: 'kg', price: 0.0)).price;
+              return weightA.compareTo(weightB);
+            });
+            break;
+          case 'weight_desc':
+            results.sort((a, b) {
+              final double weightA = a.availableSizes.firstWhere((s) => s.size.toLowerCase().contains('kg'), orElse: () => ProductSize(size: 'kg', price: 0.0)).price;
+              final double weightB = b.availableSizes.firstWhere((s) => s.size.toLowerCase().contains('kg'), orElse: () => ProductSize(size: 'kg', price: 0.0)).price;
+              return weightB.compareTo(weightA);
+            });
+            break;
+          case 'price_asc':
+            results.sort((a, b) => (a.pricePerSelectedUnit ?? 0.0).compareTo(b.pricePerSelectedUnit ?? 0.0));
+            break;
+          case 'price_desc':
+            results.sort((a, b) => (b.pricePerSelectedUnit ?? 0.0).compareTo(a.pricePerSelectedUnit ?? 0.0));
+            break;
+        }
+      }
+
       setState(() {
         _searchResults = results;
         _isSearching = false;
@@ -110,92 +139,17 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (!mounted) return;
-      setState(() {
-        _currentLocation = 'Location services disabled.';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location services are disabled. Please enable them.')),
-      );
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (!mounted) return;
-        setState(() {
-          _currentLocation = 'Location permission denied.';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permissions are denied. Cannot fetch current location.')),
-        );
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      if (!mounted) return;
-      setState(() {
-        _currentLocation = 'Location permission permanently denied.';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location permissions are permanently denied. Please enable from app settings.')),
-      );
-      return;
-    }
-
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
-
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-
-      if (mounted) {
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks.first;
-          setState(() {
-            _currentLocation = '${place.subLocality ?? ''}, ${place.locality ?? place.administrativeArea ?? ''}';
-            _currentLocation = _currentLocation.trim().replaceAll(RegExp(r'^,?\s*'), '').replaceAll(RegExp(r',?\s*,+'), ', ').trim();
-            if (_currentLocation.isEmpty) {
-              _currentLocation = 'Lat: ${position.latitude.toStringAsFixed(2)}, Lon: ${position.longitude.toStringAsFixed(2)}';
-            }
-          });
-        } else {
-          setState(() {
-            _currentLocation = 'Location found, but address unknown.';
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error getting location: $e');
-      if (mounted) {
-        setState(() {
-          _currentLocation = 'Could not get location.';
-        });
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error getting current location: ${e.toString()}.')),
-      );
-    }
-  }
-
-
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.shortestSide >= 600;
+    final double horizontalPadding = isTablet ? 24.0 : 12.0;
+    final double verticalSpacing = isTablet ? 20.0 : 10.0;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(horizontalPadding), // Responsive padding
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -207,23 +161,23 @@ class _SearchScreenState extends State<SearchScreen> {
                     },
                     icon: const Icon(Icons.arrow_back),
                   ),
-                  const SizedBox(width: 8), // Small space after back button
-                  Expanded( // Search field takes remaining space
+                  SizedBox(width: isTablet ? 12 : 8), // Responsive spacing
+                  Expanded(
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+                        contentPadding: EdgeInsets.symmetric(horizontal: isTablet ? 20 : 15, vertical: isTablet ? 12 : 8), // Responsive padding
                         hintText: 'Search by item/crop/chemical name',
-                        hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                        hintStyle: GoogleFonts.poppins(color: Colors.grey, fontSize: isTablet ? 16 : 14), // Responsive font size
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          icon: Icon(Icons.clear, color: Colors.grey, size: isTablet ? 24 : 20), // Responsive icon size
                           onPressed: () {
                             _searchController.clear();
-                            _performSearch(''); // Clear search results
+                            _performSearch('');
                           },
                         )
-                            : const Icon(Icons.search, color: Colors.orange),
+                            : Icon(Icons.search, color: Colors.orange, size: isTablet ? 24 : 20), // Responsive icon size
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
@@ -236,45 +190,94 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xffEB7720), width: 2), // Orange border on focus
+                          borderSide: const BorderSide(color: Color(0xffEB7720), width: 2),
                         ),
                       ),
-                      style: GoogleFonts.poppins(),
-                      textInputAction: TextInputAction.search, // Keyboard action for search
+                      style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14), // Responsive font size
+                      textInputAction: TextInputAction.search,
                       onSubmitted: (query) {
-                        _performSearch(query); // Trigger search on submit
+                        _performSearch(query);
                       },
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              // Responsive "Location" button - now uses dynamic location
-              Align(
-                alignment: Alignment.centerRight, // Align to right
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xffEB7720),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min, // Make row take minimum space
-                    children: [
-                      const Icon(Icons.location_on, color: Colors.white, size: 14),
-                      const SizedBox(width: 4),
-                      Flexible( // Wrap Text in Flexible to handle potential overflow gracefully
-                        child: Text(
-                          _currentLocation, // Display dynamic location
-                          style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
-                          overflow: TextOverflow.ellipsis, // Truncate long location names
+              SizedBox(height: verticalSpacing), // Responsive spacing
+
+              // Category Filter and Sort By
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: isTablet ? 50 : 40, // Responsive height
+                      padding: EdgeInsets.symmetric(horizontal: isTablet ? 12 : 8), // Responsive padding
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedCategory,
+                          hint: Text('Category', style: GoogleFonts.poppins(color: Colors.grey, fontSize: isTablet ? 16 : 14)), // Responsive font size
+                          icon: Icon(Icons.arrow_drop_down, color: Color(0xffEB7720), size: isTablet ? 24 : 20), // Responsive icon size
+                          isExpanded: true,
+                          style: GoogleFonts.poppins(color: Colors.black, fontSize: isTablet ? 16 : 14), // Responsive font size
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedCategory = newValue;
+                              _performSearch(_searchController.text);
+                            });
+                          },
+                          items: [
+                            const DropdownMenuItem(value: 'All', child: Text('All Categories')),
+                            ..._categories.map((category) {
+                              return DropdownMenuItem<String>(
+                                value: category['label'],
+                                child: Text(category['label']!),
+                              );
+                            }).toList(),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  SizedBox(width: isTablet ? 15 : 10), // Responsive spacing
+                  Expanded(
+                    child: Container(
+                      height: isTablet ? 50 : 40, // Responsive height
+                      padding: EdgeInsets.symmetric(horizontal: isTablet ? 12 : 8), // Responsive padding
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedSortBy,
+                          hint: Text('Sort By', style: GoogleFonts.poppins(color: Colors.grey, fontSize: isTablet ? 16 : 14)), // Responsive font size
+                          icon: Icon(Icons.sort, color: Color(0xffEB7720), size: isTablet ? 24 : 20), // Responsive icon size
+                          isExpanded: true,
+                          style: GoogleFonts.poppins(color: Colors.black, fontSize: isTablet ? 16 : 14), // Responsive font size
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedSortBy = newValue;
+                              _performSearch(_searchController.text);
+                            });
+                          },
+                          items: const [
+                            DropdownMenuItem(value: 'price_asc', child: Text('Price: Low to High')),
+                            DropdownMenuItem(value: 'price_desc', child: Text('Price: High to Low')),
+                            DropdownMenuItem(value: 'weight_asc', child: Text('Weight: Low to High')),
+                            DropdownMenuItem(value: 'weight_desc', child: Text('Weight: High to Low')),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: verticalSpacing), // Responsive spacing
 
               // Search Results Display or Default Content
               if (_isSearching)
@@ -287,24 +290,40 @@ class _SearchScreenState extends State<SearchScreen> {
                     style: GoogleFonts.poppins(color: Colors.red),
                   ),
                 )
-              else if (_searchController.text.isNotEmpty && _searchResults.isEmpty)
+              else if (_searchController.text.isNotEmpty && _searchResults.isEmpty && (_selectedCategory != null || _selectedSortBy != null))
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Text(
-                        'No products found for "${_searchController.text}".',
+                        'No products found matching your criteria.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
+                        style: GoogleFonts.poppins(fontSize: isTablet ? 18 : 16, color: Colors.grey), // Responsive font size
                       ),
                     ),
                   )
                 else if (_searchResults.isNotEmpty)
                     Expanded(
-                      child: ListView.builder(
+                      child: GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: isTablet ? 3 : 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.55,
+                        ),
                         itemCount: _searchResults.length,
                         itemBuilder: (context, index) {
                           final product = _searchResults[index];
-                          return _buildSearchResultTile(context, product);
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductDetailPage(product: product),
+                                ),
+                              );
+                            },
+                            child: _buildProductTile(context, product, isTablet), // Pass isTablet
+                          );
                         },
                       ),
                     )
@@ -315,22 +334,22 @@ class _SearchScreenState extends State<SearchScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text("Recent Searches", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 10),
+                            Text("Recent Searches", style: GoogleFonts.poppins(fontSize: isTablet ? 18 : 16, fontWeight: FontWeight.bold)), // Responsive font size
+                            SizedBox(height: verticalSpacing), // Responsive spacing
                             Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: _recentSearches.map((product) => _buildProductTag(product)).toList(), // Use _buildProductTag
+                              spacing: isTablet ? 15 : 10, // Responsive spacing
+                              runSpacing: isTablet ? 15 : 10, // Responsive spacing
+                              children: _recentSearches.map((product) => _buildProductTag(product, isTablet)).toList(), // Pass isTablet
                             ),
-                            const SizedBox(height: 20),
+                            SizedBox(height: verticalSpacing * 2), // Responsive spacing
                             const Divider(),
-                            const SizedBox(height: 10),
-                            Text("Trending Searches", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 10),
+                            SizedBox(height: verticalSpacing), // Responsive spacing
+                            Text("Trending Searches", style: GoogleFonts.poppins(fontSize: isTablet ? 18 : 16, fontWeight: FontWeight.bold)), // Responsive font size
+                            SizedBox(height: verticalSpacing), // Responsive spacing
                             Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: _trendingSearches.map((product) => _buildProductTag(product)).toList(), // Use _buildProductTag
+                              spacing: isTablet ? 15 : 10, // Responsive spacing
+                              runSpacing: isTablet ? 15 : 10, // Responsive spacing
+                              children: _trendingSearches.map((product) => _buildProductTag(product, isTablet)).toList(), // Pass isTablet
                             ),
                           ],
                         ),
@@ -343,19 +362,15 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // Modified _buildTag to accept a Product and display its image/name, and navigate
-  Widget _buildProductTag(Product product) {
+  // MODIFIED: _buildProductTag to be responsive
+  Widget _buildProductTag(Product product, bool isTablet) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailPage(product: product),
-          ),
-        );
+        _searchController.text = product.title;
+        _performSearch(product.title);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: isTablet ? 18 : 12, vertical: isTablet ? 8 : 6), // Responsive padding
         decoration: BoxDecoration(
           border: Border.all(color: const Color(0xffEB7720)),
           borderRadius: BorderRadius.circular(30),
@@ -363,10 +378,9 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Display product image next to text
             SizedBox(
-              width: 24, // Small size for the icon/image
-              height: 24,
+              width: isTablet ? 30 : 24, // Responsive size
+              height: isTablet ? 30 : 24, // Responsive size
               child: AspectRatio(
                 aspectRatio: 1.0,
                 child: _getEffectiveImageUrl(product.imageUrl).startsWith('http')
@@ -384,50 +398,41 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 8), // Space between image and text
-            Text(product.title, style: GoogleFonts.poppins(fontSize: 14)),
-            const SizedBox(width: 5),
-            const Icon(Icons.trending_up, size: 14, color: Color(0xffEB7720)),
+            SizedBox(width: isTablet ? 10 : 8), // Responsive spacing
+            Text(product.title, style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14)), // Responsive font size
+            SizedBox(width: isTablet ? 8 : 5), // Responsive spacing
+            Icon(Icons.trending_up, size: isTablet ? 18 : 14, color: Color(0xffEB7720)), // Responsive icon size
           ],
         ),
       ),
     );
   }
 
-  // Widget to build individual search result tiles (remains largely the same)
-  Widget _buildSearchResultTile(BuildContext context, Product product) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailPage(product: product),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product Image
-            SizedBox(
-              width: 80,
-              height: 80,
-              child: AspectRatio(
-                aspectRatio: 1.0,
+  // MODIFIED: _buildProductTile to be responsive
+  Widget _buildProductTile(BuildContext context, Product product, bool isTablet) {
+    final List<ProductSize> availableSizes = product.availableSizes.isNotEmpty
+        ? product.availableSizes
+        : [ProductSize(size: 'Unit', price: product.pricePerSelectedUnit ?? 0.0)];
+
+    final String selectedUnit = availableSizes.any((size) => size.size == product.selectedUnit)
+        ? product.selectedUnit
+        : (availableSizes.isNotEmpty ? availableSizes.first.size : 'Unit');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: isTablet ? 120 : 100, // Responsive height for image area
+            width: double.infinity,
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(isTablet ? 12 : 8), // Responsive padding
                 child: _getEffectiveImageUrl(product.imageUrl).startsWith('http')
                     ? Image.network(
                   _getEffectiveImageUrl(product.imageUrl),
@@ -443,104 +448,122 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            // Product Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.title,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.black87,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+          ),
+          Padding(
+            padding: EdgeInsets.all(isTablet ? 10 : 8), // Responsive padding
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.title,
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: isTablet ? 16 : 14), // Responsive font size
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  product.subtitle,
+                  style: GoogleFonts.poppins(fontSize: isTablet ? 14 : 12), // Responsive font size
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '₹ ${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
+                  style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.green, fontWeight: FontWeight.w600), // Responsive font size
+                ),
+                Text('Unit: $selectedUnit',
+                    style: GoogleFonts.poppins(fontSize: isTablet ? 12 : 10, color: const Color(0xffEB7720))), // Responsive font size
+                SizedBox(height: isTablet ? 10 : 8), // Responsive spacing
+                Container(
+                  height: isTablet ? 45 : 36, // Responsive height
+                  padding: EdgeInsets.symmetric(horizontal: isTablet ? 10 : 8), // Responsive padding
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xffEB7720)),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.grey[700],
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedUnit,
+                      icon: Icon(Icons.keyboard_arrow_down, color: Color(0xffEB7720), size: isTablet ? 24 : 20), // Responsive icon size
+                      underline: const SizedBox(),
+                      isExpanded: true,
+                      style: GoogleFonts.poppins(fontSize: isTablet ? 14 : 12, color: Colors.black), // Responsive font size
+                      items: availableSizes.map((sizeOption) => DropdownMenuItem<String>(
+                        value: sizeOption.size,
+                        child: Text(sizeOption.size),
+                      )).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          product.selectedUnit = val!;
+                          debugPrint('Selected unit for ${product.title}: $val, Price: ₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}');
+                        });
+                      },
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Add to Cart and Wishlist actions (simplified for search results)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Provider.of<CartModel>(context, listen: false)
-                                .addItem(product.copyWith());
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${product.title} added to cart!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xffEB7720),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                          child: Text(
-                            "Add to Cart",
-                            style: GoogleFonts.poppins(
-                                color: Colors.white, fontSize: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Consumer<WishlistModel>(
-                        builder: (context, wishlist, child) {
-                          final bool isFavorite = wishlist.containsItem(product.id, product.selectedUnit);
-                          return IconButton(
-                            onPressed: () {
-                              if (isFavorite) {
-                                wishlist.removeItem(product.id, product.selectedUnit);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('${product.title} removed from wishlist!'), backgroundColor: Colors.red),
-                                );
-                              } else {
-                                wishlist.addItem(product.copyWith());
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('${product.title} added to wishlist!'), backgroundColor: Colors.blue),
-                                );
-                              }
-                            },
-                            icon: Icon(
-                              isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: const Color(0xffEB7720),
-                              size: 24,
+                ),
+                SizedBox(height: isTablet ? 10 : 8), // Responsive spacing
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Provider.of<CartModel>(context, listen: false).addItem(product.copyWith());
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${product.title} added to cart!'),
+                              backgroundColor: Colors.green,
                             ),
                           );
                         },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xffEB7720),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: isTablet ? 10 : 8)), // Responsive padding
+                        child: Text(
+                          "Add",
+                          style: GoogleFonts.poppins(color: Colors.white, fontSize: isTablet ? 14 : 13), // Responsive font size
+                        ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                    Consumer<WishlistModel>(
+                      builder: (context, wishlist, child) {
+                        final bool isFavorite = wishlist.items.any(
+                                (item) => item.id == product.id && item.selectedUnit == product.selectedUnit);
+                        return IconButton(
+                          onPressed: () {
+                            if (isFavorite) {
+                              wishlist.removeItem(product.id, product.selectedUnit);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${product.title} removed from wishlist!'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } else {
+                              wishlist.addItem(product.copyWith());
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${product.title} added to wishlist!'),
+                                  backgroundColor: Colors.blue,
+                                ),
+                              );
+                            }
+                          },
+                          icon: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: const Color(0xffEB7720),
+                            size: isTablet ? 28 : 24, // Responsive icon size
+                          ),
+                        );
+                      },
+                    )
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -9,8 +9,10 @@ import 'package:kisangro/home/myorder.dart'; // Import for MyOrder
 import 'package:kisangro/home/noti.dart'; // Import for Noti
 import 'package:kisangro/home/cart.dart'; // Import for CartScreen navigation
 
-// NEW: Import the CustomDrawer
-import 'package:kisangro/home/custom_drawer.dart'; // Ensure correct path to CustomDrawer
+// NEW: Import the CustomAppBar
+
+
+import '../common/common_app_bar.dart';
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key}); // Added Key and fixed super.key
@@ -35,74 +37,17 @@ class _WishlistPageState extends State<WishlistPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey, // Assign scaffold key to control drawer
-      // Add the CustomDrawer to the Scaffold
-      drawer: const CustomDrawer(),
-      appBar: AppBar(
-        backgroundColor: const Color(0xffEB7720),
-        title: Padding(
-          padding: const EdgeInsets.only(right: 50),
-          child: Text(
-            "Wishlist",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () {
-            // Check if the drawer is open, if not, open it.
-            // If the drawer is not defined, this will still allow back navigation.
-            if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-              Navigator.pop(context); // Close drawer
-            } else {
-              // If there's a previous route, pop it. Otherwise, open the drawer.
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                _scaffoldKey.currentState?.openDrawer(); // Open drawer if no previous screen
-              }
-            }
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const MyOrder()));
-            },
-            icon: Image.asset(
-              'assets/box.png',
-              height: 24,
-              width: 24,
-              color: Colors.white,
-            ),
-          ),
-          // Highlighted Wishlist Icon - Made slightly larger
-          IconButton(
-            onPressed: () {
-              // No navigation needed, as we are already on the WishlistPage
-            },
-            icon: Image.asset(
-              'assets/heart.png',
-              height: 28, // Increased size to highlight
-              width: 28, // Increased size to highlight
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => const noti()));
-            },
-            icon: Image.asset(
-              'assets/noti.png',
-              height: 28,
-              width: 28,
-              color: Colors.white,
-            ),
-          ),
-          // REMOVED: The shopping bag icon (assets/bag.png) is removed as requested.
-        ],
+      key: _scaffoldKey, // Assign scaffold key (still useful for CustomAppBar if it needs to open a drawer later)
+      // Removed: drawer: const CustomDrawer(),
+      appBar: CustomAppBar( // Replaced AppBar with CustomAppBar
+        title: "Wishlist",
+        showBackButton: true, // Show back button
+        showMenuButton: false, // Do not show menu button from CustomAppBar, rely on back button behavior
+        scaffoldKey: _scaffoldKey, // Pass scaffold key for potential drawer opening (if showMenuButton was true)
+        isMyOrderActive: false, // MyOrder is not active
+        isWishlistActive: true, // Wishlist is active, so highlight its icon
+        isNotiActive: false, // Notification is not active
+        // showWhatsAppIcon is false by default in CustomAppBar, matching original behavior
       ),
       body: Container(
         height: double.infinity,

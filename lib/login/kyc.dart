@@ -132,48 +132,14 @@ class _kycState extends State<kyc> {
     }
   }
 
-  void _showImageSourceSelection() {
-    debugPrint('KYC Screen: Showing image source selection');
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Color(0xffEB7720)),
-                title: Text('Take Photo', style: GoogleFonts.poppins(color: Colors.black87)),
-                onTap: () {
-                  debugPrint('KYC Screen: Selected camera for image picking');
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: Color(0xffEB7720)),
-                title: Text('Choose from Gallery', style: GoogleFonts.poppins(color: Colors.black87)),
-                onTap: () {
-                  debugPrint('KYC Screen: Selected gallery for image picking');
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _sectionTitle(String title) {
+  Widget _sectionTitle(String title, bool isTablet) { // Added isTablet parameter
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: EdgeInsets.symmetric(vertical: isTablet ? 15 : 10), // Responsive padding
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
           title,
-          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xffEB7720)),
+          style: GoogleFonts.poppins(fontSize: isTablet ? 18 : 16, fontWeight: FontWeight.bold, color: const Color(0xffEB7720)), // Responsive font size
         ),
       ),
     );
@@ -186,11 +152,12 @@ class _kycState extends State<kyc> {
         bool showVerify = false,
         bool isPAN = false,
         TextEditingController? controller,
+        required bool isTablet, // Added isTablet parameter
       }) {
     return SizedBox(
-      height: 70,
+      height: isTablet ? 80 : 70, // Responsive height for text fields
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: EdgeInsets.symmetric(horizontal: isTablet ? 20 : 10), // Responsive horizontal padding
         child: TextFormField(
           controller: controller,
           keyboardType: isNumber ? TextInputType.number : TextInputType.text,
@@ -216,9 +183,12 @@ class _kycState extends State<kyc> {
             labelText: label,
             hintText: hintText,
             hintStyle: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold),
+            // Ensure content padding allows text to breathe
+            contentPadding: EdgeInsets.symmetric(vertical: isTablet ? 20 : 16, horizontal: isTablet ? 20 : 12),
+            isDense: true, // Add this to make the input field more compact
             suffixIcon: showVerify
                 ? Padding(
-              padding: const EdgeInsets.only(right: 8.0),
+              padding: EdgeInsets.zero, // Set padding to zero for perfect alignment
               child: ElevatedButton(
                 onPressed: () async {
                   debugPrint('KYC Screen: Verify button clicked for GSTIN: ${controller?.text}');
@@ -256,26 +226,46 @@ class _kycState extends State<kyc> {
                         if (response['status'] == 'success') {
                           _isGstinVerified = true;
                           _gstinDetails = null;
+                          String? businessAddressFromApi;
 
                           if (response['data'] is Map && response['data']['result']?['gstnDetailed'] != null) {
                             final gstnDetailed = response['data']['result']['gstnDetailed'];
+                            businessAddressFromApi = gstnDetailed['principalPlaceOfBusiness']?['addrBldgNo'] != null ?
+                            '${gstnDetailed['principalPlaceOfBusiness']['addrBldgNo']}, '
+                                '${gstnDetailed['principalPlaceOfBusiness']['addrSt'] ?? ''}, '
+                                '${gstnDetailed['principalPlaceOfBusiness']['addrLoc'] ?? ''}, '
+                                '${gstnDetailed['principalPlaceOfBusiness']['addrDst'] ?? ''}, '
+                                '${gstnDetailed['principalPlaceOfBusiness']['addrStcd'] ?? ''}, '
+                                '${gstnDetailed['principalPlaceOfBusiness']['addrPncd'] ?? ''}'
+                                .replaceAll(RegExp(r',?\s*,+'), ', ')
+                                .trim()
+                                .replaceAll(RegExp(r'^,?\s*'), '')
+                                : null;
+
+                            if (businessAddressFromApi == null || businessAddressFromApi.isEmpty) {
+                              businessAddressFromApi = gstnDetailed['address'] ?? gstnDetailed['fullAddress'];
+                            }
+
                             _gstinDetails = {
                               'Legal Name': gstnDetailed['legalNameOfBusiness'] ?? 'N/A',
                               'Centre Jurisdiction': gstnDetailed['centreJurisdiction'] ?? 'N/A',
+                              'Business Address': businessAddressFromApi ?? 'N/A', // Store the full address
                             };
+
                             debugPrint('KYC Screen: Extracted GSTIN details: $_gstinDetails');
+                            debugPrint('KYC Screen: Extracted Business Address from API: $businessAddressFromApi');
                           } else {
                             debugPrint('KYC Screen: gstnDetailed not found or unexpected data format in response. Using minimal details.');
                             _gstinDetails = {
-                              'GSTIN': controller.text, // Fallback to display GSTIN if detailed info isn't available
+                              'GSTIN': controller.text,
+                              'Business Address': 'N/A', // Default if API doesn't provide it
                             };
                           }
 
-                          // We are no longer setting _businessAddressController.text here
                           _kycBusinessDataProvider?.setKycBusinessData(
                             gstin: controller.text,
                             isGstinVerified: true,
-                            // businessAddress is not set from GSTIN details here
+                            businessAddress: businessAddressFromApi,
                           );
                           debugPrint('KYC Screen: GSTIN verified successfully. Details: $_gstinDetails');
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -284,7 +274,7 @@ class _kycState extends State<kyc> {
                         } else {
                           _isGstinVerified = false;
                           _gstinDetails = null;
-                          _businessAddressController.text = ''; // Clear address if verification fails
+                          _businessAddressController.text = '';
                           final errorMsg = response['error_msg'] ?? 'GSTIN Verification Failed.';
                           debugPrint('KYC Screen: GSTIN verification failed: $errorMsg');
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -314,14 +304,17 @@ class _kycState extends State<kyc> {
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
                   backgroundColor: const Color(0xffEB7720),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  // Increased horizontal padding for wider button
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 0),
+                  minimumSize: Size.zero, // Allow button to shrink to content size
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Shrink tap target
                 ),
-                child: Text('Verify', style: GoogleFonts.poppins(fontSize: 12, color: Colors.white)),
+                child: Text('Verify', style: GoogleFonts.poppins(fontSize: isTablet ? 14 : 12, color: Colors.white)), // Responsive font size
               ),
             )
                 : null,
           ),
-          style: GoogleFonts.poppins(color: Colors.black),
+          style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black), // Responsive font size
           validator: (value) {
             if (value == null || value.isEmpty) {
               debugPrint('KYC Screen: Validation failed for $label: Field is empty');
@@ -354,11 +347,11 @@ class _kycState extends State<kyc> {
     );
   }
 
-  Widget _dropdownField(String label, String? selectedValue, ValueChanged<String?> onChanged) {
+  Widget _dropdownField(String label, String? selectedValue, ValueChanged<String?> onChanged, bool isTablet) { // Added isTablet
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 20 : 10, vertical: isTablet ? 8 : 6), // Responsive padding
       child: SizedBox(
-        height: 70,
+        height: isTablet ? 80 : 70, // Responsive height
         child: DropdownButtonFormField<String>(
           value: selectedValue,
           decoration: InputDecoration(
@@ -366,11 +359,12 @@ class _kycState extends State<kyc> {
             fillColor: const Color(0xfff8bc8c),
             labelText: label,
             border: const OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(vertical: isTablet ? 20 : 16, horizontal: isTablet ? 20 : 12), // Responsive content padding
           ),
           items: const [
-            DropdownMenuItem(value: 'Retail', child: Text('Retail')),
-            DropdownMenuItem(value: 'Wholesale', child: Text('Wholesale')),
-            DropdownMenuItem(value: 'Other', child: Text('Other')),
+            DropdownMenuItem(value: 'contractor', child: Text('contractor')),
+            /*DropdownMenuItem(value: 'Wholesale', child: Text('Wholesale')),
+            DropdownMenuItem(value: 'Other', child: Text('Other')),*/
           ],
           onChanged: onChanged,
           validator: (value) {
@@ -381,34 +375,35 @@ class _kycState extends State<kyc> {
             debugPrint('KYC Screen: Selected $label: $value');
             return null;
           },
+          style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black), // Responsive font size
         ),
       ),
     );
   }
 
-  Widget _photoUploadBox() {
+  Widget _photoUploadBox(bool isTablet) { // Added isTablet
     return Padding(
-      padding: const EdgeInsets.only(top: 10),
+      padding: EdgeInsets.only(top: isTablet ? 20 : 10, left: isTablet ? 20 : 0, right: isTablet ? 20 : 0), // Responsive padding
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: _showImageSourceSelection,
+            onTap: () => _pickImage(ImageSource.camera), // MODIFIED: Directly call camera
             child: Container(
-              width: 130,
-              height: 130,
+              width: isTablet ? 160 : 130, // Responsive size
+              height: isTablet ? 160 : 130, // Responsive size
               decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.grey, width: 1)),
               child: _imageBytes == null
-                  ? const Icon(Icons.camera_alt, size: 50, color: Color(0xffEB7720))
-                  : ClipOval(child: Image.memory(_imageBytes!, width: 130, height: 130, fit: BoxFit.cover)),
+                  ? Icon(Icons.camera_alt, size: isTablet ? 70 : 50, color: const Color(0xffEB7720)) // Responsive icon size
+                  : ClipOval(child: Image.memory(_imageBytes!, width: isTablet ? 160 : 130, height: isTablet ? 160 : 130, fit: BoxFit.cover)),
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: isTablet ? 20 : 10), // Responsive spacing
           Expanded(
             child: Text(
               'Tap to upload a photo of your shop with good quality.',
               textAlign: TextAlign.start,
-              style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
+              style: GoogleFonts.poppins(fontSize: isTablet ? 15 : 13, color: Colors.black54), // Responsive font size
             ),
           ),
         ],
@@ -510,190 +505,232 @@ class _kycState extends State<kyc> {
             colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                Image.asset("assets/kyc1.gif"),
-                const SizedBox(height: 10),
-                Text('"Safe, Secure, And Hassle-Free KYC"', style: GoogleFonts.poppins(fontSize: 16, color: Colors.black87), textAlign: TextAlign.center),
-                const SizedBox(height: 5),
-                Text(
-                  "Submit Your Details And Unlock Access To All KISANGRO B2B Products",
-                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-                const Divider(endIndent: 130, indent: 130, color: Colors.black),
-                _sectionTitle("Primary Details"),
-                _textFormField("Full Name", controller: _fullNameController),
-                _textFormField("Mail Id", controller: _mailIdController),
-                _textFormField("WhatsApp Number", isNumber: true, controller: _whatsAppNumberController),
-                _sectionTitle("Business Details"),
-                _textFormField("Business Name", controller: _businessNameController),
-                _textFormField("GSTIN", showVerify: true, controller: _gstinController),
-                _textFormField("Aadhaar Number (Owner)", isNumber: true, controller: _aadhaarNumberController),
-                _textFormField("Business PAN Number", isPAN: true, controller: _panNumberController),
-                _dropdownField("Nature Of Core Business", _natureOfBusinessSelected, (newValue) {
-                  setState(() {
-                    _natureOfBusinessSelected = newValue;
-                    debugPrint('KYC Screen: Nature of Business selected: $newValue');
-                  });
-                }),
-                _textFormField("Business Contact Number", isNumber: true, controller: _businessContactNumberController),
-                if (_isGstinVerified) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text("Verified GSTIN Details", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: orange)),
-                    ),
+        child: LayoutBuilder( // Added LayoutBuilder to get constraints
+          builder: (context, constraints) {
+            // Determine if it's a "tablet-like" width
+            final bool isTablet = constraints.maxWidth > 600;
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(isTablet ? 24 : 16), // Responsive overall padding
+              child: Center( // Center the content
+                child: ConstrainedBox( // Constrain width for larger screens
+                  constraints: BoxConstraints(
+                    maxWidth: isTablet ? 700 : double.infinity, // Max width for tablet
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: _gstinDetails != null && _gstinDetails!.containsKey('Legal Name')
-                          ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        SizedBox(height: isTablet ? 20 : 10), // Responsive spacing
+                        Image.asset("assets/kyc1.gif", height: isTablet ? 200 : 150), // Responsive GIF size
+                        SizedBox(height: isTablet ? 20 : 10), // Responsive spacing
+                        Text('"Safe, Secure, And Hassle-Free KYC"', style: GoogleFonts.poppins(fontSize: isTablet ? 18 : 16, color: Colors.black87), textAlign: TextAlign.center), // Responsive font size
+                        SizedBox(height: isTablet ? 10 : 5), // Responsive spacing
+                        Text(
+                          "Submit Your Details And Unlock Access To All KISANGRO B2B Products",
+                          style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black54), // Responsive font size
+                          textAlign: TextAlign.center,
+                        ),
+                        Divider(endIndent: isTablet ? 200 : 130, indent: isTablet ? 200 : 130, color: Colors.black), // Responsive indent
+                        _sectionTitle("Primary Details", isTablet), // Pass isTablet
+                        _textFormField("Full Name", controller: _fullNameController, isTablet: isTablet), // Pass isTablet
+                        _textFormField("Mail Id", controller: _mailIdController, isTablet: isTablet), // Pass isTablet
+                        _textFormField("WhatsApp Number", isNumber: true, controller: _whatsAppNumberController, isTablet: isTablet), // Pass isTablet
+                        _sectionTitle("Business Details", isTablet), // Pass isTablet
+                        _textFormField("Business Name", controller: _businessNameController, isTablet: isTablet), // Pass isTablet
+                        _textFormField("GSTIN", showVerify: true, controller: _gstinController, isTablet: isTablet), // Pass isTablet
+                        _textFormField("Aadhaar Number (Owner)", isNumber: true, controller: _aadhaarNumberController, isTablet: isTablet), // Pass isTablet
+                        _textFormField("Business PAN Number", isPAN: true, controller: _panNumberController, isTablet: isTablet), // Pass isTablet
+                        _dropdownField("Nature Of Core Business", _natureOfBusinessSelected, (newValue) {
+                          setState(() {
+                            _natureOfBusinessSelected = newValue;
+                            debugPrint('KYC Screen: Nature of Business selected: $newValue');
+                          });
+                        }, isTablet), // Pass isTablet
+                        _textFormField("Business Contact Number", isNumber: true, controller: _businessContactNumberController, isTablet: isTablet), // Pass isTablet
+                        _textFormField("Business Address", controller: _businessAddressController, isTablet: isTablet), // Pass isTablet
+                        if (_isGstinVerified) ...[
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: RichText(
-                              text: TextSpan(
+                            padding: EdgeInsets.symmetric(horizontal: isTablet ? 20 : 10, vertical: isTablet ? 15 : 10), // Responsive padding
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text("Verified GSTIN Details", style: GoogleFonts.poppins(fontSize: isTablet ? 18 : 16, fontWeight: FontWeight.bold, color: orange)), // Responsive font size
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: isTablet ? 20 : 10), // Responsive padding
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: _gstinDetails != null && _gstinDetails!.containsKey('Legal Name')
+                                  ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TextSpan(
-                                    text: 'Legal Name: ',
-                                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.bold),
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: 'Legal Name: ',
+                                            style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87, fontWeight: FontWeight.bold), // Responsive font size
+                                          ),
+                                          TextSpan(
+                                            text: '${_gstinDetails!['Legal Name']}',
+                                            style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87), // Responsive font size
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                  TextSpan(
-                                    text: '${_gstinDetails!['Legal Name']}',
-                                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: 'Centre Jurisdiction: ',
+                                            style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87, fontWeight: FontWeight.bold), // Responsive font size
+                                          ),
+                                          TextSpan(
+                                            text: '${_gstinDetails!['Centre Jurisdiction']}',
+                                            style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87), // Responsive font size
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
+                                  // Display Business Address from GSTIN details if available
+                                  if (_gstinDetails!.containsKey('Business Address') && _gstinDetails!['Business Address'] != 'N/A')
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: RichText(
+                                        text: TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: 'Business Address: ',
+                                              style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87, fontWeight: FontWeight.bold),
+                                            ),
+                                            TextSpan(
+                                              text: '${_gstinDetails!['Business Address']}',
+                                              style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              )
+                                  : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: 'GSTIN: ',
+                                            style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87, fontWeight: FontWeight.bold), // Responsive font size
+                                          ),
+                                          TextSpan(
+                                            text: '${_gstinDetails?['GSTIN'] ?? _gstinController.text}',
+                                            style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87), // Responsive font size
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Text('Business details not available. Please contact support.', style: GoogleFonts.poppins(fontSize: isTablet ? 16 : 14, color: Colors.black87)), // Responsive font size
                                 ],
                               ),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'Centre Jurisdiction: ',
-                                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.bold),
-                                  ),
-                                  TextSpan(
-                                    text: '${_gstinDetails!['Centre Jurisdiction']}',
-                                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                          SizedBox(height: isTablet ? 20 : 10), // Responsive spacing
                         ],
-                      )
-                          : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'GSTIN: ',
-                                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.bold),
-                                  ),
-                                  TextSpan(
-                                    text: '${_gstinDetails?['GSTIN'] ?? _gstinController.text}',
-                                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        _sectionTitle("Establishment Photo", isTablet), // Pass isTablet
+                        _photoUploadBox(isTablet), // Pass isTablet
+                        SizedBox(height: isTablet ? 30 : 20), // Responsive spacing
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: isTablet ? 20 : 8.0), // Responsive padding
+                          child: Text(
+                            '(Note: A verification team will be arriving within 3 working days at the given address to verify your business. Make sure you are available at that time.)',
+                            textAlign: TextAlign.start,
+                            style: GoogleFonts.poppins(fontSize: isTablet ? 14 : 12, color: Colors.black87), // Responsive font size
                           ),
-                          Text('Business details not available. Please contact support.', style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                _sectionTitle("Establishment Photo"),
-                _photoUploadBox(),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    '(Note: A verification team will be arriving within 3 working days at the given address to verify your business. Make sure you are available at that time.)',
-                    textAlign: TextAlign.start,
-                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: 250,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      debugPrint('KYC Screen: Next button clicked');
-                      if (_formKey.currentState!.validate()) {
-                        if (_imageBytes == null) {
-                          debugPrint('KYC Screen: No establishment photo uploaded');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Please upload a photo of your establishment.', style: GoogleFonts.poppins())),
-                          );
-                          return;
-                        }
-                        if (!_isGstinVerified) {
-                          debugPrint('KYC Screen: GSTIN not verified');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Please verify GSTIN before proceeding.', style: GoogleFonts.poppins())),
-                          );
-                          return;
-                        }
+                        ),
+                        SizedBox(height: isTablet ? 30 : 20), // Responsive spacing
+                        SizedBox(
+                          width: isTablet ? 400 : double.infinity, // Adjusted button width for tablets
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              debugPrint('KYC Screen: Next button clicked');
+                              FocusScope.of(context).unfocus();
 
-                        try {
-                          await _kycBusinessDataProvider?.setKycBusinessData(
-                            fullName: _fullNameController.text,
-                            mailId: _mailIdController.text,
-                            whatsAppNumber: _whatsAppNumberController.text,
-                            businessName: _businessNameController.text,
-                            gstin: _gstinController.text,
-                            isGstinVerified: _isGstinVerified,
-                            aadhaarNumber: _aadhaarNumberController.text,
-                            panNumber: _panNumberController.text,
-                            natureOfBusiness: _natureOfBusinessSelected,
-                            businessContactNumber: _businessContactNumberController.text,
-                            businessAddress: _businessAddressController.text,
-                            shopImageBytes: _imageBytes,
-                          );
-                          debugPrint('KYC Screen: KYC data saved to provider successfully');
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => licence1()));
-                          debugPrint('KYC Screen: Navigated to licence1 screen');
-                        } catch (e) {
-                          debugPrint('KYC Screen: Error saving KYC data or navigating: $e');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error saving KYC data: $e', style: GoogleFonts.poppins())),
-                          );
-                        }
-                      } else {
-                        debugPrint('KYC Screen: Form validation failed');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                      backgroundColor: orange,
-                      minimumSize: const Size(double.infinity, 50),
+                              if (_formKey.currentState!.validate()) {
+                                if (_imageBytes == null) {
+                                  debugPrint('KYC Screen: No establishment photo uploaded');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Please upload a photo of your establishment.', style: GoogleFonts.poppins())),
+                                  );
+                                  return;
+                                }
+                                if (!_isGstinVerified) {
+                                  debugPrint('KYC Screen: GSTIN not verified');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Please verify GSTIN before proceeding.', style: GoogleFonts.poppins())),
+                                  );
+                                  return;
+                                }
+
+                                try {
+                                  await _kycBusinessDataProvider?.setKycBusinessData(
+                                    fullName: _fullNameController.text,
+                                    mailId: _mailIdController.text,
+                                    whatsAppNumber: _whatsAppNumberController.text,
+                                    businessName: _businessNameController.text,
+                                    gstin: _gstinController.text,
+                                    isGstinVerified: _isGstinVerified,
+                                    aadhaarNumber: _aadhaarNumberController.text,
+                                    panNumber: _panNumberController.text,
+                                    natureOfBusiness: _natureOfBusinessSelected,
+                                    businessContactNumber: _businessContactNumberController.text,
+                                    // Use the address from the controller if manually entered,
+                                    // otherwise, it will be the one populated from GSTIN verification.
+                                    businessAddress: _businessAddressController.text.isNotEmpty
+                                        ? _businessAddressController.text
+                                        : _kycBusinessDataProvider?.kycBusinessData?.businessAddress,
+                                    shopImageBytes: _imageBytes,
+                                  );
+                                  debugPrint('KYC Screen: KYC data saved to provider successfully');
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => licence1()));
+                                  debugPrint('KYC Screen: Navigated to licence1 screen');
+                                } catch (e) {
+                                  debugPrint('KYC Screen: Error saving KYC data or navigating: $e');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error saving KYC data: $e', style: GoogleFonts.poppins())),
+                                  );
+                                }
+                              } else {
+                                debugPrint('KYC Screen: Form validation failed');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Please correct the errors in the form.', style: GoogleFonts.poppins())),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                              backgroundColor: orange,
+                              minimumSize: Size.fromHeight(isTablet ? 60 : 50), // Responsive height
+                            ),
+                            child: Text('Next', style: GoogleFonts.poppins(fontSize: isTablet ? 20 : 18, color: Colors.white)), // Responsive font size
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text('Next', style: GoogleFonts.poppins(fontSize: 18, color: Colors.white)),
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

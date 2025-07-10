@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <!-- NEW: Audio Recording Permission -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
     <application
         android:name="${applicationName}"
@@ -32,6 +34,22 @@
             </intent-filter>
         </activity>
 
+        <!-- ADDED FOR UPI_INDIA PACKAGE -->
+        <activity
+            android:name="com.shreyaspatil.upi_india.UpiActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="payments"
+                    android:scheme="upi" />
+            </intent-filter>
+        </activity>
+        <!-- END ADDED FOR UPI_INDIA PACKAGE -->
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
@@ -42,5 +60,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- ADDED FOR UPI_INDIA PACKAGE: Required for Android 11+ to query installed apps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+        <!-- END ADDED FOR UPI_INDIA PACKAGE -->
     </queries>
 </manifest>

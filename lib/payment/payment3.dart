@@ -12,8 +12,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentPage extends StatefulWidget {
   final String orderId;
+  final bool isMembershipPayment; // Flag to distinguish payment type
 
-  const PaymentPage({super.key, required this.orderId});
+  const PaymentPage({
+    super.key,
+    required this.orderId,
+    this.isMembershipPayment = false, // Default to false
+  });
 
   @override
   _PaymentPageState createState() => _PaymentPageState();
@@ -66,7 +71,10 @@ class _PaymentPageState extends State<PaymentPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => PaymentSuccessScreen(orderId: widget.orderId),
+          builder: (context) => PaymentSuccessScreen(
+            orderId: widget.orderId,
+            isMembershipPayment: widget.isMembershipPayment, // Pass the flag
+          ),
         ),
       );
     });
@@ -75,7 +83,7 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartModel>(context);
-    final totalAmount = cart.totalAmount + 90.0;
+    final totalAmount = cart.totalAmount + 90.0; // Assuming 90.0 is a fixed delivery fee for calculation here.
 
     return Scaffold(
       appBar: AppBar(
@@ -158,9 +166,7 @@ class _PaymentPageState extends State<PaymentPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          addressModel.currentPincode.isNotEmpty
-                              ? 'Pincode: ${addressModel.currentPincode}'
-                              : 'No pincode provided',
+                          'Pincode: ${addressModel.currentPincode}',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -546,39 +552,22 @@ class _PaymentPageState extends State<PaymentPage> {
               elevation: 0,
             ),
             onPressed: () {
-              if (selectedPaymentMode.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Please select a payment method',
-                        style: GoogleFonts.poppins()),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              if (selectedPaymentMode == 'UPI' &&
-                  selectedUpiApp == null &&
-                  _upiController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Please select a UPI app or enter UPI ID',
-                        style: GoogleFonts.poppins()),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
               _handlePaymentSuccess();
             },
-            child: Text(
-              'Proceed',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Pay Now',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+                const SizedBox(width: 10),
+                const Icon(Icons.arrow_forward_ios_outlined,
+                    color: Colors.white70),
+              ],
             ),
           ),
         ),
@@ -589,46 +578,59 @@ class _PaymentPageState extends State<PaymentPage> {
 
 class PaymentSuccessScreen extends StatefulWidget {
   final String orderId;
+  final bool isMembershipPayment; // Receive the flag
 
-  const PaymentSuccessScreen({super.key, required this.orderId});
+  const PaymentSuccessScreen({
+    super.key,
+    required this.orderId,
+    this.isMembershipPayment = false, // Default to false
+  });
 
   @override
-  _PaymentSuccessScreenState createState() => _PaymentSuccessScreenState();
+  State<PaymentSuccessScreen> createState() => _PaymentSuccessScreenState();
 }
 
 class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   @override
   void initState() {
     super.initState();
-    _updateMembershipStatusOnSuccess();
+    _navigateToHomeWithDelay();
   }
 
-  void _updateMembershipStatusOnSuccess() {
-    Future.delayed(const Duration(seconds: 3), () async {
-      final orderModel = Provider.of<OrderModel>(context, listen: false);
-      orderModel.updateOrderStatus(widget.orderId, OrderStatus.confirmed);
-      debugPrint('Order ${widget.orderId} status updated to CONFIRMED after payment.');
+  Future<void> _navigateToHomeWithDelay() async {
+    // Simulate some post-payment processing
+    await Future.delayed(const Duration(seconds: 3));
 
-      final cartModel = Provider.of<CartModel>(context, listen: false);
-      cartModel.clearCart();
+    if (!mounted) return;
 
+    // If it's a membership payment, set the flag and navigate to home without popup
+    if (widget.isMembershipPayment) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isMembershipActive', true);
-      debugPrint('Membership status set to true in SharedPreferences.');
+      await prefs.setBool('isMembershipActive', true); // Set membership as active
+      await prefs.setBool('showRewardsPopupOnNextHomeLoad', false); // Ensure no reward popup for membership
+      debugPrint('Membership payment successful. Flag set to true. Navigating to home.');
 
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const Bot(
-              initialIndex: 0,
-              showRewardsPopup: true,
-            ),
-          ),
-              (Route<dynamic> route) => false,
-        );
-      }
-    });
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const Bot(initialIndex: 0, showRewardsPopup: false), // Explicitly set showRewardsPopup to false
+        ),
+            (Route<dynamic> route) => false,
+      );
+    } else {
+      // For regular product purchases, show the reward popup on the next home load
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('showRewardsPopupOnNextHomeLoad', true);
+      debugPrint('Product payment successful. Reward popup flag set to true. Navigating to home.');
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const Bot(initialIndex: 0, showRewardsPopup: true), // Explicitly set showRewardsPopup to true
+        ),
+            (Route<dynamic> route) => false,
+      );
+    }
   }
 
   @override
@@ -652,7 +654,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
             const CircularProgressIndicator(color: Color(0xffEB7720)),
             const SizedBox(height: 20),
             Text(
-              "Redirecting to home...",
+              "Redirecting to home... ",
               style: GoogleFonts.poppins(color: Colors.grey),
             ),
           ],
@@ -684,5 +686,7 @@ class DottedLinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return false;
+  }
 }
