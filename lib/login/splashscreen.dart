@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart'; // Import shared_pr
 import 'package:kisangro/login/onprocess.dart'; // Import KycSplashScreen
 import 'package:kisangro/services/product_service.dart'; // NEW: Import ProductService for data loading
 import 'dart:async'; // For Future.delayed
+import 'package:kisangro/login/login.dart'; // Import LoginApp
 
 class splashscreen extends StatefulWidget {
   const splashscreen({super.key});

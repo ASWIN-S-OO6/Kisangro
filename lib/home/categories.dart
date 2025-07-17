@@ -295,6 +295,22 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final orientation = MediaQuery.of(context).orientation;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600; // Define tablet based on width
+
+    int crossAxisCount = 3;
+    double childAspectRatio = 0.85; // Default for mobile and tablet portrait
+
+    if (isTablet && orientation == Orientation.landscape) {
+      crossAxisCount = 5; // More columns for tablet landscape
+      childAspectRatio = 0.9; // Adjust aspect ratio for more compact tiles
+    } else if (isTablet && orientation == Orientation.portrait) {
+      crossAxisCount = 4; // More columns for tablet portrait
+      childAspectRatio = 0.9; // Adjust aspect ratio for more compact tiles
+    }
+
+
     return Scaffold(
       key: _scaffoldKey, // Assign scaffold key to control drawer
       drawer: const CustomDrawer(), // Use const for CustomDrawer
@@ -327,11 +343,11 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
               ? const Center(child: CircularProgressIndicator(color: Color(0xffEB7720)))
               : GridView.builder(
             itemCount: _categories.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 0.85,
+              childAspectRatio: childAspectRatio,
             ),
             itemBuilder: (context, index) {
               final category = _categories[index];
@@ -351,7 +367,7 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                 },
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(5),
                     boxShadow: const [
                       BoxShadow(
@@ -369,6 +385,9 @@ class _ProductCategoriesScreenState extends State<ProductCategoriesScreen> {
                         height: 40,
                         width: 40,
                         fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.category, size: 40, color: Color(0xffEB7720)); // Fallback icon
+                        },
                       ),
                       const SizedBox(height: 10),
                       Padding(

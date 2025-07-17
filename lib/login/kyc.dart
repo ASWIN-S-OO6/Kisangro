@@ -362,7 +362,7 @@ class _kycState extends State<kyc> {
             contentPadding: EdgeInsets.symmetric(vertical: isTablet ? 20 : 16, horizontal: isTablet ? 20 : 12), // Responsive content padding
           ),
           items: const [
-            DropdownMenuItem(value: 'contractor', child: Text('contractor')),
+            DropdownMenuItem(value: 'Distributor', child: Text('Distributor')),
             /*DropdownMenuItem(value: 'Wholesale', child: Text('Wholesale')),
             DropdownMenuItem(value: 'Other', child: Text('Other')),*/
           ],

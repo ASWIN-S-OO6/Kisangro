@@ -36,45 +36,47 @@ class _KycSplashScreenState extends State<KycSplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
-            ),
+      // Removed SafeArea to allow content to fill the entire screen
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)],
           ),
-          child: Column(
-            children: [
-              const SizedBox(height: 50),
-              SizedBox(
-                height: 130,
-                width: 150,
-                child: Image.asset("assets/logo.png"),
-              ),
-              const SizedBox(height: 80),
-              Image.asset(
-                "assets/process.gif",
-                width: 200,
-                height: 200,
-              ),
-              const SizedBox(height: 30),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                child: Text(
-                  'Your KYC verification is in process.\n\nYou can purchase our products once it is completed.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
+        ),
+        child: Column(
+          // Added mainAxisAlignment.center to vertically center the content
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Removed the SizedBox(height: 50) and SizedBox(height: 80)
+            // to allow the content to naturally center and fill available space.
+            SizedBox(
+              height: 130,
+              width: 150,
+              child: Image.asset("assets/logo.png"),
+            ),
+            const SizedBox(height: 80), // Keep this spacing for visual balance
+            Image.asset(
+              "assets/process.gif",
+              width: 200,
+              height: 200,
+            ),
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30.0),
+              child: Text(
+                'Your KYC verification is in process.\n\nYou can purchase our products once it is completed.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: Colors.black87,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

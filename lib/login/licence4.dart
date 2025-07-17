@@ -6,10 +6,10 @@ import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/login/onprocess.dart'; // Correct import for KycSplashScreen
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io' show File;
+// Removed: import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+// Removed: import 'package:syncfusion_flutter_pdf/pdf.dart';
+// Removed: import 'package:path_provider/path_provider.dart';
+import 'dart:io' show File; // Keep File for reading bytes from path
 import 'package:provider/provider.dart';
 import 'package:kisangro/models/license_provider.dart';
 import 'package:kisangro/home/bottom.dart'; // Import Bot for direct navigation after process
@@ -39,23 +39,10 @@ class _licence4State extends State<licence4> {
   bool _insecticideIsImage = true;
   bool _fertilizerIsImage = true;
 
-  final TextRecognizer _textRecognizer = TextRecognizer();
-
-  final RegExp _licenseNumberRegExp = RegExp(
-    r'(?:License Number|Licence Number)\s*[:\s]*([A-Z0-9\s\/\-\.]*[A-Z0-9])',
-    caseSensitive: false,
-  );
-
-  final List<RegExp> _datePatterns = [
-    RegExp(r'(?:Valid\s+upto|Valid\s+up\s+to|Expiry\s*Date)\s*:?\s*(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{4})', caseSensitive: false),
-    RegExp(r'\b(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{4})\b'),
-    RegExp(r'\b(\d{4}[\.\-\/]\d{1,2}[\.\-\/]\d{1,2})\b'),
-  ];
-
-  final RegExp _permanentPattern = RegExp(
-    r'(?:Permanent|No\s+Expiry|Non\s+Expiring|Validity\s+wherever\s+applicable\s*:\s*Permanent)',
-    caseSensitive: false,
-  );
+  // Removed: final TextRecognizer _textRecognizer = TextRecognizer();
+  // Removed: final RegExp _licenseNumberRegExp = ...
+  // Removed: final List<RegExp> _datePatterns = ...
+  // Removed: final RegExp _permanentPattern = ...
 
   String? _currentLicenseTypeToDisplay;
 
@@ -181,7 +168,7 @@ class _licence4State extends State<licence4> {
                     maxHeight: 1024,
                   );
                   if (pickedFile != null) {
-                    await _processImageFile(pickedFile, isInsecticide);
+                    await _storeFileBytes(pickedFile, isInsecticide, true);
                   }
                 },
               ),
@@ -197,7 +184,7 @@ class _licence4State extends State<licence4> {
                     maxHeight: 1024,
                   );
                   if (pickedFile != null) {
-                    await _processImageFile(pickedFile, isInsecticide);
+                    await _storeFileBytes(pickedFile, isInsecticide, true);
                   }
                 },
               ),
@@ -211,7 +198,7 @@ class _licence4State extends State<licence4> {
                     allowedExtensions: ['pdf'],
                   );
                   if (result != null && (result.files.single.bytes != null || result.files.single.path != null)) {
-                    await _processPdfFile(result.files.single, isInsecticide);
+                    await _storeFileBytes(result.files.single, isInsecticide, false);
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('No PDF selected. Please try again.')),
@@ -230,280 +217,51 @@ class _licence4State extends State<licence4> {
     }
   }
 
-  Future<void> _processImageFile(XFile imageFile, bool isInsecticide) async {
-    _showProcessingDialog('Processing image...');
+  // New function to handle storing file bytes
+  Future<void> _storeFileBytes(dynamic file, bool isInsecticide, bool isImage) async {
+    Uint8List? bytes;
     try {
-      final bytes = await imageFile.readAsBytes();
-      final inputImage = InputImage.fromFilePath(imageFile.path);
-      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
-      final extractedText = recognizedText.text;
-
-      Navigator.pop(context); // Dismiss processing dialog
-
-      if (extractedText.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No text found in the image. Please enter details manually.')),
-        );
-        setState(() {
-          if (isInsecticide) {
-            _insecticideImageBytes = bytes;
-            _insecticideIsImage = true;
-          } else {
-            _fertilizerImageBytes = bytes;
-            _fertilizerIsImage = true;
-          }
-        });
-        _checkFormValidity();
-        return;
-      }
-
-      await _extractLicenseData(extractedText, isInsecticide, bytes, true);
-    } catch (e) {
-      Navigator.pop(context); // Dismiss processing dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing image: $e. Please enter details manually.')),
-      );
-      try {
-        final bytes = await imageFile.readAsBytes();
-        setState(() {
-          if (isInsecticide) {
-            _insecticideImageBytes = bytes;
-            _insecticideIsImage = true;
-          } else {
-            _fertilizerImageBytes = bytes;
-            _fertilizerIsImage = true;
-          }
-        });
-        _checkFormValidity();
-      } catch (e2) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading image: $e2')),
-        );
-      }
-    }
-  }
-
-  Future<void> _processPdfFile(PlatformFile file, bool isInsecticide) async {
-    _showProcessingDialog('Processing PDF...');
-
-    File? tempFile;
-    try {
-      Uint8List bytes;
-      if (file.bytes != null) {
-        bytes = file.bytes!;
-      } else if (file.path != null) {
-        bytes = await File(file.path!).readAsBytes();
+      if (isImage) {
+        // For XFile (image)
+        bytes = await (file as XFile).readAsBytes();
       } else {
-        throw Exception('No bytes or path available for the PDF file.');
-      }
-
-      final tempDir = await getTemporaryDirectory();
-      tempFile = File('${tempDir.path}/${file.name?.replaceAll(RegExp(r'[^\w\.]'), '_') ?? 'temp_pdf.pdf'}');
-      await tempFile.writeAsBytes(bytes);
-
-      final PdfDocument document = PdfDocument(inputBytes: bytes);
-      final PdfTextExtractor extractor = PdfTextExtractor(document);
-      final StringBuffer textBuffer = StringBuffer();
-      for (int i = 0; i < document.pages.count; i++) {
-        final pageText = extractor.extractText(startPageIndex: i, endPageIndex: i);
-        textBuffer.writeln(pageText);
-      }
-      final extractedText = textBuffer.toString();
-      document.dispose();
-
-      Navigator.pop(context); // Dismiss processing dialog
-
-      debugPrint('PDF Extracted Text (Raw): "$extractedText"');
-
-      if (extractedText.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No text found in the PDF. Please enter details manually.')),
-        );
-        setState(() {
-          if (isInsecticide) {
-            _insecticideImageBytes = bytes;
-            _insecticideIsImage = false;
-          } else {
-            _fertilizerImageBytes = bytes;
-            _fertilizerIsImage = false;
-          }
-        });
-        _checkFormValidity();
-        return;
-      }
-
-      await _extractLicenseData(extractedText, isInsecticide, bytes, false);
-    } catch (e) {
-      Navigator.pop(context); // Dismiss processing dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing PDF: $e. Please enter details manually.')),
-      );
-      try {
-        Uint8List bytes;
-        if (file.bytes != null) {
+        // For PlatformFile (PDF)
+        if ((file as PlatformFile).bytes != null) {
           bytes = file.bytes!;
         } else if (file.path != null) {
           bytes = await File(file.path!).readAsBytes();
-        } else {
-          throw Exception('No bytes or path available for the PDF file.');
         }
+      }
+
+      if (bytes != null) {
         setState(() {
           if (isInsecticide) {
             _insecticideImageBytes = bytes;
-            _insecticideIsImage = false;
+            _insecticideIsImage = isImage;
           } else {
             _fertilizerImageBytes = bytes;
-            _fertilizerIsImage = false;
+            _fertilizerIsImage = isImage;
           }
         });
         _checkFormValidity();
-      } catch (e2) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading PDF: $e2')),
+          SnackBar(content: Text('${isImage ? 'Image' : 'PDF'} uploaded successfully!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to read file bytes. Please try again.')),
         );
       }
-    } finally {
-      if (tempFile != null && await tempFile.exists()) {
-        await tempFile.delete();
-      }
-    }
-  }
-
-  void _showProcessingDialog(String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(message),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _extractLicenseData(String extractedText, bool isInsecticide, Uint8List bytes, bool isImage) async {
-    String? licenseNumber;
-    String? expiryDateStr;
-    bool isPermanent = false;
-
-    final cleanText = extractedText.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-    debugPrint('Extracted text (cleaned): "$cleanText"');
-
-    final licenseMatch = _licenseNumberRegExp.firstMatch(cleanText);
-    if (licenseMatch != null && licenseMatch.group(1) != null) {
-      licenseNumber = licenseMatch.group(1)?.trim();
-      debugPrint('License Number extracted: "$licenseNumber"');
-    } else {
-      debugPrint('No License Number found using generic regex.');
-      final fallbackMatch = RegExp(r'\b[A-Z0-9]{3,}[A-Z0-9\s\/\-\.]*\b', caseSensitive: false).firstMatch(cleanText);
-      if (fallbackMatch != null) {
-        licenseNumber = fallbackMatch.group(0)?.trim();
-        debugPrint('Fallback License Number extracted: "$licenseNumber"');
-      }
-    }
-
-    if (_permanentPattern.hasMatch(cleanText)) {
-      isPermanent = true;
-      expiryDateStr = 'Permanent';
-      debugPrint('Permanent validity detected.');
-    } else {
-      for (RegExp pattern in _datePatterns) {
-        final match = pattern.firstMatch(cleanText);
-        if (match != null) {
-          String matchedDate = match.group(1) ?? match.group(0)!;
-          if (!(cleanText.contains('date of grant of licence') && cleanText.contains(matchedDate))) {
-            expiryDateStr = matchedDate;
-            debugPrint('Expiry Date extracted: "$expiryDateStr" using pattern: "${pattern.pattern}"');
-            break;
-          }
-        }
-      }
-      if (expiryDateStr == null) {
-        debugPrint('No expiry date found.');
-      }
-    }
-
-    // Update local state first
-    setState(() {
-      if (isInsecticide) {
-        _insecticideImageBytes = bytes;
-        _insecticideIsImage = isImage;
-        _insecticideLicenseController.text = licenseNumber ?? '';
-        _insecticideNoExpiry = isPermanent;
-        _insecticideExpirationDate = isPermanent ? null : _parseDate(expiryDateStr ?? '');
-      } else {
-        _fertilizerImageBytes = bytes;
-        _fertilizerIsImage = isImage;
-        _fertilizerLicenseController.text = licenseNumber ?? '';
-        _fertilizerNoExpiry = isPermanent;
-        _fertilizerExpirationDate = isPermanent ? null : _parseDate(expiryDateStr ?? '');
-      }
-    });
-
-    // Now save to provider with the current state (which includes OCR-extracted data)
-    final licenseProvider = Provider.of<LicenseProvider>(context, listen: false);
-    if (isInsecticide) {
-      await licenseProvider.setPesticideLicense(
-        imageBytes: _insecticideImageBytes,
-        isImage: _insecticideIsImage,
-        licenseNumber: _insecticideLicenseController.text, // Use controller's current text
-        expirationDate: _insecticideExpirationDate,
-        noExpiry: _insecticideNoExpiry,
-        displayDate: _insecticideNoExpiry ? 'Permanent' : (_insecticideExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_insecticideExpirationDate!) : null),
-      );
-    } else {
-      await licenseProvider.setFertilizerLicense(
-        imageBytes: _fertilizerImageBytes,
-        isImage: _fertilizerIsImage,
-        licenseNumber: _fertilizerLicenseController.text, // Use controller's current text
-        expirationDate: _fertilizerExpirationDate,
-        noExpiry: _fertilizerNoExpiry,
-        displayDate: _fertilizerNoExpiry ? 'Permanent' : (_fertilizerExpirationDate != null ? DateFormat('dd/MM/yyyy').format(_fertilizerExpirationDate!) : null),
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error uploading file: $e')),
       );
     }
-
-    _checkFormValidity(); // Re-check validity after state update
-
-    String message = 'Document uploaded successfully!\n';
-    if (licenseNumber != null && licenseNumber.isNotEmpty) {
-      message += 'License: ${licenseNumber}\n';
-    } else {
-      message += 'License number could not be extracted.\n';
-    }
-    if (isPermanent) {
-      message += 'Validity: Permanent';
-    } else if (expiryDateStr != null && _parseDate(expiryDateStr) != null) {
-      message += 'Expiry: ${DateFormat('dd/MM/yyyy').format(_parseDate(expiryDateStr)!)}';
-    } else {
-      message += 'Expiry date could not be extracted.';
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 4),
-      ),
-    );
   }
 
-  DateTime? _parseDate(String dateStr) {
-    String cleanDate = dateStr.replaceAll(RegExp(r'[^\d\.\-\/]'), '');
-    List<String> formats = ['dd.MM.yyyy', 'dd-MM.yyyy', 'dd/MM/yyyy', 'yyyy.MM.dd', 'yyyy-MM-dd', 'yyyy/MM/dd'];
-
-    for (String format in formats) {
-      try {
-        return DateFormat(format).parseStrict(cleanDate);
-      } catch (e) {
-        continue;
-      }
-    }
-    debugPrint('Failed to parse date: "$cleanDate"');
-    return null;
-  }
+  // Removed _showProcessingDialog as OCR is removed
+  // Removed _extractLicenseData as OCR is removed
+  // Removed _parseDate as OCR is removed
 
   @override
   void dispose() {
@@ -511,7 +269,7 @@ class _licence4State extends State<licence4> {
     _fertilizerLicenseController.removeListener(_checkFormValidity);
     _insecticideLicenseController.dispose();
     _fertilizerLicenseController.dispose();
-    _textRecognizer.close();
+    // Removed: _textRecognizer.close();
     super.dispose();
   }
 

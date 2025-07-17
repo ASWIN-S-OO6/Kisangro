@@ -23,23 +23,25 @@ class CategoryProductsScreen extends StatefulWidget {
 }
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
-  List<Product> _allProducts = []; // Store all products fetched from API
-  List<Product> _displayedProducts = []; // Products currently displayed (filtered by search or category)
+  List<Product> _allProducts = []; // Store all products fetched from API for the category
+  List<Product> _displayedProducts = []; // Products currently displayed (filtered by search or paginated)
   bool _isLoading = true;
   bool _isLoadingMore = false;
   String? _errorMessage;
   int _offset = 0;
-  final int _limit = 10; // Load 10 products at a time
+  final int _initialLimit = 15; // Initial load of 15 products
+  final int _loadMoreLimit = 10; // Subsequent loads of 10 products
   bool _hasMore = true; // Flag to check if more products are available
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _searchController = TextEditingController(); // Search controller
-  String _searchQuery = ''; // Stores the current search query
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
+  // MODIFIED: Use ProductService.getRandomValidImageUrl() as fallback
   String _getEffectiveImageUrl(String rawImageUrl) {
     if (rawImageUrl.isEmpty ||
         rawImageUrl == 'https://sgserp.in/erp/api/' ||
         (Uri.tryParse(rawImageUrl)?.isAbsolute != true && !rawImageUrl.startsWith('assets/'))) {
-      return 'assets/placeholder.png';
+      return ProductService.getRandomValidImageUrl(); // Use a random valid API image
     }
     return rawImageUrl;
   }
@@ -47,41 +49,39 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchCategoryProducts();
+    _fetchCategoryProducts(initialLoad: true); // Initial load
     _scrollController.addListener(_onScroll);
-    _searchController.addListener(_onSearchChanged); // Add listener for search input changes
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _searchController.dispose(); // Dispose search controller
+    _searchController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
-    if (!_hasMore || _isLoadingMore || _isLoading) return;
+    if (!_hasMore || _isLoadingMore || _isLoading || _searchQuery.isNotEmpty) return;
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.9) {
       _loadMoreProducts();
     }
   }
 
-  // Method to handle search query changes
   void _onSearchChanged() {
     setState(() {
       _searchQuery = _searchController.text.toLowerCase();
-      _filterProducts(); // Filter products based on new search query
+      _filterAndDisplayProducts(); // Filter based on search query
     });
   }
 
-  // Method to filter products based on the search query
-  void _filterProducts() {
+  // This method now filters from _allProducts (which holds all fetched for the category)
+  // and also handles initial display vs. search results.
+  void _filterAndDisplayProducts() {
     if (_searchQuery.isEmpty) {
-      // If search query is empty, show products from the current category, paginated
-      _displayedProducts = _allProducts.take(_limit).toList();
-      _offset = _limit;
-      _hasMore = _allProducts.length > _limit;
+      // If search query is empty, display all fetched products for the category
+      _displayedProducts = List.from(_allProducts);
     } else {
       // If there's a search query, filter all products in the category
       _displayedProducts = _allProducts
@@ -90,25 +90,41 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           product.subtitle.toLowerCase().contains(_searchQuery) ||
           product.category.toLowerCase().contains(_searchQuery))
           .toList();
-      _offset = _displayedProducts.length; // When searching, display all matching items, no load more
-      _hasMore = false; // No more items to load when a search is active
     }
-    _isLoadingMore = false; // Reset loading more flag
+    // When filtering, we assume all matching results are displayed, so no further loading
+    _isLoadingMore = false;
   }
 
-  Future<void> _fetchCategoryProducts() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _fetchCategoryProducts({bool initialLoad = false}) async {
+    if (initialLoad) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _offset = 0; // Reset offset for initial load
+        _allProducts.clear(); // Clear previous products
+        _displayedProducts.clear(); // Clear displayed products
+        _hasMore = true; // Assume there's more initially
+      });
+    }
 
     try {
-      final products = await ProductService.fetchProductsByCategory(widget.categoryId);
+      final Map<String, dynamic> result = await ProductService.fetchProductsByCategory(
+        widget.categoryId,
+        offset: _offset,
+        limit: initialLoad ? _initialLimit : _loadMoreLimit,
+      );
+
+      final List<Product> fetchedProducts = result['products'];
+      final bool fetchedHasMore = result['hasMore'];
+
       if (mounted) {
         setState(() {
-          _allProducts = products;
-          _filterProducts(); // Filter immediately after fetching to populate _displayedProducts
+          _allProducts.addAll(fetchedProducts); // Add to the master list of all products for the category
+          _offset += fetchedProducts.length;
+          _hasMore = fetchedHasMore;
           _isLoading = false;
+          _isLoadingMore = false;
+          _filterAndDisplayProducts(); // Update displayed products based on search query
         });
       }
     } catch (e) {
@@ -117,32 +133,52 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         setState(() {
           _errorMessage = 'Failed to load products. Please try again later. ($e)';
           _isLoading = false;
+          _isLoadingMore = false;
         });
       }
     }
   }
 
-  void _loadMoreProducts() {
-    if (!_hasMore || _isLoadingMore || _searchQuery.isNotEmpty) return; // Don't load more if searching
+  void _loadMoreProducts() async {
+    if (!_hasMore || _isLoadingMore || _searchQuery.isNotEmpty) return;
+
     setState(() {
-      _isLoadingMore = true;
+      _isLoadingMore = true; // Show the loading indicator immediately
     });
 
-    // Simulate a slight delay to mimic API call and prevent UI jank
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // Introduce a small delay to ensure the loading indicator is visible
+    await Future.delayed(const Duration(milliseconds: 500)); // Increased delay for better visibility
+
+    try {
+      final Map<String, dynamic> result = await ProductService.fetchProductsByCategory(
+        widget.categoryId,
+        offset: _offset,
+        limit: _loadMoreLimit,
+      );
+
+      final List<Product> fetchedProducts = result['products'];
+      final bool fetchedHasMore = result['hasMore'];
+
       if (mounted) {
         setState(() {
-          final nextProducts = _allProducts.skip(_offset).take(_limit).toList();
-          _displayedProducts.addAll(nextProducts);
-          _offset += _limit;
-          _hasMore = _offset < _allProducts.length;
+          _allProducts.addAll(fetchedProducts); // Add to the master list
+          _offset += fetchedProducts.length;
+          _hasMore = fetchedHasMore;
+          _isLoadingMore = false; // Hide the loading indicator
+          _filterAndDisplayProducts(); // Update displayed products with new data
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more products for category ${widget.categoryTitle} (ID: ${widget.categoryId}): $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load more products. Please try again later. ($e)';
           _isLoadingMore = false;
         });
       }
-    });
+    }
   }
 
-  // Method to build the search bar
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
@@ -157,13 +193,13 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             icon: const Icon(Icons.clear, color: Colors.grey),
             onPressed: () {
               _searchController.clear();
-              _filterProducts(); // Clear search and show initial category products
+              // No need to call _filterProducts directly here, listener handles it
             },
           )
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none, // No border for a cleaner look
+            borderSide: BorderSide.none,
           ),
           filled: true,
           fillColor: Colors.white,
@@ -171,7 +207,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         ),
         style: GoogleFonts.poppins(fontSize: 14),
         onSubmitted: (value) {
-          _filterProducts(); // Trigger search on submit as well
+          _filterAndDisplayProducts();
         },
       ),
     );
@@ -224,16 +260,15 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             style: GoogleFonts.poppins(fontSize: 16, color: Colors.black54),
           ),
         )
-            : CustomScrollView( // NEW: Use CustomScrollView for scrollable search bar
+            : CustomScrollView(
           controller: _scrollController,
           slivers: [
-            SliverToBoxAdapter( // NEW: Search bar as a sliver
+            SliverToBoxAdapter(
               child: _buildSearchBar(),
             ),
-            // ADDED: Padding around the SliverGrid for alignment
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0), // Adjust padding here
-              sliver: SliverGrid( // NEW: Products grid as a sliver grid
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+              sliver: SliverGrid(
                 delegate: SliverChildBuilderDelegate(
                       (context, index) {
                     final product = _displayedProducts[index];
@@ -249,8 +284,9 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                 ),
               ),
             ),
-            if (_isLoadingMore && _searchQuery.isEmpty)
-              SliverToBoxAdapter( // NEW: Loading indicator as a sliver
+            // Re-added the loading indicator for "load more"
+            if (_isLoadingMore && _searchQuery.isEmpty) // Only show if loading more and not actively searching
+              SliverToBoxAdapter(
                 child: const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Center(
@@ -258,7 +294,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                   ),
                 ),
               ),
-            if (_displayedProducts.isEmpty && _searchQuery.isEmpty) // Show 'No products' only if no search and genuinely empty
+            if (_displayedProducts.isEmpty && _searchQuery.isEmpty && !_isLoading && _errorMessage == null)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
@@ -320,12 +356,12 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                     _getEffectiveImageUrl(product.imageUrl),
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) => Image.asset(
-                      'assets/placeholder.png',
+                      'assets/placeholder.png', // Fallback to local placeholder if network image fails
                       fit: BoxFit.contain,
                     ),
                   )
                       : Image.asset(
-                    _getEffectiveImageUrl(product.imageUrl),
+                    _getEffectiveImageUrl(product.imageUrl), // This will now use the dynamic fallback if rawImageUrl is empty
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -362,7 +398,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 4.0),
             child: Text(
-              'Price: ₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}', // Safely access price
+              'Price: ₹${product.pricePerSelectedUnit?.toStringAsFixed(2) ?? 'N/A'}',
               style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

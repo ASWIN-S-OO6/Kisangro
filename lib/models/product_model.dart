@@ -4,7 +4,6 @@ part 'product_model.g.dart';
 
 // Represents a single available size/unit option for a product.
 @JsonSerializable()
-
 class ProductSize {
   final String size;
   final double price; // This must be 'price'
@@ -21,10 +20,17 @@ class ProductSize {
       price: parsedPrice,
     );
   }
+
+  // Convert ProductSize to JSON for caching
+  Map<String, dynamic> toJson() {
+    return {
+      'size': size,
+      'price': price,
+    };
+  }
 }
 
- @JsonSerializable()
-
+@JsonSerializable()
 // Represents a single product in the application.
 class Product extends ChangeNotifier {
   final String id;
@@ -42,42 +48,47 @@ class Product extends ChangeNotifier {
     required this.imageUrl,
     required this.category,
     required this.availableSizes,
-    String? selectedUnit, // Optional initial selected unit
-  }) : _selectedUnit = selectedUnit ?? (availableSizes.isNotEmpty ? availableSizes.first.size : ''); // Default to first available size
+    String? selectedUnit, // Make selectedUnit optional in constructor
+  }) : _selectedUnit = selectedUnit ?? (availableSizes.isNotEmpty ? availableSizes.first.size : 'Unit');
 
-  // Factory constructor to create a Product from API JSON response
-  factory Product.fromJson(Map<String, dynamic> json, String id, String category) {
-    final List<ProductSize> sizes = json.containsKey('sizes') && json['sizes'] is List
-        ? (json['sizes'] as List).map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>)).toList()
-        : [ProductSize(size: 'Unit', price: 0.0)];
 
-    return Product(
-      id: id,
-      title: json['pro_name'] as String? ?? 'No Title',
-      subtitle: json['technical_name'] as String? ?? 'No Description',
-      imageUrl: json['image'] as String? ?? 'assets/placeholder.png',
-      category: category,
-      availableSizes: sizes,
-      selectedUnit: sizes.isNotEmpty ? sizes.first.size : 'Unit',
-    );
+  // Factory constructor to create a Product from JSON
+  // IMPORTANT: When using json_annotation, the actual `fromJson` implementation
+  // is generated in `product_model.g.dart`. We define the *signature* here
+  // and then the build_runner creates the implementation.
+  // The named parameters `idOverride`, `categoryOverride`, `imageUrlOverride`
+  // are passed to the Product constructor *after* the raw JSON is parsed.
+  factory Product.fromJson(Map<String, dynamic> json) {
+    // The generated fromJson will handle the direct JSON parsing.
+    // We will handle the overrides in the ProductService when calling this.
+    // The actual implementation of Product.fromJson will be in product_model.g.dart
+    // and will look something like:
+    // Product _$ProductFromJson(Map<String, dynamic> json) => Product(...)
+    // So, we need to ensure the ProductService passes these values to the Product constructor.
+
+    // This part of the factory is usually handled by the generator.
+    // However, if you need custom logic *before* calling the generated constructor,
+    // you might do it here or in a separate helper.
+    // For json_annotation, the factory *signature* should match what the generator expects.
+    // The generator typically creates a factory like:
+    // factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+    // And _$ProductFromJson then calls the Product constructor with named parameters.
+
+    // Let's ensure the Product constructor itself can take these overrides.
+    // The `id`, `category`, `imageUrl` fields are `final` so they must be set in the constructor.
+    // The `ProductService` will pass these values to the `Product` constructor directly.
+
+    // This factory should just call the generated one.
+    // The overrides are handled by passing them directly to the Product constructor in ProductService.
+    return _$ProductFromJson(json); // This calls the generated part
   }
 
-    Map<String, dynamic> toJson() => _$ProductToJson(this);
-  //
-  // Map<String, dynamic> toJson() {
-  //   return {
-  //     'id': id,
-  //     'pro_name': title,
-  //     'technical_name': subtitle,
-  //     'image': imageUrl,
-  //     'category': category,
-  //     'sizes': availableSizes.map((size) => size.toJson()).toList(),
-  //     'selectedUnit': selectedUnit,
-  //     'pricePerSelectedUnit': pricePerSelectedUnit,
-  //   };
-  // }
 
-  // Getters
+  // Convert Product to JSON for caching
+  Map<String, dynamic> toJson() {
+    return _$ProductToJson(this); // This calls the generated part
+  }
+
   String get selectedUnit => _selectedUnit;
 
   // Setter for selected unit (updates the state and notifies listeners)
@@ -115,7 +126,7 @@ class Product extends ChangeNotifier {
       subtitle: subtitle ?? this.subtitle,
       imageUrl: imageUrl ?? this.imageUrl,
       category: category ?? this.category,
-      availableSizes: availableSizes ?? List.from(this.availableSizes), // Deep copy list
+      availableSizes: availableSizes ?? this.availableSizes,
       selectedUnit: selectedUnit ?? this.selectedUnit,
     );
   }

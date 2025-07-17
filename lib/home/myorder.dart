@@ -597,8 +597,8 @@ class OrderCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      // MODIFIED: Darker background tile color
-      color: Colors.orange.shade100.withOpacity(0.5), // Changed from shade50.withOpacity(0.3)
+      // MODIFIED: Changed background tile color to white
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 3,
       child: Padding(
@@ -958,3 +958,4 @@ class OrderCard extends StatelessWidget {
     );
   }
 }
+

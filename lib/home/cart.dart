@@ -455,15 +455,18 @@ class _cartState extends State<Cart> {
   }
 
   Widget _buildSimilarProductCard(BuildContext context, Product product) {
+    // Local state for the selected unit within this card
+    String _localSelectedUnit = product.selectedUnit;
+
     // Ensure availableSizes is never empty to prevent errors in DropdownButton.
     final List<ProductSize> availableSizes = product.availableSizes.isNotEmpty
         ? product.availableSizes
         : [ProductSize(size: 'Unit', price: product.pricePerSelectedUnit ?? 0.0)];
 
-    // Ensure selectedUnit is one of the available sizes, or default to the first available.
-    final String selectedUnit = availableSizes.any((size) => size.size == product.selectedUnit)
-        ? product.selectedUnit
-        : availableSizes.first.size;
+    // Ensure _localSelectedUnit is one of the available sizes, or default to the first available.
+    if (!availableSizes.any((size) => size.size == _localSelectedUnit)) {
+      _localSelectedUnit = availableSizes.first.size;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -534,7 +537,7 @@ class _cartState extends State<Cart> {
                   // Unit text and dropdown
                   Align(
                     alignment: Alignment.centerLeft, // Align "Unit" text to the left
-                    child: Text("Unit Size: ${selectedUnit}",
+                    child: Text("Unit Size: ${_localSelectedUnit}", // Use local state
                         style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xffEB7720))),
                   ),
                   const SizedBox(height: 4), // Reduced spacing
@@ -547,7 +550,7 @@ class _cartState extends State<Cart> {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: selectedUnit,
+                        value: _localSelectedUnit, // Use local state for dropdown value
                         icon: const Icon(Icons.keyboard_arrow_down,
                             color: Color(0xffEB7720), size: 18), // Smaller icon
                         underline: const SizedBox(),
@@ -561,7 +564,9 @@ class _cartState extends State<Cart> {
                         }).toList(),
                         onChanged: (newValue) {
                           setState(() {
-                            product.selectedUnit = newValue!;
+                            _localSelectedUnit = newValue!; // Update local state
+                            // No need to update product.selectedUnit directly here,
+                            // as we will pass the _localSelectedUnit to copyWith
                           });
                         },
                       ),
@@ -576,8 +581,9 @@ class _cartState extends State<Cart> {
                         height: 30, // Reduced height for Add button
                         child: ElevatedButton(
                           onPressed: () {
+                            // Pass the locally selected unit when adding to cart
                             Provider.of<CartModel>(context, listen: false)
-                                .addItem(product.copyWith());
+                                .addItem(product.copyWith(selectedUnit: _localSelectedUnit));
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('${product.title} added to cart!'),
@@ -598,12 +604,13 @@ class _cartState extends State<Cart> {
                       ),
                       Consumer<WishlistModel>(
                         builder: (context, wishlist, child) {
+                          // Check if the product with the *currently selected local unit* is in the wishlist
                           final bool isFavorite = wishlist.items.any(
-                                  (item) => item.id == product.id && item.selectedUnit == product.selectedUnit);
+                                  (item) => item.id == product.id && item.selectedUnit == _localSelectedUnit);
                           return IconButton(
                             onPressed: () {
                               if (isFavorite) {
-                                wishlist.removeItem(product.id, product.selectedUnit);
+                                wishlist.removeItem(product.id, _localSelectedUnit); // Remove using local unit
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('${product.title} removed from wishlist!'),
@@ -611,7 +618,7 @@ class _cartState extends State<Cart> {
                                   ),
                                 );
                               } else {
-                                wishlist.addItem(product.copyWith());
+                                wishlist.addItem(product.copyWith(selectedUnit: _localSelectedUnit)); // Add using local unit
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('${product.title} added to wishlist!'),

@@ -8,8 +8,6 @@ import 'package:kisangro/home/myorder.dart'; // For navigating to My Orders
 import 'package:kisangro/menu/wishlist.dart'; // For navigating to Wishlist
 import 'package:kisangro/home/bottom.dart'; // For navigating back to Home
 
-// NEW: Import the CustomAppBar
-
 
 import '../common/common_app_bar.dart';
 
@@ -100,7 +98,7 @@ class OrderArrivingDetailsPage extends StatelessWidget {
                 child: Text(
                   notification.timestamp,
                   style: GoogleFonts.poppins(
-                    color: Colors.black,
+                    color: Colors.black, // Changed to black
                     fontSize: 16,
                   ),
                 ),
@@ -408,35 +406,32 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
             }
 
             final notification = _notifications[index];
-            Widget notificationWidget;
+            Widget notificationContentWidget; // Renamed to avoid confusion
 
             if (notification.type == 'order') {
-              notificationWidget = _buildNotificationItem(
-                isNew: !notification.isRead, // Pass read status
+              notificationContentWidget = _buildNotificationItem(
+                isNew: !notification.isRead,
                 title: notification.title,
                 timestamp: notification.timestamp,
                 product: notification.product,
                 description: notification.description,
               );
             } else if (notification.type == 'membership' || notification.type == 'new_arrival' || notification.type == 'promotion') {
-              // Handle new 'promotion' type here
-              notificationWidget = _buildMembershipItem(
-                isNew: !notification.isRead, // Pass read status
+              notificationContentWidget = _buildMembershipItem(
+                isNew: !notification.isRead,
                 title: notification.title,
                 timestamp: notification.timestamp,
                 description: notification.description,
                 additionalText: notification.additionalText ?? '',
               );
             } else {
-              // Fallback for unknown types
-              notificationWidget = Container();
+              notificationContentWidget = Container();
             }
 
             return Column(
               children: [
-                GestureDetector(
+                GestureDetector( // Make the entire tile clickable
                   onTap: () {
-                    // Mark as read when tapped
                     _markAsRead(notification.id);
                     if (notification.type == 'order') {
                       Navigator.push(
@@ -447,7 +442,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                     }
                     // Add other navigation based on notification.type if needed
                   },
-                  child: notificationWidget,
+                  child: notificationContentWidget, // Use the content widget here
                 ),
                 const Divider(height: 1, thickness: 1),
                 Center(
@@ -475,22 +470,22 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      color: isNew ? Colors.orange.shade50 : Colors.transparent, // Light orange background for unread
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Orange dot for individual new notifications
           if (isNew)
             Container(
               width: 8,
               height: 8,
               margin: const EdgeInsets.only(top: 8, right: 10),
               decoration: BoxDecoration(
-                color: const Color(0xffEB7720), // Changed to orange for individual items
+                color: const Color(0xffEB7720),
                 shape: BoxShape.circle,
               ),
             )
           else
-            const SizedBox(width: 18), // Space for alignment if no dot
+            const SizedBox(width: 18),
 
           SizedBox(
             width: 40,
@@ -514,7 +509,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                       child: Text(
                         title,
                         style: GoogleFonts.poppins(
-                          color: const Color(0xffEB7720),
+                          color: const Color(0xffEB7720), // Title remains orange
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -526,7 +521,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                       child: Text(
                         timestamp,
                         style: GoogleFonts.poppins(
-                          color: Colors.grey,
+                          color: Colors.black, // Changed to black
                           fontSize: 10,
                         ),
                         textAlign: TextAlign.right,
@@ -540,7 +535,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: Colors.black, // Changed to black
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -548,7 +543,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                   description,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: Colors.black,
+                    color: Colors.black, // Changed to black
                     fontWeight: FontWeight.normal,
                   ),
                   maxLines: 2,
@@ -571,22 +566,22 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      color: isNew ? Colors.orange.shade50 : Colors.transparent, // Light orange background for unread
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Orange dot for individual new notifications
           if (isNew)
             Container(
               width: 8,
               height: 8,
               margin: const EdgeInsets.only(top: 8, right: 10),
               decoration: BoxDecoration(
-                color: const Color(0xffEB7720), // Changed to orange for individual items
+                color: const Color(0xffEB7720),
                 shape: BoxShape.circle,
               ),
             )
           else
-            const SizedBox(width: 18), // Space for alignment if no dot
+            const SizedBox(width: 18),
 
           SizedBox(
             width: 40,
@@ -610,7 +605,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                       child: Text(
                         title,
                         style: GoogleFonts.poppins(
-                          color: const Color(0xffEB7720),
+                          color: const Color(0xffEB7720), // Title remains orange
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -622,7 +617,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                       child: Text(
                         timestamp,
                         style: GoogleFonts.poppins(
-                          color: Colors.grey,
+                          color: Colors.black, // Changed to black
                           fontSize: 10,
                         ),
                         textAlign: TextAlign.right,
@@ -635,7 +630,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                   description,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
-                    color: Colors.black,
+                    color: Colors.black, // Changed to black
                     fontWeight: FontWeight.normal,
                   ),
                   maxLines: 2,
@@ -646,7 +641,7 @@ class _notiState extends State<noti> with SingleTickerProviderStateMixin {
                   additionalText,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
-                    color: Colors.black,
+                    color: Colors.black, // Changed to black
                     fontWeight: FontWeight.normal,
                   ),
                   maxLines: 2,

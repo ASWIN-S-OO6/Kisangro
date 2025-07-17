@@ -2,14 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math'; // Import for Random
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:kisangro/models/product_model.dart';
-import 'package:json_annotation/json_annotation.dart';
 
 class ProductService extends ChangeNotifier {
   static List<Product> _allProducts = [];
   static List<Map<String, String>> _allCategories = [];
+  static List<String> _validImageUrls = []; // NEW: List to store valid API image URLs
+  static final Random _random = Random(); // NEW: Random instance for selecting image URLs
 
   static const String _productApiUrl = 'https://sgserp.in/erp/api/m_api/';
   static const String _cid = '23262954';
@@ -75,13 +77,19 @@ class ProductService extends ChangeNotifier {
       final List<dynamic> categoriesData = json.decode(categoriesJson);
 
       _allProducts = productsData
-          .map((data) => Product.fromJson(data as Map<String, dynamic>, data['id'] as String, data['category'] as String))
+          .map((data) => Product.fromJson(data as Map<String, dynamic>))
           .toList();
       _allCategories = categoriesData.cast<Map<String, String>>();
 
-      debugPrint('ProductService: Loaded ${_allProducts.length} products and ${_allCategories.length} categories from cache.');
-      // Notify listeners only if this is the primary load path and data is actually loaded
-      // notifyListeners(); // Removed here, as initialize() or loadProductsFromApi() will call it.
+      // NEW: Populate _validImageUrls from cached products
+      _validImageUrls.clear();
+      for (var product in _allProducts) {
+        if (Uri.tryParse(product.imageUrl)?.isAbsolute == true && !product.imageUrl.startsWith('assets/')) {
+          _validImageUrls.add(product.imageUrl);
+        }
+      }
+
+      debugPrint('ProductService: Loaded ${_allProducts.length} products and ${_allCategories.length} categories from cache. Found ${_validImageUrls.length} valid image URLs.');
       return true;
     } catch (e) {
       debugPrint('ProductService: Error loading from cache: $e');
@@ -94,14 +102,12 @@ class ProductService extends ChangeNotifier {
     debugPrint('ProductService: Initializing...');
     if (await _loadFromCache()) {
       debugPrint('ProductService: Using cached data.');
-      // Attempt to refresh cache in background if network is available
       if (await _hasNetwork()) {
-        _fetchAndUpdateCache();
+        _fetchAndUpdateCache(); // Non-blocking background update
       }
       return;
     }
 
-    // If no valid cache, try to fetch from network
     if (!await _hasNetwork()) {
       debugPrint('ProductService: No network. Loading dummy data.');
       _loadDummyCategoriesFallback();
@@ -111,7 +117,6 @@ class ProductService extends ChangeNotifier {
       return;
     }
 
-    // Attempt to load from API
     try {
       await loadCategoriesFromApi(); // Load categories first
       await loadProductsFromApi(); // Then load products
@@ -149,13 +154,12 @@ class ProductService extends ChangeNotifier {
     debugPrint('ProductService: Starting loadProductsFromApi...');
 
     final List<Product> combinedProducts = [];
-    final Set<String> seenProductKeys = {}; // To track unique products
+    final Set<String> seenProductIds = {}; // To track unique products by stable ID
+    _validImageUrls.clear(); // Clear valid image URLs before repopulating
 
-    // Ensure categories are loaded first, as _fetchAllCategoryProductsForGlobalList depends on it
     await loadCategoriesFromApi();
     if (_allCategories.isEmpty) {
       debugPrint('ProductService: No categories available. Cannot fetch category-specific products. Falling back to dummy products if no 1041 data.');
-      // We will still try to get 1041 products. If that also fails, dummy will be loaded.
     }
 
     // --- Fetch general products (type=1041) ---
@@ -179,24 +183,43 @@ class ProductService extends ChangeNotifier {
       ).timeout(const Duration(seconds: 30));
 
       debugPrint('ProductService: Response Status Code (type=1041): ${response1041.statusCode}');
-      // debugPrint('ProductService: Response Body (type=1041, first 500 chars): ${response1041.body.substring(0, response1041.body.length > 500 ? 500 : response1041.body.length)}...');
 
       if (response1041.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response1041.body);
         if (responseData['status'] == 'success' && responseData['data'] is List) {
           final List<dynamic> rawApiProductsData = responseData['data'];
           for (var item in rawApiProductsData) {
+            String stableId = _generateStableProductId(item['pro_name'].toString());
             String category = _determineCategory(item['pro_name'].toString().toLowerCase().trim());
-            String id = 'api_product_1041_${item['pro_name'].toString().replaceAll(' ', '_').replaceAll('%', '').replaceAll('.', '').replaceAll('-', '_')}_${DateTime.now().microsecondsSinceEpoch}';
             String imageUrl = item['image'] as String? ?? '';
-            if (imageUrl.isEmpty || imageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(imageUrl)?.isAbsolute != true && !imageUrl.startsWith('assets/'))) {
-              imageUrl = 'assets/placeholder.png';
+
+            // NEW: Add valid image URLs to the list
+            if (Uri.tryParse(imageUrl)?.isAbsolute == true && !imageUrl.startsWith('assets/')) {
+              _validImageUrls.add(imageUrl);
             }
 
-            final product = Product.fromJson(item as Map<String, dynamic>, id, category);
-            final key = '${product.title}_${product.subtitle}';
-            if (!seenProductKeys.contains(key)) {
-              seenProductKeys.add(key);
+            List<ProductSize> availableSizes = [];
+            if (item.containsKey('sizes') && item['sizes'] is List && (item['sizes'] as List).isNotEmpty) {
+              availableSizes = (item['sizes'] as List)
+                  .map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>))
+                  .toList();
+            } else {
+              final double fallbackPrice = (item['mrp'] as num?)?.toDouble() ?? 0.0;
+              availableSizes.add(ProductSize(size: 'Unit', price: fallbackPrice));
+            }
+
+            final product = Product(
+              id: stableId,
+              title: item['pro_name'] as String? ?? 'No Title',
+              subtitle: item['technical_name'] as String? ?? 'No Description',
+              imageUrl: imageUrl, // Use the raw imageUrl here; fallback handled by _getEffectiveImageUrl
+              category: category,
+              availableSizes: availableSizes,
+              selectedUnit: availableSizes.isNotEmpty ? availableSizes.first.size : 'Unit',
+            );
+
+            if (!seenProductIds.contains(product.id)) {
+              seenProductIds.add(product.id);
               combinedProducts.add(product);
             }
           }
@@ -219,34 +242,29 @@ class ProductService extends ChangeNotifier {
     debugPrint('ProductService: Fetching products for all categories (type 1044)...');
     final List<Product> categorySpecificProducts = await _fetchAllCategoryProductsForGlobalList();
 
-    // Merge category-specific products, de-duplicating against already seen products
     for (var product in categorySpecificProducts) {
-      final key = '${product.title}_${product.subtitle}';
-      if (!seenProductKeys.contains(key)) {
-        seenProductKeys.add(key);
+      if (!seenProductIds.contains(product.id)) {
+        seenProductIds.add(product.id);
         combinedProducts.add(product);
       }
     }
     debugPrint('ProductService: Merged ${categorySpecificProducts.length} category-specific products. Final unique product count: ${combinedProducts.length}');
 
-
-    // Final update of _allProducts
     _allProducts = combinedProducts;
 
     if (_allProducts.isEmpty) {
       debugPrint('ProductService: No products loaded from API after all attempts. Falling back to dummy products.');
       _loadDummyProductsFallback();
     }
-    debugPrint('ProductService: Finished loadProductsFromApi. Total products: ${_allProducts.length}');
+    debugPrint('ProductService: Finished loadProductsFromApi. Total products: ${_allProducts.length}. Total valid image URLs: ${_validImageUrls.length}');
   }
 
-  // This method now collects all category-specific products and returns them
   static Future<List<Product>> _fetchAllCategoryProductsForGlobalList() async {
     debugPrint('ProductService: Starting _fetchAllCategoryProductsForGlobalList...');
     final List<Product> allCategoryProducts = [];
-    final Set<String> categorySeenProductKeys = {}; // Local de-duplication for this fetch
+    final Set<String> categorySeenProductIds = {};
 
-    const int maxTotalProducts = 10000; // Safety limit to prevent OOM
+    const int maxTotalProducts = 10000;
 
     for (var categoryMap in _allCategories) {
       if (allCategoryProducts.length >= maxTotalProducts) {
@@ -255,13 +273,14 @@ class ProductService extends ChangeNotifier {
       }
 
       String categoryId = categoryMap['cat_id']!;
-      debugPrint('ProductService: Fetching products for category ID: $categoryId (type=1044)');
-      final List<Product> productsForCurrentCategory = await fetchProductsByCategory(categoryId);
+      debugPrint('ProductService: Fetching initial products for category ID: $categoryId (type=1044) with limit 15');
+      // Fetch initial 15 products for each category
+      final Map<String, dynamic> result = await fetchProductsByCategory(categoryId, offset: 0, limit: 15);
+      final List<Product> productsForCurrentCategory = result['products'];
 
       for (var product in productsForCurrentCategory) {
-        final key = '${product.title}_${product.subtitle}';
-        if (!categorySeenProductKeys.contains(key)) {
-          categorySeenProductKeys.add(key);
+        if (!categorySeenProductIds.contains(product.id)) {
+          categorySeenProductIds.add(product.id);
           allCategoryProducts.add(product);
         }
       }
@@ -270,28 +289,12 @@ class ProductService extends ChangeNotifier {
     return allCategoryProducts;
   }
 
-  static List<Product> searchProductsLocally(String query) {
-    if (query.isEmpty) {
-      return [];
-    }
-
-    final queryLower = query.toLowerCase().trim();
-    return _allProducts.where((product) {
-      final titleLower = product.title.toLowerCase();
-      final subtitleLower = product.subtitle.toLowerCase();
-      final categoryLower = product.category.toLowerCase();
-
-      return titleLower.contains(queryLower) ||
-          subtitleLower.contains(queryLower) ||
-          categoryLower.contains(queryLower);
-    }).toList();
-  }
-
   // This method fetches products for a single category and returns them.
-  // It does NOT modify _allProducts directly.
-  static Future<List<Product>> fetchProductsByCategory(String categoryId) async {
-    debugPrint('ProductService: Attempting to load products for category ID: $categoryId via POST (type=1044): $_productApiUrl');
+  // It now accepts offset and limit for pagination.
+  static Future<Map<String, dynamic>> fetchProductsByCategory(String categoryId, {int offset = 0, int limit = 10}) async {
+    debugPrint('ProductService: Attempting to load products for category ID: $categoryId via POST (type=1044) with offset $offset and limit $limit: $_productApiUrl');
     List<Product> products = [];
+    bool hasMore = false;
 
     try {
       final requestBody = {
@@ -301,6 +304,8 @@ class ProductService extends ChangeNotifier {
         'lt': _lt,
         'device_id': _deviceId,
         'cat_id': categoryId,
+        'offset': offset.toString(), // Add offset
+        'limit': limit.toString(),   // Add limit
       };
 
       final response = await http.post(
@@ -313,22 +318,22 @@ class ProductService extends ChangeNotifier {
       ).timeout(const Duration(seconds: 30));
 
       debugPrint('ProductService: Response Status Code (type=1044, cat_id=$categoryId): ${response.statusCode}');
-      // debugPrint('ProductService: Response Body (type=1044, cat_id=$categoryId, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
 
         if (responseData['status'] == 'success' && responseData['data'] is List) {
           final List<dynamic> rawApiProductsData = responseData['data'];
-          final Set<String> localSeenProductKeys = {}; // Local de-duplication for this category's response
+          final Set<String> localSeenProductIds = {};
 
           for (var item in rawApiProductsData) {
+            String stableId = _generateStableProductId(item['pro_name'].toString());
             String category = _determineCategory(item['pro_name'].toString().toLowerCase().trim());
-            String id = 'api_product_1044_${categoryId}_${item['pro_name'].toString().replaceAll(' ', '_').replaceAll('%', '').replaceAll('.', '').replaceAll('-', '_')}_${DateTime.now().microsecondsSinceEpoch}';
-
             String imageUrl = item['image'] as String? ?? '';
-            if (imageUrl.isEmpty || imageUrl == 'https://sgserp.in/erp/api/' || (Uri.tryParse(imageUrl)?.isAbsolute != true && !imageUrl.startsWith('assets/'))) {
-              imageUrl = 'assets/placeholder.png';
+
+            // NEW: Add valid image URLs to the list
+            if (Uri.tryParse(imageUrl)?.isAbsolute == true && !imageUrl.startsWith('assets/')) {
+              _validImageUrls.add(imageUrl);
             }
 
             List<ProductSize> availableSizes = [];
@@ -338,26 +343,29 @@ class ProductService extends ChangeNotifier {
                   .toList();
             } else {
               debugPrint('ProductService: Warning: No "sizes" or "mrp" found for product "${item['pro_name']}" (cat_id: $categoryId). Using default "Unit" with price 0.0.');
-              availableSizes.add(ProductSize(size: 'Unit', price: 0.0));
+              final double fallbackPrice = (item['mrp'] as num?)?.toDouble() ?? 0.0;
+              availableSizes.add(ProductSize(size: 'Unit', price: fallbackPrice));
             }
 
             final product = Product(
-              id: id,
+              id: stableId,
               title: item['pro_name'] as String? ?? 'No Title',
               subtitle: item['technical_name'] as String? ?? 'No Description',
-              imageUrl: imageUrl,
+              imageUrl: imageUrl, // Use the raw imageUrl here; fallback handled by _getEffectiveImageUrl
               category: category,
               availableSizes: availableSizes,
               selectedUnit: availableSizes.isNotEmpty ? availableSizes.first.size : 'Unit',
             );
 
-            final key = '${product.title}_${product.subtitle}';
-            if (!localSeenProductKeys.contains(key)) {
-              localSeenProductKeys.add(key);
+            if (!localSeenProductIds.contains(product.id)) {
+              localSeenProductIds.add(product.id);
               products.add(product);
             }
           }
           debugPrint('ProductService: Successfully parsed ${products.length} unique products for category ID $categoryId (type=1044).');
+          // Determine if there are more products to load
+          // If the number of products returned is equal to the limit, assume there might be more.
+          hasMore = products.length == limit;
         } else {
           debugPrint('ProductService: API response format invalid or status not success for category ID $categoryId (type=1044). Returning empty list.');
         }
@@ -371,9 +379,20 @@ class ProductService extends ChangeNotifier {
     } catch (e) {
       debugPrint('ProductService: Unexpected error fetching products for type 1044, cat_id=$categoryId: $e. Returning empty list.');
     }
-    return products;
+    return {'products': products, 'hasMore': hasMore};
   }
 
+  // NEW: Method to get a random valid image URL
+  static String getRandomValidImageUrl() {
+    if (_validImageUrls.isNotEmpty) {
+      return _validImageUrls[_random.nextInt(_validImageUrls.length)];
+    }
+    return 'assets/placeholder.png'; // Fallback to local placeholder if no valid API images are found
+  }
+
+  static String _generateStableProductId(String proName) {
+    return 'api_product_${proName.replaceAll(' ', '_').replaceAll(RegExp(r'[^\w_]+'), '').toLowerCase()}';
+  }
 
   static Future<void> loadCategoriesFromApi() async {
     debugPrint('ProductService: Attempting to load CATEGORIES data from API via POST (type=1043): $_productApiUrl');
@@ -398,9 +417,8 @@ class ProductService extends ChangeNotifier {
 
       debugPrint('ProductService: Response from server for loadCategoriesFromApi: ${response.body}');
       debugPrint('ProductService: Response Status Code (type=1043): ${response.statusCode}');
-      // debugPrint('ProductService: Response Body (type=1043, first 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...');
 
-      _allCategories.clear(); // Clear existing categories before populating
+      _allCategories.clear();
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> apiResponse = json.decode(response.body);
@@ -415,14 +433,13 @@ class ProductService extends ChangeNotifier {
             'LIQUID FERTILIZER': 'assets/grid7.png',
             'MICRONUTRIENTS': 'assets/micro.png',
             'BIO FERTILISER': 'assets/grid10.png',
-            // Add more mappings if you have other categories and their icons
           };
 
           for (var item in apiResponse['data'] as List) {
             String categoryName = (item['category'] as String).trim();
             _allCategories.add({
               'cat_id': item['cat_id'].toString(),
-              'icon': categoryIconMap[categoryName] ?? 'assets/placeholder_category.png', // Use placeholder if no specific icon
+              'icon': categoryIconMap[categoryName] ?? 'assets/placeholder_category.png',
               'label': categoryName,
             });
           }
@@ -445,7 +462,6 @@ class ProductService extends ChangeNotifier {
     }
   }
 
-  // Helper to determine category from product name (for 1041 products)
   static String _determineCategory(String proNameLower) {
     if (proNameLower.contains('insecticide') || proNameLower.contains('buggone') || proNameLower.contains('pestguard')) {
       return 'INSECTICIDE';
@@ -468,7 +484,6 @@ class ProductService extends ChangeNotifier {
     }
   }
 
-  // Fallback for dummy product data if API fails
   static void _loadDummyProductsFallback() {
     debugPrint('ProductService: Loading static dummy product data for fallback.');
     _allProducts.clear();
@@ -522,24 +537,49 @@ class ProductService extends ChangeNotifier {
       },
     ];
 
-    final seenProductKeys = <String>{};
+    final seenProductIds = <String>{};
     final List<Product> productsToProcess = [];
 
     for (var item in dummyProductsData) {
+      String stableId = _generateStableProductId(item['pro_name'].toString());
       String category = _determineCategory(item['pro_name'].toString().toLowerCase().trim());
-      String id = 'dummy_product_${item['pro_name'].toString().replaceAll(' ', '_')}_${DateTime.now().microsecondsSinceEpoch}';
-      final product = Product.fromJson(item as Map<String, dynamic>, id, category);
-      final key = '${product.title}_${product.subtitle}';
-      if (!seenProductKeys.contains(key)) {
-        seenProductKeys.add(key);
+
+      List<ProductSize> availableSizes = [];
+      if (item.containsKey('sizes') && item['sizes'] is List && (item['sizes'] as List).isNotEmpty) {
+        availableSizes = (item['sizes'] as List)
+            .map((sizeJson) => ProductSize.fromJson(sizeJson as Map<String, dynamic>))
+            .toList();
+      } else {
+        final double fallbackPrice = (item['mrp'] as num?)?.toDouble() ?? 0.0;
+        availableSizes.add(ProductSize(size: 'Unit', price: fallbackPrice));
+      }
+
+      final product = Product(
+        id: stableId,
+        title: item['pro_name'] as String? ?? 'No Title',
+        subtitle: item['technical_name'] as String? ?? 'No Description',
+        imageUrl: item['image'] as String? ?? '', // Use raw image URL here
+        category: category,
+        availableSizes: availableSizes,
+        selectedUnit: availableSizes.isNotEmpty ? availableSizes.first.size : 'Unit',
+      );
+
+      if (!seenProductIds.contains(product.id)) {
+        seenProductIds.add(product.id);
         productsToProcess.add(product);
       }
     }
     _allProducts = productsToProcess;
-    debugPrint('ProductService: Successfully loaded ${_allProducts.length} unique dummy products.');
+    // Populate _validImageUrls from dummy products too
+    _validImageUrls.clear();
+    for (var product in _allProducts) {
+      if (Uri.tryParse(product.imageUrl)?.isAbsolute == true && !product.imageUrl.startsWith('assets/')) {
+        _validImageUrls.add(product.imageUrl);
+      }
+    }
+    debugPrint('ProductService: Successfully loaded ${_allProducts.length} unique dummy products. Found ${_validImageUrls.length} valid image URLs from dummy data.');
   }
 
-  // Fallback for dummy category data if API fails
   static void _loadDummyCategoriesFallback() {
     debugPrint('ProductService: Loading static dummy category data for fallback.');
     _allCategories.clear();
@@ -557,7 +597,6 @@ class ProductService extends ChangeNotifier {
     debugPrint('ProductService: Successfully loaded ${_allCategories.length} dummy categories.');
   }
 
-  // Existing public methods (unchanged signatures)
   static List<Product> getAllProducts() {
     return List.from(_allProducts);
   }
@@ -589,5 +628,17 @@ class ProductService extends ChangeNotifier {
       debugPrint('ProductService: Category ID not found for name: $categoryName. Error: $e');
       return null;
     }
+  }
+
+  static List<Product> searchProductsLocally(String query) {
+    if (query.isEmpty) {
+      return [];
+    }
+    final lowerCaseQuery = query.toLowerCase();
+    return _allProducts.where((product) {
+      return product.title.toLowerCase().contains(lowerCaseQuery) ||
+          product.subtitle.toLowerCase().contains(lowerCaseQuery) ||
+          product.category.toLowerCase().contains(lowerCaseQuery);
+    }).toList();
   }
 }

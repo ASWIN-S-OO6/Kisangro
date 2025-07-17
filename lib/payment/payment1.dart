@@ -9,16 +9,11 @@ import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/order_model.dart';
 import 'package:kisangro/models/address_model.dart';
 import 'package:kisangro/models/kyc_business_model.dart';
-// Removed geolocator and geocoding imports as they are no longer used here
-// import 'package:geolocator/geolocator.dart';
-// import 'package:geocoding/geocoding.dart';
 import '../common/common_app_bar.dart';
 import '../home/cart.dart';
 import '../home/myorder.dart';
 import '../menu/wishlist.dart';
 import '../home/noti.dart';
-// Import CustomAppBar
-
 
 
 class delivery extends StatefulWidget {
@@ -48,18 +43,20 @@ class _deliveryState extends State<delivery> {
         ? (widget.product!.pricePerSelectedUnit ?? 0.0)
         : cart.totalAmount;
 
-    final String displayedName = kycBusinessDataProvider.kycBusinessData?.fullName ?? addressModel.currentName;
+    // Use name from AddressModel, fallback to KYC if AddressModel's name is default
+    final String displayedName = addressModel.currentName != "Smart (name)"
+        ? addressModel.currentName
+        : (kycBusinessDataProvider.kycBusinessData?.fullName ?? "No Name Provided");
+
 
     return Scaffold(
       appBar: CustomAppBar( // Integrated CustomAppBar
         title: "Address Details", // Set the title
         showBackButton: true, // Show back button
         showMenuButton: false, // Do NOT show menu button (drawer icon)
-        // scaffoldKey is not needed here as there's no drawer
-        isMyOrderActive: false, // Not active
-        isWishlistActive: false, // Not active
-        isNotiActive: false, // Not active
-        // showWhatsAppIcon is false by default, matching original behavior
+        isMyOrderActive: false, // Not active on home screen
+        isWishlistActive: false, // Not active on home screen
+        isNotiActive: false, // Not active on home screen
       ),
       body: Container(
         height: double.infinity,
@@ -126,11 +123,13 @@ class _deliveryState extends State<delivery> {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    // Display the name at the top
                     Text(
-                      displayedName,
+                      displayedName, // Use the resolved name
                       style: GoogleFonts.poppins(
                           fontSize: 15, fontWeight: FontWeight.bold),
                     ),
+                    const SizedBox(height: 4), // Small spacing after name
                     // Display address from AddressModel
                     Text(
                       addressModel.currentAddress,
@@ -264,6 +263,10 @@ class _deliveryState extends State<delivery> {
                 );
                 return;
               }
+              // Removed the mandatory address validation.
+              // The app will now proceed with the current address details,
+              // even if they are the default values.
+
 
               final String newOrderId = DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -295,14 +298,6 @@ class _deliveryState extends State<delivery> {
               );
 
               Provider.of<OrderModel>(context, listen: false).addOrder(newOrder);
-
-              // MODIFIED LOGIC: Clear cart if it's a regular cart purchase
-              // This ensures the cart is cleared ONLY for multi-item checkouts,
-              // not for "Buy Now" single product purchases.
-              if (!isBuyNow) {
-                cart.clearCart(); // Clear the cart after creating the order
-                debugPrint('Cart cleared after order creation for order ID: $newOrderId');
-              }
 
               Navigator.push(
                   context,

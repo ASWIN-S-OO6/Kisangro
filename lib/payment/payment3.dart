@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:kisangro/models/cart_model.dart';
 import 'package:kisangro/models/order_model.dart';
-import 'package:kisangro/models/address_model.dart';
+import 'package:kisangro/models/address_model.dart'; // Import AddressModel
 import 'package:intl/intl.dart';
 import 'package:kisangro/home/rewards_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,8 +54,8 @@ class _PaymentPageState extends State<PaymentPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: Color(0xffEB7720)),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(color: Color(0xffEB7720)),
+            const SizedBox(height: 16),
             Text(
               'Processing Payment...',
               style: GoogleFonts.poppins(fontSize: 16),
@@ -66,7 +66,7 @@ class _PaymentPageState extends State<PaymentPage> {
     );
 
     // Simulate payment processing
-    Future.delayed(Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 2), () {
       Navigator.pop(context); // Close loading dialog
       Navigator.pushReplacement(
         context,
@@ -83,7 +83,14 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartModel>(context);
+    final addressModel = Provider.of<AddressModel>(context); // Listen to AddressModel
     final totalAmount = cart.totalAmount + 90.0; // Assuming 90.0 is a fixed delivery fee for calculation here.
+
+    // Use name from AddressModel, fallback if AddressModel's name is default
+    final String displayedName = addressModel.currentName.isNotEmpty && addressModel.currentName != "Smart (name)"
+        ? addressModel.currentName
+        : 'No Name Provided';
+
 
     return Scaffold(
       appBar: AppBar(
@@ -126,56 +133,63 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              Consumer<AddressModel>(
-                builder: (context, addressModel, child) {
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+              // Delivery Address Section - Now includes name
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Delivery Address',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xffEB7720),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          addressModel.currentAddress.isNotEmpty
-                              ? addressModel.currentAddress
-                              : 'No address provided',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Pincode: ${addressModel.currentPincode}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Delivery Address',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xffEB7720),
+                      ),
                     ),
-                  );
-                },
+                    const SizedBox(height: 8),
+                    // NEW: Display the name at the top of the address
+                    Text(
+                      displayedName, // Use the resolved name
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 4), // Small spacing after name
+                    Text(
+                      addressModel.currentAddress.isNotEmpty
+                          ? addressModel.currentAddress
+                          : 'No address provided',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Pincode: ${addressModel.currentPincode}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               Row(
@@ -198,8 +212,9 @@ class _PaymentPageState extends State<PaymentPage> {
                 ],
               ),
               const SizedBox(height: 8),
+              // NEW: Show unit value (total items) from cart
               Text(
-                '${cart.totalItemCount} Items from your cart',
+                '${cart.totalItemCount} Items from your cart', // Displays the count of unique items
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -618,7 +633,11 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
             (Route<dynamic> route) => false,
       );
     } else {
-      // For regular product purchases, show the reward popup on the next home load
+      // For regular product purchases, clear the cart and then show the reward popup on the next home load
+      final cart = Provider.of<CartModel>(context, listen: false); // Access CartModel
+      await cart.clearCart(); // Clear the cart after successful payment
+      debugPrint('Cart cleared after successful product payment for order ID: ${widget.orderId}');
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('showRewardsPopupOnNextHomeLoad', true);
       debugPrint('Product payment successful. Reward popup flag set to true. Navigating to home.');

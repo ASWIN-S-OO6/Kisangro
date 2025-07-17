@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisangro/login/login.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import SharedPreferences
 
 void main() {
   runApp(const logout());
@@ -27,11 +28,19 @@ class HomePage extends StatelessWidget {
       barrierDismissible: false,
       builder: (context) => LogoutConfirmationDialog(
         onCancel: () => Navigator.of(context).pop(),
-        onLogout: () {
+        onLogout: () async { // Made onLogout async
           Navigator.of(context).pop();
           // Add your logout logic here
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', false); // Set isLoggedIn to false on logout
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Logged out')),
+          );
+          // Navigate to LoginApp after logout
+          Navigator.pushAndRemoveUntil( // Use pushAndRemoveUntil to clear navigation stack
+            context,
+            MaterialPageRoute(builder: (context) => const LoginApp()),
+                (Route<dynamic> route) => false, // This predicate removes all routes until false
           );
         },
       ),
@@ -114,7 +123,7 @@ class LogoutConfirmationDialog extends StatelessWidget {
                               fontWeight: FontWeight.w400,
                             ),
                             children: [
-                               TextSpan(text: "Are you sure you want to\n",style: GoogleFonts.poppins()),
+                              TextSpan(text: "Are you sure you want to\n",style: GoogleFonts.poppins()),
                               TextSpan(
                                 text: "Logout?",
                                 style: GoogleFonts.poppins(
@@ -163,9 +172,7 @@ class LogoutConfirmationDialog extends StatelessWidget {
                         height: 50,
                         width: 100,
                         child: ElevatedButton(
-                          onPressed: (){
-                            Navigator.push(context,MaterialPageRoute(builder: (context)=>LoginApp()));
-                          },
+                          onPressed: onLogout, // Changed to call onLogout callback
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Color(0xffF0F0F0),
                             foregroundColor: Colors.white,
@@ -178,7 +185,7 @@ class LogoutConfirmationDialog extends StatelessWidget {
                           child: Text(
                             "Logout",
                             style: GoogleFonts.poppins(
-                              fontSize: 16,color: Colors.black
+                                fontSize: 16,color: Colors.black
 
                             ),
                           ),

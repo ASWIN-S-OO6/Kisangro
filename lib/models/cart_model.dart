@@ -47,6 +47,7 @@ class CartItem extends ChangeNotifier {
     }
   }
 
+  // This setter is crucial for incrementing/decrementing quantity and notifying
   set quantity(int newQuantity) {
     if (_quantity != newQuantity && newQuantity >= 0) {
       _quantity = newQuantity;
@@ -81,7 +82,8 @@ class CartItem extends ChangeNotifier {
 
 class CartModel extends ChangeNotifier {
   final List<CartItem> _items = [];
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance; // NEW: DatabaseHelper instance
+  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  Future<void>? _loadFuture; // To hold the future of the initial load
 
   List<CartItem> get items => List.unmodifiable(_items);
 
@@ -91,45 +93,70 @@ class CartModel extends ChangeNotifier {
   int get totalItemCount => _items.length;
 
   CartModel() {
-    _loadCartItems(); // NEW: Load cart items when CartModel is instantiated
+    _loadFuture = _loadCartItems(); // Start loading when instantiated
   }
 
-  // NEW: Loads cart items from the database
+  // Loads cart items from the database
   Future<void> _loadCartItems() async {
+    debugPrint('CartModel: Starting to load cart items from DB...');
     try {
-      _items.clear();
+      _items.clear(); // Clear existing items before loading from DB
       final loadedItems = await _dbHelper.getCartItems();
       for (var item in loadedItems) {
         _items.add(item);
-        item.addListener(() => _updateItemInDb(item)); // Attach listener to loaded items
+        // Attach listener to loaded items so changes to quantity/unit are persisted
+        item.addListener(() => _updateItemInDb(item));
       }
       notifyListeners();
-      debugPrint('Cart loaded from DB: ${_items.length} items');
+      debugPrint('CartModel: Loaded ${_items.length} items from DB successfully.');
     } catch (e) {
-      debugPrint('Error loading cart items from DB: $e');
+      debugPrint('CartModel: Error loading cart items from DB: $e');
     }
   }
 
-  // NEW: Helper method to update a single item in the database
+  // Helper method to ensure initial load is complete
+  Future<void> _ensureLoaded() async {
+    if (_loadFuture != null) {
+      debugPrint('CartModel: Awaiting initial DB load...');
+      await _loadFuture;
+      _loadFuture = null; // Clear the future after it completes once
+      debugPrint('CartModel: Initial DB load completed.');
+    } else {
+      debugPrint('CartModel: Initial DB load already completed or not needed.');
+    }
+  }
+
+  // Helper method to update a single item in the database
   Future<void> _updateItemInDb(CartItem item) async {
     try {
       await _dbHelper.insertCartItem(item); // insertCartItem uses REPLACE, so it works for updates too
-      debugPrint('Cart item updated in DB: ${item.title}, Qty: ${item.quantity}, Unit: ${item.selectedUnit}');
+      debugPrint('CartModel: DB Updated: ${item.title}, Qty: ${item.quantity}, Unit: ${item.selectedUnit}');
     } catch (e) {
-      debugPrint('Error updating cart item in DB: $e');
+      debugPrint('CartModel: Error updating cart item in DB: $e');
     }
   }
 
-  @override
-  void addItem(Product product) {
-    final existingItem = _items.firstWhereOrNull(
-          (item) => item.id == product.id && item.selectedUnit == product.selectedUnit,
-    );
+  // Modified addItem to handle quantity increment for existing items
+  Future<void> addItem(Product product) async { // Made async
+    await _ensureLoaded(); // Ensure items are loaded from DB before adding
+
+    debugPrint('CartModel: Attempting to add product: ${product.title}');
+    debugPrint('  Incoming Product ID: "${product.id}", Unit: "${product.selectedUnit}"');
+
+    CartItem? existingItem;
+    for (var item in _items) {
+      debugPrint('  Comparing with existing item: ID: "${item.id}", Unit: "${item.selectedUnit}"');
+      if (item.id == product.id && item.selectedUnit == product.selectedUnit) {
+        existingItem = item;
+        debugPrint('  MATCH FOUND! Existing item: ${item.title}, Current Qty: ${item.quantity}');
+        break;
+      }
+    }
 
     if (existingItem != null) {
       existingItem.incrementQuantity();
-      _updateItemInDb(existingItem); // NEW: Persist quantity change
-      debugPrint('Incremented quantity for existing item: ${product.title}');
+      await _updateItemInDb(existingItem); // Persist quantity change
+      debugPrint('CartModel: Incremented quantity for existing item: ${product.title}, new quantity: ${existingItem.quantity}');
     } else {
       final double price = product.pricePerSelectedUnit ?? 0.0;
       if (price >= 0) {
@@ -141,47 +168,57 @@ class CartModel extends ChangeNotifier {
           category: product.category,
           selectedUnit: product.selectedUnit,
           pricePerUnit: price,
+          quantity: 1, // Start with quantity 1 for new items
         );
         _items.add(newCartItem);
-        newCartItem.addListener(() => _updateItemInDb(newCartItem)); // NEW: Attach listener to new item
-        _dbHelper.insertCartItem(newCartItem); // NEW: Save new item to DB
-        debugPrint('Added new item to cart: ${product.title} with price $price');
+        newCartItem.addListener(() => _updateItemInDb(newCartItem)); // Attach listener to new item
+        await _dbHelper.insertCartItem(newCartItem); // Save new item to DB
+        debugPrint('CartModel: Added NEW item to cart: ${product.title} with price $price, Unit: ${product.selectedUnit}');
       } else {
         debugPrint(
-            'Error: Product ${product.title} has no valid price for selected unit ${product.selectedUnit}. Not adding to cart.');
+            'CartModel: Error: Product ${product.title} has no valid price for selected unit ${product.selectedUnit}. Not adding to cart.');
       }
     }
     notifyListeners(); // Notify UI listeners
   }
 
-  @override
-  void removeItem(String productId, String selectedUnit) {
+  Future<void> removeItem(String productId, String selectedUnit) async { // Made async
+    await _ensureLoaded(); // Ensure items are loaded from DB before removing
+
+    debugPrint('CartModel: Attempting to remove product: ID: "$productId", Unit: "$selectedUnit"');
     final removedItemIndex = _items.indexWhere(
           (item) => item.id == productId && item.selectedUnit == selectedUnit,
     );
 
     if (removedItemIndex != -1) {
       final itemToRemove = _items[removedItemIndex];
-      itemToRemove.removeListener(() => _updateItemInDb(itemToRemove)); // NEW: Remove listener
+      itemToRemove.removeListener(() => _updateItemInDb(itemToRemove)); // Remove listener
       _items.removeAt(removedItemIndex);
-      _dbHelper.removeCartItem(productId, selectedUnit); // NEW: Remove from DB
-      debugPrint('Removed item from cart: $productId, Unit: $selectedUnit');
+      await _dbHelper.removeCartItem(productId, selectedUnit); // Remove from DB
+      debugPrint('CartModel: Removed item from cart: "$productId", Unit: "$selectedUnit"');
       notifyListeners(); // Notify UI listeners
+    } else {
+      debugPrint('CartModel: Item not found for removal: ID: "$productId", Unit: "$selectedUnit"');
     }
   }
 
-  @override
-  void clearCart() {
+  Future<void> clearCart() async { // Made async
+    await _ensureLoaded(); // Ensure items are loaded from DB before clearing
+
+    debugPrint('CartModel: Clearing all cart items.');
     for (var item in _items) {
-      item.removeListener(() => _updateItemInDb(item)); // NEW: Remove listeners from all items
+      item.removeListener(() => _updateItemInDb(item)); // Remove listeners from all items
     }
     _items.clear();
-    _dbHelper.clearCartItems(); // NEW: Clear items from DB
+    await _dbHelper.clearCartItems(); // Clear items from DB
     notifyListeners(); // Notify UI listeners
   }
 
   // MODIFIED: This method now ADDS items to the cart, instead of clearing and replacing.
-  void addProductsToCartFromOrder(List<OrderedProduct> orderedProducts) {
+  Future<void> addProductsToCartFromOrder(List<OrderedProduct> orderedProducts) async { // Made async
+    await _ensureLoaded(); // Ensure items are loaded from DB before adding from order
+
+    debugPrint('CartModel: Populating cart from order with ${orderedProducts.length} products.');
     // No clearing of _items here. We add to existing items.
     for (var orderedProduct in orderedProducts) {
       // Check if product already exists in cart with the same unit, if so, increment quantity
@@ -191,7 +228,8 @@ class CartModel extends ChangeNotifier {
 
       if (existingCartItem != null) {
         existingCartItem.quantity += orderedProduct.quantity; // Increment quantity
-        _updateItemInDb(existingCartItem); // Update in DB
+        await _updateItemInDb(existingCartItem); // Update in DB
+        debugPrint('CartModel: Incremented quantity for existing item from order: ${orderedProduct.title}, new quantity: ${existingCartItem.quantity}');
       } else {
         final newCartItem = CartItem(
           id: orderedProduct.id,
@@ -205,10 +243,11 @@ class CartModel extends ChangeNotifier {
         );
         _items.add(newCartItem);
         newCartItem.addListener(() => _updateItemInDb(newCartItem)); // Attach listener
-        _dbHelper.insertCartItem(newCartItem); // Add to DB
+        await _dbHelper.insertCartItem(newCartItem); // Add to DB
+        debugPrint('CartModel: Added new item from order to cart: ${orderedProduct.title}, Qty: ${orderedProduct.quantity}, Unit: ${orderedProduct.unit}');
       }
     }
     notifyListeners();
-    debugPrint('Cart populated from order: Added ${orderedProducts.length} items. Current cart size: ${_items.length}');
+    debugPrint('CartModel: Cart populated from order. Current cart size: ${_items.length}');
   }
 }

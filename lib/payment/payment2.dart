@@ -3,46 +3,57 @@ import 'package:flutter/services.dart'; // For input formatters
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart'; // REQUIRED: Import Provider
 import 'package:kisangro/models/cart_model.dart'; // REQUIRED: Import CartModel
-import 'package:kisangro/models/address_model.dart'; // NEW: Import AddressModel
-import 'package:geolocator/geolocator.dart'; // NEW: Import geolocator
-import 'package:geocoding/geocoding.dart'; // NEW: Import geocoding
-
-// Import CustomAppBar
-
-// Import Bot for navigation (for back button functionality)
-import 'package:kisangro/home/bottom.dart';
+import 'package:kisangro/models/address_model.dart'; // Import AddressModel
+import 'package:geolocator/geolocator.dart'; // Import geolocator
+import 'package:geocoding/geocoding.dart'; // Import geocoding
 
 import '../common/common_app_bar.dart';
 
-
 class delivery2 extends StatelessWidget {
-  const delivery2({super.key}); // Added const constructor
+  const delivery2({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // This StatelessWidget simply returns the main screen for this file.
     return const AddAddressScreen();
   }
 }
 
 class AddAddressScreen extends StatefulWidget {
-  const AddAddressScreen({super.key}); // Added const constructor
+  const AddAddressScreen({super.key});
 
   @override
   State<AddAddressScreen> createState() => _AddAddressScreenState();
 }
 
 class _AddAddressScreenState extends State<AddAddressScreen> {
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
   final TextEditingController pinController = TextEditingController();
-  // wordCount and wordLimit are for the TextField's internal logic, not displayed
   int wordCount = 0;
   final int wordLimit = 100;
 
-  // NEW: Local state for auto-detected location, to update text fields
   String _autoDetectedAddress = '';
   String _autoDetectedPincode = '';
   bool _isDetectingLocation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize text controllers with current address details from the model
+    // This ensures they are populated only once when the widget is created.
+    final addressModel = Provider.of<AddressModel>(context, listen: false);
+
+    if (addressModel.currentName != "Smart (name)") {
+      nameController.text = addressModel.currentName;
+    }
+    if (addressModel.currentAddress != "D/no: 123, abc street, rrr nagar, near ppp, Coimbatore.") {
+      addressController.text = addressModel.currentAddress;
+      _onAddressChanged(addressModel.currentAddress); // Update word count on initialization
+    }
+    if (addressModel.currentPincode != "641612") {
+      pinController.text = addressModel.currentPincode;
+    }
+  }
 
   void _onAddressChanged(String value) {
     final words = value.trim().split(RegExp(r'\s+'));
@@ -51,7 +62,6 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
     });
   }
 
-  // NEW: Determine current position and update AddressModel and text fields
   Future<void> _determinePosition() async {
     setState(() {
       _isDetectingLocation = true;
@@ -125,7 +135,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
             place.country
           ].where((element) => element != null && element.isNotEmpty).join(', ');
 
-          String pincode = place.postalCode ?? ''; // Use empty string if null
+          String pincode = place.postalCode ?? '';
 
           setState(() {
             addressController.text = address;
@@ -133,9 +143,8 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
             _onAddressChanged(address); // Update word count for the new address
             _autoDetectedAddress = address; // Update local state for display
             _autoDetectedPincode = pincode; // Update local state for display
+            // IMPORTANT: nameController.text is NOT touched here, as requested.
           });
-
-          // No need to update AddressModel here, it will be updated when "Save" is pressed.
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Location auto-detected: $address, $pincode')),
@@ -173,6 +182,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
 
   @override
   void dispose() {
+    nameController.dispose();
     addressController.dispose();
     pinController.dispose();
     super.dispose();
@@ -180,29 +190,16 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final addressModel = Provider.of<AddressModel>(context, listen: false); // Access AddressModel
-
-    // Initialize text controllers with current address details from the model
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (addressController.text.isEmpty && addressModel.currentAddress != "D/no: 123, abc street, rrr nagar, near ppp, Coimbatore.") {
-        addressController.text = addressModel.currentAddress;
-        _onAddressChanged(addressModel.currentAddress); // Update word count on initialization
-      }
-      if (pinController.text.isEmpty && addressModel.currentPincode != "641612") {
-        pinController.text = addressModel.currentPincode;
-      }
-    });
+    final addressModel = Provider.of<AddressModel>(context, listen: false);
 
     return Scaffold(
-      appBar: CustomAppBar( // Integrated CustomAppBar
-        title: "Add New Address", // Set the title
-        showBackButton: true, // Show back button
-        showMenuButton: false, // Do NOT show menu button (drawer icon)
-        // scaffoldKey is not needed here as there's no drawer
-        isMyOrderActive: false, // Not active
-        isWishlistActive: false, // Not active
-        isNotiActive: false, // Not active
-        // showWhatsAppIcon is false by default, matching original behavior
+      appBar: CustomAppBar(
+        title: "Add New Address",
+        showBackButton: true,
+        showMenuButton: false,
+        isMyOrderActive: false,
+        isWishlistActive: false,
+        isNotiActive: false,
       ),
       body: Container(
         height: double.infinity,
@@ -232,6 +229,29 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                     fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
+              // Name Text Field
+              TextField(
+                controller: nameController,
+                style: GoogleFonts.poppins(),
+                decoration: InputDecoration(
+                  labelText: 'Enter Name',
+                  labelStyle: GoogleFonts.poppins(color: Colors.grey),
+                  hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xffEB7720)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xffEB7720), width: 2),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.grey),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               TextField(
                 controller: addressController,
                 maxLines: 4,
@@ -254,8 +274,8 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: Colors.grey),
                   ),
-                  counterText: '', // Hide default counter text
-                  suffixText: '$wordCount/$wordLimit', // Show custom character count
+                  counterText: '',
+                  suffixText: '$wordCount/$wordLimit',
                   suffixStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
                 ),
               ),
@@ -265,7 +285,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(6), // Limit to 6 digits
+                  LengthLimitingTextInputFormatter(6),
                 ],
                 style: GoogleFonts.poppins(),
                 decoration: InputDecoration(
@@ -287,7 +307,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              // NEW: Auto-detect Location Button
+              // Auto-detect Location Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -301,13 +321,13 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                      : const Icon(Icons.my_location, color: Colors.white),
+                      : const Icon(Icons.my_location, color: Colors.orangeAccent),
                   label: Text(
                     _isDetectingLocation ? 'Detecting...' : 'Auto-detect Location',
-                    style: GoogleFonts.poppins(color: Colors.white),
+                    style: GoogleFonts.poppins(color: Colors.orangeAccent),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xffEB7720),
+                    backgroundColor: const Color(0xFFFFFFFF),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -315,26 +335,26 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20), // Spacing after auto-detect button
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Basic validation
-                    if (addressController.text.isNotEmpty &&
+                    if (nameController.text.isNotEmpty &&
+                        addressController.text.isNotEmpty &&
                         pinController.text.length == 6) {
-                      // Update the AddressModel
                       addressModel.setAddress(
+                        name: nameController.text,
                         address: addressController.text,
                         pincode: pinController.text,
                       );
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Address saved to model!', style: GoogleFonts.poppins())),
                       );
-                      Navigator.pop(context); // Go back to payment1.dart (delivery screen)
+                      Navigator.pop(context);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please enter a valid address and 6-digit pin code.', style: GoogleFonts.poppins())),
+                        SnackBar(content: Text('Please enter a valid name, address, and 6-digit pin code.', style: GoogleFonts.poppins())),
                       );
                     }
                   },

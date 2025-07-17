@@ -3,23 +3,22 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'package:kisangro/models/product_model.dart';
-import 'package:kisangro/services/product_service.dart';
 import 'package:kisangro/home/product.dart'; // ProductDetailPage
 import 'package:kisangro/models/cart_model.dart'; // CartModel
 import 'package:kisangro/models/wishlist_model.dart'; // WishlistModel
+import 'package:kisangro/services/product_service.dart'; // Import ProductService for image fallback
 
-class TrendingProductsScreen extends StatefulWidget {
-  const TrendingProductsScreen({super.key});
+class DealsOfTheDayScreen extends StatefulWidget {
+  final List<Product> deals; // List of deal products to display
+
+  const DealsOfTheDayScreen({super.key, required this.deals});
 
   @override
-  State<TrendingProductsScreen> createState() => _TrendingProductsScreenState();
+  State<DealsOfTheDayScreen> createState() => _DealsOfTheDayScreenState();
 }
 
-class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
-  List<Product> _allProducts = []; // Store all products initially
-  List<Product> _displayedProducts = []; // Products currently displayed (filtered/sorted)
-  bool _isLoading = true;
-  String _errorMessage = '';
+class _DealsOfTheDayScreenState extends State<DealsOfTheDayScreen> {
+  late List<Product> _displayedDeals; // Products currently displayed (filtered/sorted)
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedSortBy; // 'price_asc', 'price_desc', 'alpha_asc', 'alpha_desc'
@@ -27,8 +26,9 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _displayedDeals = List.from(widget.deals); // Initialize with all deals
     _searchController.addListener(_onSearchChanged);
+    _filterAndSortProducts(); // Apply initial filter/sort if any
   }
 
   @override
@@ -36,29 +36,6 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadProducts() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-    try {
-      _allProducts = ProductService.getAllProducts(); // Load all products
-      if (_allProducts.isEmpty) {
-        _errorMessage = 'No trending products found. Please try again later.';
-      }
-      _filterAndSortProducts(); // Apply initial filter/sort
-    } catch (e) {
-      _errorMessage = 'Failed to load products: ${e.toString()}';
-      debugPrint('Error loading trending products: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   void _onSearchChanged() {
@@ -69,7 +46,7 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
   }
 
   void _filterAndSortProducts() {
-    List<Product> results = List.from(_allProducts); // Start with all products
+    List<Product> results = List.from(widget.deals); // Start with original deals
 
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
@@ -99,7 +76,7 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
     }
 
     setState(() {
-      _displayedProducts = results;
+      _displayedDeals = results;
     });
   }
 
@@ -121,7 +98,7 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search trending products...',
+              hintText: 'Search deals...',
               hintStyle: GoogleFonts.poppins(color: Colors.grey[600]),
               prefixIcon: Icon(Icons.search, color: const Color(0xffEB7720), size: isTablet ? 28 : 24),
               suffixIcon: _searchController.text.isNotEmpty
@@ -192,7 +169,7 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
       appBar: AppBar(
         backgroundColor: orange,
         title: Text(
-          'Trending Products',
+          'Deals of the Day',
           style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
         ),
         leading: IconButton(
@@ -210,68 +187,36 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
             colors: [Color(0xffFFD9BD), Color(0xffFFFFFF)], // Consistent theme gradient
           ),
         ),
-        child: RefreshIndicator( // Allows pull-to-refresh
-          onRefresh: _loadProducts,
-          color: orange,
-          child: Column( // Wrap with Column to include search/sort
-            children: [
-              _buildSearchBarAndSort(), // Add search bar and sort dropdown
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xffEB7720)))
-                    : _errorMessage.isNotEmpty
-                    ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(fontSize: 16, color: Colors.red),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: _loadProducts,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: orange,
-                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: Text('Retry', style: GoogleFonts.poppins(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-                    : _displayedProducts.isEmpty
-                    ? Center(
-                  child: Text(
-                    _searchQuery.isNotEmpty
-                        ? 'No trending products found matching "${_searchController.text}".'
-                        : 'No trending products available.',
-                    style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
-                    textAlign: TextAlign.center,
-                  ),
-                )
-                    : GridView.builder(
-                  padding: const EdgeInsets.all(15.0),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 200, // Max width for items
-                    crossAxisSpacing: 15,
-                    mainAxisSpacing: 15,
-                    mainAxisExtent: 320, // Explicitly set height for each tile to avoid overflow
-                  ),
-                  itemCount: _displayedProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = _displayedProducts[index];
-                    return _buildProductTile(context, product);
-                  },
+        child: Column(
+          children: [
+            _buildSearchBarAndSort(), // Add search bar and sort dropdown
+            Expanded(
+              child: _displayedDeals.isEmpty
+                  ? Center(
+                child: Text(
+                  _searchQuery.isNotEmpty
+                      ? 'No deals found matching "${_searchController.text}".'
+                      : 'No deals available today.',
+                  style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
+                  textAlign: TextAlign.center,
                 ),
+              )
+                  : GridView.builder(
+                padding: const EdgeInsets.all(15.0),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 200, // Max width for items
+                  crossAxisSpacing: 15,
+                  mainAxisSpacing: 15,
+                  mainAxisExtent: 320, // Explicitly set height for each tile to avoid overflow
+                ),
+                itemCount: _displayedDeals.length,
+                itemBuilder: (context, index) {
+                  final product = _displayedDeals[index];
+                  return _buildProductTile(context, product);
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -279,6 +224,16 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
 
   // Reusing the _buildProductTile logic from homepage.dart for consistency
   Widget _buildProductTile(BuildContext context, Product product) {
+    // Ensure selectedUnit is valid, default to first available if not
+    final List<ProductSize> availableSizes = product.availableSizes.isNotEmpty
+        ? product.availableSizes
+        : [ProductSize(size: 'Unit', price: product.pricePerSelectedUnit ?? 0.0)];
+
+    final String selectedUnit = availableSizes.any((size) => size.size == product.selectedUnit)
+        ? product.selectedUnit
+        : availableSizes.first.size;
+
+
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -361,7 +316,7 @@ class _TrendingProductsScreenState extends State<TrendingProductsScreen> {
             height: 36,
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: product.selectedUnit,
+                value: selectedUnit, // Use the resolved selectedUnit here
                 icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xffEB7720)),
                 isExpanded: true,
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),

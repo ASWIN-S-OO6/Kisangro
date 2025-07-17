@@ -409,9 +409,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
                           _isMembershipActive ? "You Are A Member" : "Not A Member Yet",
                           style: GoogleFonts.poppins(
                             color: Colors.white70,
-                            fontSize: 10,
+                            fontSize: 14,
                           ),
                         ),
+                        const SizedBox(width: 10),
                         const Icon(
                           Icons.arrow_forward_ios_outlined,
                           color: Colors.white70,

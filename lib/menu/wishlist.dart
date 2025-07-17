@@ -147,7 +147,8 @@ class _WishlistPageState extends State<WishlistPage> {
                           // Find the current price for the selected unit
                           final double? price = product.pricePerSelectedUnit;
                           if (price != null) {
-                            Provider.of<CartModel>(context, listen: false).addItem(product);
+                            // Ensure the product passed to CartModel has the correct selectedUnit
+                            Provider.of<CartModel>(context, listen: false).addItem(product.copyWith(selectedUnit: product.selectedUnit));
                             wishlist.removeItem(product.id, product.selectedUnit); // Remove from wishlist after moving
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -208,6 +209,7 @@ class _WishlistItemCardState extends State<WishlistItemCard> {
   @override
   void initState() {
     super.initState();
+    // Initialize local selected unit from the product's current selectedUnit
     _selectedUnit = widget.product.selectedUnit;
   }
 
@@ -287,7 +289,8 @@ class _WishlistItemCardState extends State<WishlistItemCard> {
                           onChanged: (newValue) {
                             setState(() {
                               _selectedUnit = newValue!;
-                              widget.product.selectedUnit = newValue; // Update the product model directly
+                              // Update the product model directly when the dropdown changes
+                              widget.product.selectedUnit = newValue;
                             });
                           },
                           iconEnabledColor: const Color(0xffEB7720),

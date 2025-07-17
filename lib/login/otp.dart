@@ -6,6 +6,8 @@ import 'package:kisangro/login/kyc.dart'; // Update the path if needed
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http; // Import the http package
 import 'dart:convert'; // For JSON encoding/decoding
+import 'package:shared_preferences/shared_preferences.dart'; // Import for SharedPreferences
+
 
 class OtpScreen extends StatefulWidget {
   // Added phoneNumber as a required parameter
@@ -84,7 +86,7 @@ class _OtpScreenState extends State<OtpScreen> {
         'otp': otpController.text, // The OTP entered by user
       };
 
-      print("Sending OTP verification request to $_verifyOtpApiUrl with body: $body");
+      debugPrint("Sending OTP verification request to $_verifyOtpApiUrl with body: $body");
 
       final response = await http.post(
         url,
@@ -96,10 +98,13 @@ class _OtpScreenState extends State<OtpScreen> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        print('OTP Verification API Response: $responseData'); // Debug print
+        debugPrint('OTP Verification API Response: $responseData'); // Debug print
 
         if (responseData['error'] == false) {
           // OTP verification successful
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', true); // Set isLoggedIn to true upon successful OTP verification
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(responseData['error_msg'] ?? 'OTP verified successfully!',
@@ -144,7 +149,7 @@ class _OtpScreenState extends State<OtpScreen> {
               style: GoogleFonts.poppins()),
         ),
       );
-      print('Network/API Error: $e'); // Print error for debugging
+      debugPrint('Network/API Error: $e'); // Print error for debugging
     } finally {
       setState(() {
         _isVerifying = false; // End loading
@@ -166,7 +171,7 @@ class _OtpScreenState extends State<OtpScreen> {
         'mobile': widget.phoneNumber,
       };
 
-      print("Resending OTP to ${widget.phoneNumber}");
+      debugPrint("Resending OTP to ${widget.phoneNumber}");
 
       final response = await http.post(
         url,
@@ -287,6 +292,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
+                      // PinCodeTextField without autofillHints for compatibility
                       PinCodeTextField(
                         appContext: context,
                         length: 6,
@@ -305,6 +311,7 @@ class _OtpScreenState extends State<OtpScreen> {
                           selectedColor: const Color(0xffEB7720),
                           inactiveColor: Colors.grey,
                         ),
+                        // autofillHints: const [AutofillHints.oneTimeCode], // This line is removed
                       ),
                       const SizedBox(height: 10),
                       Row(
